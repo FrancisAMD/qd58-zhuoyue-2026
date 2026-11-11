@@ -108,10 +108,9 @@ async function sendCode(phone, purpose, token, request, env) {
   if (purpose === "password_reset" && !exists) throw err("phone_not_registered");
   if (!(await turnstile(token, purpose, request, env))) throw err("turnstile_failed",403);
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+  if (!(await rateLimit(env.DB, "sms:cooldown:" + phone, 1, Number(env.OTP_SEND_COOLDOWN_SECONDS || COOLDOWN_SECONDS)))) throw err("rate_limited",429);
   if (!(await rateLimit(env.DB, "sms:phone:" + phone, 5, 86400))) throw err("rate_limited",429);
   if (!(await rateLimit(env.DB, "sms:ip:" + ip, 20, 3600))) throw err("rate_limited",429);
-  const last = await env.DB.prepare("SELECT created_at FROM otp_challenges WHERE phone=? AND purpose=? ORDER BY created_at DESC LIMIT 1").bind(phone,purpose).first();
-  if (last && now()-last.created_at < Number(env.OTP_SEND_COOLDOWN_SECONDS || COOLDOWN_SECONDS)) throw err("rate_limited",429);
   const outId = randomHex(16);
   const params = {
     CountryCode: "86", PhoneNumber: phone,
@@ -130,8 +129,10 @@ async function sendCode(phone, purpose, token, request, env) {
 }
 async function verifyCode(phone, code, purpose, env) {
   if (!validPhone(phone) || !/^\d{4,8}$/.test(String(code || ""))) throw err("invalid_code");
-  const challenge = await env.DB.prepare("SELECT id,out_id,expires_at,consumed_at FROM otp_challenges WHERE phone=? AND purpose=? ORDER BY created_at DESC LIMIT 1").bind(phone,purpose).first();
-  if (!challenge || challenge.consumed_at || challenge.expires_at < now()) throw err("invalid_code");
+  const challenge = await env.DB.prepare("SELECT id,out_id,expires_at,consumed_at,attempts FROM otp_challenges WHERE phone=? AND purpose=? ORDER BY created_at DESC LIMIT 1").bind(phone,purpose).first();
+  if (!challenge || challenge.consumed_at || challenge.expires_at < now() || challenge.attempts >= 5) throw err("invalid_code");
+  const attempt = await env.DB.prepare("UPDATE otp_challenges SET attempts=attempts+1 WHERE id=? AND consumed_at IS NULL AND attempts<5").bind(challenge.id).run();
+  if ((attempt.meta?.changes || 0) !== 1) throw err("invalid_code");
   const checked = await aliyun("CheckSmsVerifyCode", { CountryCode:"86", PhoneNumber:phone, VerifyCode:String(code), OutId:challenge.out_id }, env);
   if (checked.Model?.VerifyResult !== "PASS") throw err("invalid_code");
   const consumed = await env.DB.prepare("UPDATE otp_challenges SET consumed_at=? WHERE id=? AND consumed_at IS NULL").bind(now(),challenge.id).run();
@@ -205,7 +206,8 @@ async function route(request, env) {
   }
   if(path==="/api/profile" && method==="GET") {
     const user=await currentUser(request,env); if(!user) return response({error:"unauthorized"},401,origin,env);
-    return response({profile:{name:user.name,className:user.class_name,highSchool:user.high_school,university:"",grade:user.grade,province:user.province,city:user.city,bio:user.bio,phoneVisible:!!user.phone_visible_to_team}},200,origin,env);
+    const uni = user.university_id ? await env.DB.prepare("SELECT canonical_name FROM universities WHERE id=?").bind(user.university_id).first() : null;
+    return response({profile:{name:user.name,className:user.class_name,highSchool:user.high_school,university:uni?.canonical_name || "",grade:user.grade,province:user.province,city:user.city,bio:user.bio,phoneVisible:!!user.phone_visible_to_team}},200,origin,env);
   }
   if(path==="/api/profile" && method==="PUT") {
     const user=await currentUser(request,env); if(!user) return response({error:"unauthorized"},401,origin,env);
