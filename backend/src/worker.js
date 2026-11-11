@@ -119,7 +119,7 @@ async function sendCode(phone, purpose, token, request, env) {
     TemplateParam: JSON.stringify({ code: "##code##", min: "5" }),
     ValidTime: Number(env.OTP_TTL_SECONDS || OTP_SECONDS),
     DuplicatePolicy: 1, Interval: Number(env.OTP_SEND_COOLDOWN_SECONDS || COOLDOWN_SECONDS),
-    CodeType: 1, ReturnVerifyCode: false, AutoRetry: 1, OutId: outId
+    CodeType: 1, CodeLength: 6, ReturnVerifyCode: false, AutoRetry: 1, OutId: outId
   };
   if (env.ALIBABA_SCHEME_NAME) params.SchemeName = env.ALIBABA_SCHEME_NAME;
   const sent = await aliyun("SendSmsVerifyCode", params, env);
