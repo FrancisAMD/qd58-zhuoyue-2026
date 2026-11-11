@@ -106,10 +106,10 @@ async function sendCode(phone, purpose, token, request, env) {
   const exists = await env.DB.prepare("SELECT id FROM users WHERE phone=?").bind(phone).first();
   if (purpose === "register" && exists) throw err("phone_already_registered");
   if (purpose === "password_reset" && !exists) throw err("phone_not_registered");
+  if (!(await turnstile(token, purpose, request, env))) throw err("turnstile_failed",403);
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
   if (!(await rateLimit(env.DB, "sms:phone:" + phone, 5, 86400))) throw err("rate_limited",429);
   if (!(await rateLimit(env.DB, "sms:ip:" + ip, 20, 3600))) throw err("rate_limited",429);
-  if (!(await turnstile(token, purpose, request, env))) throw err("turnstile_failed",403);
   const last = await env.DB.prepare("SELECT created_at FROM otp_challenges WHERE phone=? AND purpose=? ORDER BY created_at DESC LIMIT 1").bind(phone,purpose).first();
   if (last && now()-last.created_at < Number(env.OTP_SEND_COOLDOWN_SECONDS || COOLDOWN_SECONDS)) throw err("rate_limited",429);
   const outId = randomHex(16);
