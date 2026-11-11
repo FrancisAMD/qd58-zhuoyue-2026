@@ -49,7 +49,7 @@ function pct(v) { return encodeURIComponent(String(v)).replace(/[!'()*]/g, c => 
 async function aliyun(action, params, env) {
   if (!env.ALIBABA_ACCESS_KEY_ID || !env.ALIBABA_ACCESS_KEY_SECRET) throw new Error("sms_not_configured");
   const query = Object.entries(params).filter(([,v]) => v !== undefined && v !== null && v !== "")
-    .sort(([a],[b]) => a.localeCompare(b))
+    .sort(([a],[b]) => a < b ? -1 : a > b ? 1 : 0)
     .map(([k,v]) => pct(k) + "=" + pct(v)).join("&");
   const date = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
   const nonce = randomHex(16);
@@ -133,7 +133,7 @@ async function verifyCode(phone, code, purpose, env) {
   if (!challenge || challenge.consumed_at || challenge.expires_at < now() || challenge.attempts >= 5) throw err("invalid_code");
   const attempt = await env.DB.prepare("UPDATE otp_challenges SET attempts=attempts+1 WHERE id=? AND consumed_at IS NULL AND attempts<5").bind(challenge.id).run();
   if ((attempt.meta?.changes || 0) !== 1) throw err("invalid_code");
-  const checked = await aliyun("CheckSmsVerifyCode", { CountryCode:"86", PhoneNumber:phone, VerifyCode:String(code), OutId:challenge.out_id }, env);
+  const checked = await aliyun("CheckSmsVerifyCode", { CountryCode:"86", PhoneNumber:phone, VerifyCode:String(code), OutId:challenge.out_id, SchemeName:env.ALIBABA_SCHEME_NAME || undefined }, env);
   if (checked.Model?.VerifyResult !== "PASS") throw err("invalid_code");
   const consumed = await env.DB.prepare("UPDATE otp_challenges SET consumed_at=? WHERE id=? AND consumed_at IS NULL").bind(now(),challenge.id).run();
   if ((consumed.meta?.changes || 0) !== 1) throw err("invalid_code");
