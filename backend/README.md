@@ -14,7 +14,7 @@ Cloudflare Worker + D1 后端。当前已提交手机号密码认证、注册/�
 - `GET /api/directory`
 - `GET /api/health`
 
-密码使用 PBKDF2-SHA256（310,000 次迭代）派生后存储；会话 Cookie 为 Secure、HttpOnly、SameSite=Lax，数据库仅保存会话 token 的 SHA-256 摘要。密码重置会撤销该用户所有现有会话。
+密码使用 `node:crypto` 的 PBKDF2-SHA256（310,000 次迭代）派生后存储；不要改回 Web Crypto `deriveBits`，Cloudflare Workers 的该接口会拒绝超过 100,000 次迭代。当前 `compatibility_date` 为 2026-11-01，启用 Workers 的 Node.js crypto API。会话 Cookie 为 Secure、HttpOnly、SameSite=Lax，数据库仅保存会话 token 的 SHA-256 摘要。密码重置会撤销该用户所有现有会话。
 
 ## D1 迁移
 
