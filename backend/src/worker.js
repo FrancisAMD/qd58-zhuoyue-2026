@@ -27,7 +27,7 @@ async function hmac(secret, value) {
   const key = await crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   return hex(await crypto.subtle.sign("HMAC", key, encoder.encode(value)));
 }
-function derivePassword(password, salt) {
+export function derivePassword(password, salt) {
   return new Promise((resolve, reject) => {
     pbkdf2(password, salt, PBKDF2_ITERATIONS, PBKDF2_KEY_BYTES, "sha256", (error, derived) => {
       if (error) reject(error);
