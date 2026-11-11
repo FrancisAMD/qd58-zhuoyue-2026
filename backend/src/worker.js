@@ -1,4 +1,8 @@
+import { pbkdf2 } from "node:crypto";
+
 const encoder = new TextEncoder();
+const PBKDF2_ITERATIONS = 310000;
+const PBKDF2_KEY_BYTES = 32;
 const COOKIE = "__Host-qd58_session";
 const SESSION_SECONDS = 7 * 24 * 60 * 60;
 const OTP_SECONDS = 300;
@@ -22,6 +26,14 @@ async function sha256(value) { return hex(await crypto.subtle.digest("SHA-256", 
 async function hmac(secret, value) {
   const key = await crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   return hex(await crypto.subtle.sign("HMAC", key, encoder.encode(value)));
+}
+function derivePassword(password, salt) {
+  return new Promise((resolve, reject) => {
+    pbkdf2(password, salt, PBKDF2_ITERATIONS, PBKDF2_KEY_BYTES, "sha256", (error, derived) => {
+      if (error) reject(error);
+      else resolve(new Uint8Array(derived));
+    });
+  });
 }
 function randomHex(n = 16) { const a = crypto.getRandomValues(new Uint8Array(n)); return hex(a); }
 function now() { return Math.floor(Date.now() / 1000); }
@@ -142,10 +154,11 @@ async function register(data, env) {
   const phone=String(data.phone||""), password=String(data.password||"");
   if (!validPhone(phone)) throw err("invalid_phone");
   if (password.length < 10 || password.length > 128) throw err("weak_password");
-  await verifyCode(phone,data.code,"register",env);
   const salt=crypto.getRandomValues(new Uint8Array(16));
-  const derived=await crypto.subtle.deriveBits({name:"PBKDF2",salt,iterations:310000,hash:"SHA-256"},await crypto.subtle.importKey("raw",encoder.encode(password),"PBKDF2",false,["deriveBits"]),256);
-  const hash="pbkdf2-sha256$310000$"+b64(salt)+"$"+b64(derived);
+  const derived=await derivePassword(password,salt);
+  // Derive the password hash before consuming the one-time code.
+  await verifyCode(phone,data.code,"register",env);
+  const hash="pbkdf2-sha256$"+PBKDF2_ITERATIONS+"$"+b64(salt)+"$"+b64(derived);
   const id=randomHex(16);
   try { await env.DB.prepare("INSERT INTO users(id,phone,password_hash,consent_at) VALUES(?,?,?,?)").bind(id,phone,hash,new Date().toISOString()).run(); }
   catch { throw err("phone_already_registered",409); }
@@ -153,9 +166,9 @@ async function register(data, env) {
 }
 async function verifyPassword(password, stored) {
   const [kind,iterations,salt,expected]=String(stored||"").split("$");
-  if(kind!=="pbkdf2-sha256" || Number(iterations)!==310000 || !salt || !expected) return false;
-  const derived=await crypto.subtle.deriveBits({name:"PBKDF2",salt:unb64(salt),iterations:310000,hash:"SHA-256"},await crypto.subtle.importKey("raw",encoder.encode(password),"PBKDF2",false,["deriveBits"]),256);
-  const a=unb64(expected),b=new Uint8Array(derived);
+  if(kind!=="pbkdf2-sha256" || Number(iterations)!==PBKDF2_ITERATIONS || !salt || !expected) return false;
+  const derived=await derivePassword(password,unb64(salt));
+  const a=unb64(expected),b=derived;
   return a.length===b.length && a.every((v,i)=>v===b[i]);
 }
 async function route(request, env) {
@@ -191,10 +204,11 @@ async function route(request, env) {
     try {
       const d=await body(request),phone=String(d.phone||""),password=String(d.newPassword||"");
       if(password.length<10 || password.length>128) return response({error:"weak_password"},400,origin,env);
-      await verifyCode(phone,d.code,"password_reset",env);
       const salt=crypto.getRandomValues(new Uint8Array(16));
-      const derived=await crypto.subtle.deriveBits({name:"PBKDF2",salt,iterations:310000,hash:"SHA-256"},await crypto.subtle.importKey("raw",encoder.encode(password),"PBKDF2",false,["deriveBits"]),256);
-      const hash="pbkdf2-sha256$310000$"+b64(salt)+"$"+b64(derived);
+      const derived=await derivePassword(password,salt);
+      // Avoid consuming the reset code if password derivation fails.
+      await verifyCode(phone,d.code,"password_reset",env);
+      const hash="pbkdf2-sha256$"+PBKDF2_ITERATIONS+"$"+b64(salt)+"$"+b64(derived);
       await env.DB.prepare("UPDATE users SET password_hash=?,updated_at=? WHERE phone=?").bind(hash,new Date().toISOString(),phone).run();
       await env.DB.prepare("DELETE FROM sessions WHERE user_id=(SELECT id FROM users WHERE phone=?)").bind(phone).run();
       return response({ok:true},200,origin,env,{"set-cookie":cookie("",0)});
