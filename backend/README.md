@@ -1,44 +1,60 @@
-# 卓越 2026 API（后端第一里程碑）
+# 卓越 2026 API（认证与短信接入阶段）
 
-本目录是独立 Cloudflare Workers + D1 后端骨架，可与 Pages 前端分离部署。当前完成：
+Cloudflare Worker + D1 后端。当前已提交手机号密码认证、注册/找回密码短信认证、Turnstile 服务端校验、阿里云 PNVS API 适配，以及资料和基础目录 API。
 
-- D1 关系型表结构：同学、大学、队伍、验证码、用户会话、组长转让、管理员、审计日志、限流桶。
-- 手机验证码接口：短信发送通过环境变量配置的 HTTP Provider 抽象；缺少服务配置时 fail-closed，不回显验证码。验证码使用 HMAC-SHA256 摘要存储，5 分钟默认有效、最多 5 次尝试、一次性消费；手机号/IP 发送限流。
-- 随机不透明会话 token，仅保存 SHA-256 摘要，使用 Secure / HttpOnly / SameSite=Strict Cookie。
-- 资料更新、大学名称规范化、自动建队与首位组长、同校通讯录、同省组长列表。
-- 组长转让请求与接收/拒绝接口，服务端校验发起人当前组长身份、接收人同队身份和待处理状态。
-- 独立管理员账号密码登录（PBKDF2 格式），角色字段和审计日志；首个管理员需要由安全的离线 bootstrap 脚本/可信运维方式创建，当前不提供公开自助注册。
+## 当前认证 API
 
-## 配置与迁移
-
-1. 创建 D1 数据库并将 `wrangler.toml` 中 `database_id` 替换为真实 ID。
-2. 执行 `npx wrangler d1 migrations apply zhuoyue-2026 --local`，本地验证后再对远端执行 `--remote`。
-3. 配置 `APP_ORIGIN`，并使用 `wrangler secret put` 配置 `OTP_HMAC_SECRET`、`SMS_PROVIDER_URL`、`SMS_PROVIDER_TOKEN`。本项目不会主动发送真实短信；配置前 `/auth/request-code` 返回 503。
-4. SMS Provider 接口契约：`POST {phone, code, template}`，Bearer token；需根据实际短信供应商的签名、模板与回执要求实现适配器。
-5. 管理员口令存储格式：`pbkdf2$迭代次数$base64盐$base64派生值`。生成与写入管理员账号应通过本地受控脚本完成，严禁把口令或哈希放在前端。
-
-## 当前 API
-
-- `GET /api/health`
-- `POST /api/auth/request-code` `{phone}`
-- `POST /api/auth/verify` `{phone,code}`
+- `POST /api/auth/register/request-code`：注册短信请求，Body: `{phone, turnstileToken}`
+- `POST /api/auth/register`：完成注册，Body: `{phone, code, password}`
+- `POST /api/auth/login`：手机号密码登录，Body: `{phone, password}`
+- `POST /api/auth/password/request-code`：找回密码短信请求，Body: `{phone, turnstileToken}`
+- `POST /api/auth/password/reset`：重设密码，Body: `{phone, code, newPassword}`
 - `POST /api/auth/logout`
-- `GET /api/profile` / `PUT /api/profile`
+- `GET/PUT /api/profile`
 - `GET /api/directory`
-- `POST /api/teams/transfer` `{toUserId}`
-- `POST /api/teams/transfer/:id/accept` / `reject`
-- `POST /api/admin/login` `{username,password}`
-- `POST /api/admin/logout`
-- `GET /api/admin/overview`
-- `GET /api/admin/people?q=&province=&university=&page=&pageSize=`
-- `GET /api/admin/people?format=csv`（最多导出 10000 条，需管理员会话）
+- `GET /api/health`
 
-## 重要待办（尚未达到公开生产就绪）
+密码使用 PBKDF2-SHA256（310,000 次迭代）派生后存储；会话 Cookie 为 Secure、HttpOnly、SameSite=Lax，数据库仅保存会话 token 的 SHA-256 摘要。密码重置会撤销该用户所有现有会话。
 
-- 补充端到端测试、CSRF/Origin 与跨域部署策略审查；目前建议前后端同源反向代理，或严格设置 `APP_ORIGIN`。
-- 增加管理员初始化脚本、管理员用户管理、报名名单分页/筛选、可审计 CSV 导出、删除/匿名化流程。
-- D1 当前手机号唯一；正式数据迁移前要设计去重与大学别名审核流程。
-- 短信供应商适配、短信签名/模板、回执处理仍需真实账号与凭据；本次没有发送短信。
-- 需对转让并发冲突、手机号可见范围、账户注销和会话撤销补充自动化测试。
-- 需补充隐私政策、数据保存期限、备份恢复演练和管理员最小权限策略。
-- 不要把本 Worker 直接上线承载真实个人信息，直到上述检查完成。
+## D1 迁移
+
+本次新增 `migrations/0002_password_auth.sql`，在原有 users 表增加 password_hash，并为 OTP 记录增加 purpose/out_id。先确认远程数据库迁移历史，再运行：
+
+```bash
+cd backend
+npx wrangler d1 migrations list qd58-zhuoyue-db --remote
+npx wrangler d1 migrations apply qd58-zhuoyue-db --remote
+```
+
+不要对已存在的生产数据执行手工 DROP/重建操作。
+
+## Worker Secrets
+
+在 backend 目录执行：
+
+```bash
+npx wrangler secret put TURNSTILE_SECRET_KEY
+npx wrangler secret put ALIBABA_ACCESS_KEY_ID
+npx wrangler secret put ALIBABA_ACCESS_KEY_SECRET
+```
+
+不要将 Secret 写入 wrangler.toml、前端或 GitHub。Site Key 是公开值，已放在 Pages 前端。
+
+非敏感阿里云参数可通过 Wrangler vars 配置：
+- `ALIBABA_SIGN_NAME`：控制台已审核/可用的签名名称
+- `ALIBABA_TEMPLATE_CODE`：已审核/可用模板 Code
+- `ALIBABA_SCHEME_NAME`：若发送接口配置了方案名称，核验时必须使用同一个名称；未配置则使用默认方案
+
+当前 Worker 默认使用截图中的签名“恒创联众”和模板 `100001`。正式发短信前请确认这两个资源已在号码认证服务中开通可用。
+
+## 阿里云 PNVS 认证流程
+
+Worker 通过 ACS3-HMAC-SHA256 对 `dypnsapi.aliyuncs.com` 的请求签名：
+- `SendSmsVerifyCode`：`TemplateParam={"code":"##code##","min":"5"}`，系统生成验证码；不返回验证码明文；有效期 300 秒、发送间隔 60 秒、纯数字、覆盖旧码。
+- `CheckSmsVerifyCode`：必须判断 `Model.VerifyResult === "PASS"`。仅 `Success === true` 不代表验证码正确。
+
+每次发送前必须通过 Turnstile Siteverify，检查 success、action 和 hostname。注册 action 为 `register`，找回密码 action 为 `password_reset`。
+
+## 当前限制
+
+本阶段尚未完成管理员 API、组长转让 API、完整管理员初始化/RBAC、审计日志、数据删除/匿名化、备份恢复和端到端真实短信测试。不要将网站开放给真实报名用户，直到完成后续测试和安全审查。
