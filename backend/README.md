@@ -50,7 +50,7 @@ npx wrangler secret put ALIBABA_ACCESS_KEY_SECRET
 ## 阿里云 PNVS 认证流程
 
 Worker 通过 ACS3-HMAC-SHA256 对 `dypnsapi.aliyuncs.com` 的请求签名：
-- `SendSmsVerifyCode`：`TemplateParam={"code":"##code##","min":"5"}`，系统生成验证码；不返回验证码明文；有效期 300 秒、发送间隔 60 秒、纯数字、覆盖旧码。
+- `SendSmsVerifyCode`：`TemplateParam={"code":"##code##","min":"5"}`，系统生成验证码；不返回验证码明文；验证码长度明确设置为 6 位，纯数字；有效期 300 秒、发送间隔 60 秒、覆盖旧码。
 - `CheckSmsVerifyCode`：必须判断 `Model.VerifyResult === "PASS"`。仅 `Success === true` 不代表验证码正确。
 
 每次发送前必须通过 Turnstile Siteverify，检查 success、action 和 hostname。注册 action 为 `register`，找回密码 action 为 `password_reset`。
