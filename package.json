@@ -5,5 +5,9 @@
   "allowScripts": {
     "esbuild@0.28.2": true,
     "workerd@1.20261110.1": true
+  },
+  "scripts": {
+    "check:worker": "node --check backend/src/worker.js",
+    "test:worker": "node backend/tests/worker-smoke.mjs"
   }
 }
