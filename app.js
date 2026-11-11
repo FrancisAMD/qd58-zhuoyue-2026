@@ -1,4 +1,4 @@
-const API="https://api.58er.eon21.space/api",SITEKEY="0x4AAAAAAF8tZfD0j4LHU8uN",$=id=>document.getElementById(id);let widgets={},tokens={},view="members",directory=null;const phoneOK=p=>/^1\d{10}$/.test(p);
+const API="https://api.58er.eon21.space/api",SITEKEY="0x4AAAAAAF8tZfD0j4LHU8uN",$=id=>document.getElementById(id);let widgets={},tokens={},view="members",directory=null;const phoneOK=p=>/^1[3-9]\d{9}$/.test(p);
 async function call(path,data){const r=await fetch(API+path,{method:data?"POST":"GET",credentials:"include",headers:data?{"Content-Type":"application/json"}:{},body:data?JSON.stringify(data):undefined});let d={};try{d=await r.json()}catch{}if(!r.ok)throw Error(d.error||"request_failed");return d}
 function msg(id,s,bad=false){$(id).textContent=s;$(id).classList.toggle("bad",bad)}
 function auth(v="login"){$("modal").classList.add("show");["login","register","reset"].forEach(x=>$(x+"Form").hidden=x!==v);document.querySelectorAll("[data-auth]").forEach(b=>b.classList.toggle("active",b.dataset.auth===v));if(v!=="login")captcha(v)}
