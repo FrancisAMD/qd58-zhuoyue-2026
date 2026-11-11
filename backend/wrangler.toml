@@ -4,20 +4,18 @@ compatibility_date = "2026-11-01"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "zhuoyue-2026"
+database_name = "qd58-zhuoyue-db"
 database_id = "3d32e597-57e9-4e52-833b-98bdec7ffb0b"
 migrations_dir = "migrations"
 
 [vars]
-APP_ORIGIN = "https://YOUR-PAGES-DOMAIN.pages.dev"
+APP_ORIGIN = "https://58er.eon21.space"
 SESSION_TTL_SECONDS = "604800"
 OTP_TTL_SECONDS = "300"
 OTP_MAX_ATTEMPTS = "5"
-OTP_SENDS_PER_HOUR = "5"
+OTP_SEND_COOLDOWN_SECONDS = "60"
 
-# Configure these as secrets, never commit them:
-# wrangler secret put OTP_HMAC_SECRET
-# wrangler secret put SMS_PROVIDER_URL
-# wrangler secret put SMS_PROVIDER_TOKEN
-# SMS provider contract: POST JSON { phone, code, template } with Bearer token.
-# The worker fails closed if provider settings are absent; no demo OTP is exposed.
+# Configure as Worker secrets only; never commit secret values:
+# wrangler secret put TURNSTILE_SECRET_KEY
+# wrangler secret put ALIBABA_ACCESS_KEY_ID
+# wrangler secret put ALIBABA_ACCESS_KEY_SECRET
