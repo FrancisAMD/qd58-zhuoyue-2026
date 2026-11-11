@@ -5,7 +5,7 @@ compatibility_date = "2026-11-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "zhuoyue-2026"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "3d32e597-57e9-4e52-833b-98bdec7ffb0b"
 migrations_dir = "migrations"
 
 [vars]
