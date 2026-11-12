@@ -106,3 +106,54 @@ body.dark .auth-required-panel{background:linear-gradient(110deg,#27382fe8,#2031
  .auth-actions{gap:8px}
  .auth-actions .btn,.auth-actions .ghost{flex:1;min-width:0}
 }
+
+
+/* Three-stage member journey and classmates directory */
+.journey-steps{max-width:1100px;margin:28px auto 0;padding:0 28px;display:flex;align-items:center;gap:14px;color:var(--muted);font:700 10px system-ui,sans-serif;letter-spacing:.7px}
+.journey-steps span{padding:9px 13px;border:1px solid var(--line);border-radius:99px;background:#ffffff80}
+.journey-steps span.active{background:var(--green);border-color:var(--green);color:#fff}
+.journey-steps i{font-style:normal;color:var(--muted)}
+.profile-next{display:flex;justify-content:flex-end;margin-top:10px}
+.profile-next .btn{padding:12px 18px}
+.directory-stage{padding-top:50px}
+.directory-school{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:25px 0 16px;padding:17px 20px}
+.directory-school>div{display:grid;gap:5px}
+.directory-school>div>span{font-size:10px;color:var(--muted)}
+.directory-school strong{font:600 18px "Noto Serif SC",serif;color:var(--green)}
+.directory-count{font-size:11px;color:var(--muted);white-space:nowrap}
+.directory-panel{padding:22px;background:var(--paper);border:1px solid white;border-radius:12px;box-shadow:0 15px 45px #294a340d}
+.directory-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px}
+.directory-toolbar>div{display:grid;gap:4px}
+.directory-toolbar>div strong{font:600 18px "Noto Serif SC",serif}
+.directory-toolbar>div span{font:700 8px system-ui,sans-serif;letter-spacing:1.7px;color:var(--muted)}
+.directory-toolbar input{width:min(100%,340px);padding:11px 13px;border:1px solid var(--line);border-radius:7px;background:#ffffffb8;color:var(--ink)}
+.classmate-card{padding:19px;min-width:0}
+.classmate-top{display:flex;align-items:center;gap:12px}
+.classmate-avatar{flex:0 0 42px;width:42px;height:42px;display:grid;place-items:center;border-radius:13px;background:var(--mint);color:var(--green);font:600 17px "Noto Serif SC",serif}
+.classmate-top>div{display:grid;gap:5px;min-width:0}
+.classmate-top strong{font:600 16px "Noto Serif SC",serif;overflow-wrap:anywhere}
+.classmate-top small{font-size:10px;color:var(--muted)}
+.classmate-meta{display:flex;gap:9px;flex-wrap:wrap;margin:15px 0 12px}
+.classmate-meta span{padding:5px 9px;border-radius:20px;background:var(--mint);color:var(--green);font-size:10px}
+.classmate-contact{border-top:1px solid var(--line);padding-top:12px;min-height:34px;display:flex;align-items:center}
+.contact-link{display:inline-flex;align-items:center;gap:6px;color:var(--green);font:650 12px system-ui,sans-serif;text-decoration:none}
+.contact-private{font-size:10px;color:var(--muted)}
+.directory-empty{grid-column:1/-1;padding:48px 18px;text-align:center;border:1px dashed var(--line);border-radius:9px;color:var(--muted)}
+.directory-empty strong{color:var(--ink);font:600 16px "Noto Serif SC",serif}
+.directory-empty p{margin:8px 0 0;font-size:11px}
+.directory-actions{justify-content:flex-start;margin-top:22px}
+body.dark .journey-steps span{background:#26372e}
+body.dark .journey-steps span.active{background:var(--green);color:#fff}
+body.dark .directory-panel,body.dark .directory-school{border-color:var(--line)}
+body.dark .directory-toolbar input{background:#1d3026;color:var(--ink);border-color:var(--line)}
+body.dark .classmate-avatar,body.dark .classmate-meta span{background:#344d3c;color:#c5e0cc}
+@media(max-width:760px){
+ .journey-steps{padding:0 18px;margin-top:18px;gap:8px;font-size:9px}
+ .journey-steps span{padding:8px 10px}
+ .directory-school{align-items:flex-start;flex-direction:column;gap:8px}
+ .directory-toolbar{align-items:stretch;flex-direction:column}
+ .directory-toolbar input{width:100%}
+ .directory-panel{padding:16px}
+ .profile-next{justify-content:stretch}
+ .profile-next .btn{width:100%}
+}
