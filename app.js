@@ -80,7 +80,6 @@ async function load(){
       $("universityBackBottom").hidden=false;
     }
     showAppStage(p);
-    if(p.university&&universityCategories[p.universityCategory])await loadDirectory();
   }catch(e){
     if(e.message==="unauthorized"){
       showAuthStage();
