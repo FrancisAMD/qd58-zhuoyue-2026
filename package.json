@@ -7,7 +7,7 @@
     "workerd@1.20261110.1": true
   },
   "scripts": {
-    "check:worker": "node --check backend/src/worker.js",
+    "check:worker": "node --check app.js && node --check backend/src/worker.js",
     "test:worker": "node backend/tests/worker-smoke.mjs"
   }
 }
