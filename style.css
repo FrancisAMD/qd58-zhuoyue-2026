@@ -77,3 +77,6 @@ body.dark .selected-university-type,body.dark .category-fields{background:#20312
 body.dark .selected-university-type strong,body.dark .type-number,body.dark .type-arrow{color:#b7d4c0}
 @media(max-width:900px){.university-type-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:520px){.profile-step-indicator{gap:13px;font-size:10px}.university-type-grid{gap:9px}.university-type-card{min-height:155px;padding:13px 11px}.university-type-card.selected{padding:12px 10px}.university-type-card strong{font-size:14px}.university-type-card small{font-size:9px}.step-actions{align-items:stretch;flex-direction:column}.step-actions .btn{width:100%}.selected-university-type{flex-wrap:wrap}}
+
+.university-category-chip{display:inline-block;vertical-align:middle;margin-left:8px;padding:3px 8px;border-radius:20px;background:var(--mint);color:var(--green);font-size:9px;font-weight:650;letter-spacing:.2px}
+body.dark .university-category-chip{background:#344d3c;color:#c5e0cc}
