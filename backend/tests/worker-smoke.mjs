@@ -38,4 +38,22 @@ const limited=await worker.fetch(new Request("https://api.58er.eon21.space/api/a
 }),{APP_ORIGIN:"https://58er.eon21.space",DB:lockedDb});
 const limitedBody=await limited.json();
 if(limited.status!==429 || limitedBody.error!=="rate_limited" || limitedBody.refreshTurnstile===true || !(limitedBody.retryAfter>0)) throw new Error("SMS cooldown must not consume Turnstile token");
-console.log("Worker smoke tests: PASS (PBKDF2-100000, health/build marker, Origin rejection, CORS preflight, SMS cooldown token lifecycle).");
+const unauthTransfer=await worker.fetch(new Request("https://api.58er.eon21.space/api/teams/transfer",{method:"POST",headers:{"content-type":"application/json",origin:"https://58er.eon21.space"},body:JSON.stringify({toUserId:"a".repeat(32)})}),env);
+const unauthTransferList=await worker.fetch(new Request("https://api.58er.eon21.space/api/teams/transfers",{headers:{origin:"https://58er.eon21.space"}}),env);
+if(unauthTransfer.status!==401 || unauthTransferList.status!==401) throw new Error("team transfer endpoints must require a session");
+const recipientDb={
+  prepare(sql){
+    return {bind(...args){
+      return {first:async()=>{
+        if(sql.startsWith("SELECT u.id")) return {id:"u2",phone:"13800000002",name:"测试接收者",university_id:"uni1"};
+        if(sql.startsWith("SELECT id,to_user_id,status FROM leader_transfers")) return {id:args[0],to_user_id:"u3",status:"pending"};
+        return null;
+      }};
+    }};
+  }
+};
+const wrongRecipient=await worker.fetch(new Request("https://api.58er.eon21.space/api/teams/transfer/"+ "b".repeat(32)+"/accept",{
+  method:"POST",headers:{origin:"https://58er.eon21.space",cookie:"__Host-qd58_session="+"c".repeat(64)}
+}),{APP_ORIGIN:"https://58er.eon21.space",DB:recipientDb});
+if(wrongRecipient.status!==403) throw new Error("only the designated transfer recipient may accept a transfer");
+console.log("Worker smoke tests: PASS (PBKDF2-100000, health/build marker, Origin/CORS, SMS cooldown token lifecycle, transfer authentication and recipient authorization).");
