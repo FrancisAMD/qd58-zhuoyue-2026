@@ -249,7 +249,7 @@ async function route(request, env) {
   const url=new URL(request.url), path=url.pathname, method=request.method, origin=request.headers.get("Origin");
   if(method==="OPTIONS") return new Response(null,{status:204,headers:corsHeaders(origin,env)});
   if(origin && origin!==env.APP_ORIGIN) return response({error:"origin_forbidden"},403,origin,env);
-  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"sms-quota-reservation-20261112",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
+  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"auth-ui-turnstile-20261112",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
   if(path==="/api/auth/register/request-code" && method==="POST") {
     try { const d=await body(request); return response(await sendCode(String(d.phone||""),"register",d.turnstileToken,request,env),200,origin,env); }
     catch(e) {
@@ -283,6 +283,30 @@ async function route(request, env) {
       const s=await createSession(env.DB,user.id,env);
       return response({ok:true},200,origin,env,{"set-cookie":cookie(s.token,s.maxAge)});
     } catch { return response({error:"login_failed"},500,origin,env); }
+  }
+  if(path==="/api/auth/password/change" && method==="POST") {
+    const user=await currentUser(request,env);
+    if(!user) return response({error:"unauthorized"},401,origin,env);
+    try {
+      const d=await body(request);
+      const currentPassword=String(d.currentPassword||"");
+      const newPassword=String(d.newPassword||"");
+      if(newPassword.length<10 || newPassword.length>128) return response({error:"weak_password"},400,origin,env);
+      if(currentPassword===newPassword) return response({error:"same_password"},400,origin,env);
+      const account=await env.DB.prepare("SELECT password_hash FROM users WHERE id=?").bind(user.id).first();
+      if(!account || !(await verifyPassword(currentPassword,account.password_hash))) return response({error:"current_password_invalid"},401,origin,env);
+      const salt=crypto.getRandomValues(new Uint8Array(16));
+      const derived=await derivePassword(newPassword,salt);
+      const hash="pbkdf2-sha256$"+PBKDF2_ITERATIONS+"$"+b64(salt)+"$"+b64(derived);
+      const sessionDigest=await sha256(getCookie(request));
+      await env.DB.batch([
+        env.DB.prepare("UPDATE users SET password_hash=?,updated_at=? WHERE id=?").bind(hash,new Date().toISOString(),user.id),
+        env.DB.prepare("DELETE FROM sessions WHERE user_id=? AND token_hash<>?").bind(user.id,sessionDigest)
+      ]);
+      return response({ok:true,sessionsRevoked:true},200,origin,env);
+    } catch(e) {
+      return response({error:e.error||"password_change_failed"},e.status||500,origin,env);
+    }
   }
   if(path==="/api/auth/password/reset" && method==="POST") {
     try {
