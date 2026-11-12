@@ -24,6 +24,25 @@ function showAuthStage(){
   $("changePassword").hidden=true;
   $("logout").hidden=true;
 }
+function setJourneyStep(step){
+  document.querySelectorAll("[data-journey-step]").forEach(el=>el.classList.toggle("active",el.dataset.journeyStep===step));
+}
+function showProfileStage(){
+  $("join").hidden=false;
+  $("groups").hidden=true;
+  setJourneyStep("profile");
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+function showDirectoryStage(){
+  $("join").hidden=true;
+  $("groups").hidden=false;
+  setJourneyStep("directory");
+  const p=$("profile");
+  const school=p.elements.university.value.trim();
+  $("directorySchoolTitle").textContent=school||"尚未填写高校";
+  window.scrollTo({top:0,behavior:"smooth"});
+  loadDirectory();
+}
 function showAppStage(profile={}){
   document.body.classList.remove("session-checking");
   $("bootScreen").hidden=true;
@@ -36,9 +55,11 @@ function showAppStage(profile={}){
   $("changePassword").hidden=false;
   $("logout").hidden=false;
   $("gate").hidden=true;
-  $("directoryGate").hidden=true;
-  const profileReady=!!(profile.university&&universityCategories[profile.universityCategory]);
-  $("groups").hidden=!profileReady;
+  $("profile").hidden=false;
+  $("goDirectory").hidden=!(profile.university&&universityCategories[profile.universityCategory]);
+  $("join").hidden=false;
+  $("groups").hidden=true;
+  setJourneyStep("profile");
 }
 async function load(){
   try{
@@ -72,13 +93,37 @@ async function load(){
   }
 }
 $("retrySession").onclick=()=>location.reload();
-async function loadDirectory(){try{directory=await call("/directory");render()}catch(e){console.warn(e)}}
-function render(){if(!directory)return;const rows=view==="members"?(directory.members||[]):(directory.provinceLeaders||[]),q=$("search").value.toLowerCase(),categoryNames={mainland:"中国大陆",hmt:"港澳台",sino_foreign:"中外合作",overseas:"海外"},tagNames={"985":"985工程","211":"211工程",double_first_class:"双一流"};$("results").innerHTML=rows.filter(x=>([x.name,x.university,x.province,x.className].join(" ")).toLowerCase().includes(q)).map(x=>{let tags=[];try{tags=JSON.parse(x.projectTags||"[]").filter(t=>tagNames[t]).map(t=>'<span class="university-tag-chip">'+tagNames[t]+'</span>')}catch{}return '<article class="panel"><b>'+safe(x.university||x.name||"同学")+'</b>'+(categoryNames[x.universityCategory]?'<span class="university-category-chip">'+categoryNames[x.universityCategory]+'</span>':"")+tags.join("")+'<p>'+safe(x.name||"")+' · '+safe(x.grade||"")+' · '+safe(x.province||"")+'</p><small>'+(x.phone?"已授权联系方式："+safe(x.phone):"手机号未授权公开")+'</small></article>'}).join("")||"<p>暂无可展示的信息。</p>"}
-document.querySelectorAll("[data-close]").forEach(x=>x.onclick=()=>$("modal").classList.remove("show"));document.querySelectorAll("[data-university-category]").forEach(b=>b.onclick=()=>{if(categoryLocked)return;selectUniversityCategory(b.dataset.universityCategory);msg("universityCategoryMsg","已选择："+universityCategories[b.dataset.universityCategory]);});$("universityNext").onclick=()=>openUniversityDetails();$("universityBack").onclick=showUniversityCategoryStep;$("universityBackBottom").onclick=showUniversityCategoryStep;["mainlandEducationLevel","jointEducationLevel","hmtRegion","overseasRegion","jointPartnerName"].forEach(id=>$(id).addEventListener("change",()=>syncUniversityFields()));["openAuth","authStageLogin","gateLogin","directoryLogin"].forEach(x=>$(x).onclick=()=>auth("login"));$("authStageRegister").onclick=()=>auth("register");$("changePassword").onclick=()=>auth("changePassword");$("theme").onclick=()=>document.body.classList.toggle("dark");document.querySelectorAll("[data-auth]").forEach(x=>x.onclick=()=>auth(x.dataset.auth));$("forgot").onclick=()=>auth("reset");$("backLogin").onclick=()=>auth("login");$("cancelPasswordChange").onclick=()=>$("modal").classList.remove("show");$("regSend").onclick=()=>sendCode("register");$("resetSend").onclick=()=>sendCode("reset");
+async function loadDirectory(){
+  $("directoryMsg").textContent="";
+  $("directoryCount").textContent="正在加载同学资料…";
+  try{
+    directory=await call("/directory");
+    render();
+  }catch(e){
+    $("directoryCount").textContent="暂时无法加载";
+    $("directoryMsg").textContent=e.message==="unauthorized"?"登录状态已失效，请重新登录。":"同学资料加载失败，请稍后重试。";
+    if(e.message==="unauthorized")showAuthStage();
+  }
+}
+function render(){
+  if(!directory)return;
+  const rows=directory.members||[];
+  const q=$("search").value.trim().toLowerCase();
+  const filtered=rows.filter(x=>[x.name,x.className,x.grade,x.province].join(" ").toLowerCase().includes(q));
+  $("directoryCount").textContent="共找到 "+rows.length+" 位同校同学";
+  $("results").innerHTML=filtered.map(x=>{
+    const phone=x.phone?String(x.phone).replace(/[^0-9+]/g,""):"";
+    const contact=phone
+      ?'<a class="contact-link" href="tel:'+safe(phone)+'">☎ '+safe(phone)+'</a>'
+      :'<span class="contact-private">手机号未授权公开</span>';
+    return '<article class="classmate-card panel"><div class="classmate-top"><span class="classmate-avatar">'+safe((x.name||"同").slice(0,1))+'</span><div><strong>'+safe(x.name||"同学")+'</strong><small>'+safe(x.className||"班级未填写")+'</small></div></div><div class="classmate-meta"><span>'+safe(x.grade||"年级未填写")+'</span><span>'+safe(x.province||"地区未填写")+'</span></div><div class="classmate-contact">'+contact+'</div></article>';
+  }).join("")||'<div class="directory-empty"><strong>暂时没有找到同学</strong><p>'+(q?"试试其他关键词，或清空搜索条件。":"同校同学登记后会显示在这里。")+'</p></div>';
+}
+document.querySelectorAll("[data-close]").forEach(x=>x.onclick=()=>$("modal").classList.remove("show"));document.querySelectorAll("[data-university-category]").forEach(b=>b.onclick=()=>{if(categoryLocked)return;selectUniversityCategory(b.dataset.universityCategory);msg("universityCategoryMsg","已选择："+universityCategories[b.dataset.universityCategory]);});$("universityNext").onclick=()=>openUniversityDetails();$("universityBack").onclick=showUniversityCategoryStep;$("universityBackBottom").onclick=showUniversityCategoryStep;["mainlandEducationLevel","jointEducationLevel","hmtRegion","overseasRegion","jointPartnerName"].forEach(id=>$(id).addEventListener("change",()=>syncUniversityFields()));["openAuth","authStageLogin","gateLogin"].forEach(x=>$(x).onclick=()=>auth("login"));$("authStageRegister").onclick=()=>auth("register");$("goDirectory").onclick=showDirectoryStage;$("backToProfile").onclick=showProfileStage;document.querySelectorAll('#mainNav a[href="#join"]').forEach(x=>x.onclick=e=>{e.preventDefault();showProfileStage()});document.querySelectorAll('#mainNav a[href="#groups"]').forEach(x=>x.onclick=e=>{e.preventDefault();if(!$("goDirectory").hidden)showDirectoryStage()});$("changePassword").onclick=()=>auth("changePassword");$("theme").onclick=()=>document.body.classList.toggle("dark");document.querySelectorAll("[data-auth]").forEach(x=>x.onclick=()=>auth(x.dataset.auth));$("forgot").onclick=()=>auth("reset");$("backLogin").onclick=()=>auth("login");$("cancelPasswordChange").onclick=()=>$("modal").classList.remove("show");$("regSend").onclick=()=>sendCode("register");$("resetSend").onclick=()=>sendCode("reset");
 $("loginForm").onsubmit=async e=>{e.preventDefault();try{await call("/auth/login",{phone:$("loginPhone").value.trim(),password:$("loginPassword").value});$("modal").classList.remove("show");await load()}catch(x){msg("loginMsg",errorText(x),true)}};
 $("registerForm").onsubmit=async e=>{e.preventDefault();if($("regPass").value!==$("regPass2").value)return msg("regMsg","两次密码不一致",true);try{await call("/auth/register",{phone:$("regPhone").value.trim(),code:$("regCode").value.trim(),password:$("regPass").value});$("modal").classList.remove("show");await load()}catch(x){msg("regMsg",errorText(x),true)}};
 $("resetForm").onsubmit=async e=>{e.preventDefault();if($("resetPass").value!==$("resetPass2").value)return msg("resetMsg","两次密码不一致",true);try{await call("/auth/password/reset",{phone:$("resetPhone").value.trim(),code:$("resetCode").value.trim(),newPassword:$("resetPass").value});msg("resetMsg","密码已重置，请返回登录");setTimeout(()=>auth("login"),900)}catch(x){msg("resetMsg",errorText(x),true)}};
 $("changePasswordForm").onsubmit=async e=>{e.preventDefault();const currentPassword=$("currentPassword").value,newPassword=$("newPassword").value;if(newPassword!==$("confirmNewPassword").value)return msg("changePassMsg","两次新密码不一致",true);if(newPassword.length<10)return msg("changePassMsg","新密码至少需要 10 位",true);try{await call("/auth/password/change",{currentPassword,newPassword});msg("changePassMsg","密码修改成功，其他设备已退出登录");$("changePasswordForm").reset();document.querySelectorAll("#changePasswordForm .password-toggle").forEach(b=>{const input=$(b.dataset.togglePassword);input.type="password";b.textContent="显示"});setTimeout(()=>$("modal").classList.remove("show"),1200)}catch(x){msg("changePassMsg",errorText(x),true);if(x.message==="unauthorized")setTimeout(()=>auth("login"),900)}};
 $("logout").onclick=async()=>{try{await fetch(API+"/auth/logout",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:"{}"})}finally{location.reload()}};
-$("profile").onsubmit=async e=>{e.preventDefault();syncUniversityFields();const f=new FormData(e.target),d=Object.fromEntries(f.entries());d.phoneVisible=f.has("phoneVisible");if(!$("consent").checked)return msg("profileMsg","请先确认信息使用说明",true);try{const r=await fetch(API+"/profile",{method:"PUT",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)});let result={};try{result=await r.json()}catch{}if(!r.ok)throw Error(result.error||"profile_save_failed");categoryLocked=true;$("universityBack").hidden=true;$("universityBackBottom").hidden=true;await load();msg("profileMsg","资料保存成功")}catch(error){const errors={profile_incomplete:"请完整填写必填资料",education_level_required:"请选择本科或专科办学层次",university_region_required:"请选择或填写高校所在地区",cooperation_details_required:"请选择办学层次并填写境外合作院校",university_change_requires_support:"已登记高校暂不能自行更换，请联系组织者",university_metadata_conflict:"这所高校的地区或办学层次与已有资料不一致，请核对学校名称和类别"};msg("profileMsg",errors[error.message]||"保存失败，请检查资料后重试",true)}};
+$("profile").onsubmit=async e=>{e.preventDefault();syncUniversityFields();const f=new FormData(e.target),d=Object.fromEntries(f.entries());d.phoneVisible=f.has("phoneVisible");if(!$("consent").checked)return msg("profileMsg","请先确认信息使用说明",true);try{const r=await fetch(API+"/profile",{method:"PUT",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)});let result={};try{result=await r.json()}catch{}if(!r.ok)throw Error(result.error||"profile_save_failed");categoryLocked=true;$("universityBack").hidden=true;$("universityBackBottom").hidden=true;await load();msg("profileMsg","资料保存成功");$("goDirectory").hidden=false;showDirectoryStage()}catch(error){const errors={profile_incomplete:"请完整填写必填资料",education_level_required:"请选择本科或专科办学层次",university_region_required:"请选择或填写高校所在地区",cooperation_details_required:"请选择办学层次并填写境外合作院校",university_change_requires_support:"已登记高校暂不能自行更换，请联系组织者",university_metadata_conflict:"这所高校的地区或办学层次与已有资料不一致，请核对学校名称和类别"};msg("profileMsg",errors[error.message]||"保存失败，请检查资料后重试",true)}};
 document.querySelectorAll("[data-toggle-password]").forEach(b=>b.onclick=()=>{const input=$(b.dataset.togglePassword);const visible=input.type==="password";input.type=visible?"text":"password";b.textContent=visible?"隐藏":"显示"});document.querySelectorAll("[data-view]").forEach(x=>x.onclick=()=>{document.querySelectorAll("[data-view]").forEach(b=>b.classList.toggle("active",b===x));view=x.dataset.view;render()});$("search").oninput=render;window.addEventListener("DOMContentLoaded",load);
