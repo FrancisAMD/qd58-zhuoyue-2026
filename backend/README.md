@@ -27,7 +27,7 @@ npx wrangler d1 migrations list qd58-zhuoyue-db --remote --config wrangler.toml
 npx wrangler d1 migrations apply qd58-zhuoyue-db --remote --config wrangler.toml
 ```
 
-迁移仅新增索引和触发器，不删除、不重建现有表。不要对已有数据执行 DROP。
+迁移 0004 在高校表中新增分类与属性字段，并将旧高校规范化键迁入 `unclassified:` 命名空间；保留原高校 ID、用户关联和队伍，不删除、不重建现有表。应用前请先查看远程迁移状态，不要手动重复执行 SQL。
 
 ## 当前限制
 
