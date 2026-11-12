@@ -5,7 +5,7 @@ const salt=new Uint8Array(16).fill(0x5a);
 const derived=await derivePassword("worker-smoke-password",salt);
 const derivedAgain=await derivePassword("worker-smoke-password",salt);
 const derivedOtherSalt=await derivePassword("worker-smoke-password",new Uint8Array(16).fill(0x5b));
-if(derived.length!==32 || derived.some((v,i)=>v!==derivedAgain[i]) || derived.every((v,i)=>v===derivedOtherSalt[i])) throw new Error("PBKDF2 310000 smoke test failed");
+if(derived.length!==32 || derived.some((v,i)=>v!==derivedAgain[i]) || derived.every((v,i)=>v===derivedOtherSalt[i])) throw new Error("PBKDF2 100000 smoke test failed");
 const ok=await worker.fetch(new Request("https://api.58er.eon21.space/api/health"),env);
 const health=await ok.json();
 if(ok.status!==200 || !health.ok || health.build!=="pbkdf2-100k-20261112" || health.passwordKdf!=="pbkdf2-sha256-100000") throw new Error("health route/build marker failed");
