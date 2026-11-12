@@ -37,7 +37,54 @@ const limited=await worker.fetch(new Request("https://api.58er.eon21.space/api/a
   body:JSON.stringify({phone:"13812345678",turnstileToken:"unused-test-token"})
 }),{APP_ORIGIN:"https://58er.eon21.space",DB:lockedDb});
 const limitedBody=await limited.json();
+
 if(limited.status!==429 || limitedBody.error!=="rate_limited" || limitedBody.refreshTurnstile===true || !(limitedBody.retryAfter>0)) throw new Error("SMS cooldown must not consume Turnstile token");
+
+// If PNVS explicitly rejects a send, all SMS quota reservations must be rolled back.
+const quotaRows=new Map();
+const quotaDb={
+  prepare(sql){
+    return {bind(...args){
+      return {
+        first:async()=>{
+          if(sql.startsWith("SELECT id FROM users")) return null;
+          if(sql.startsWith("SELECT window_started_at,hit_count FROM rate_limits") || sql.startsWith("SELECT window_started_at FROM rate_limits")) return quotaRows.get(args[0])||null;
+          return null;
+        },
+        run:async()=>{
+          if(sql.startsWith("INSERT INTO rate_limits")){
+            const [key,t,resetAt,, ,limit]=args,old=quotaRows.get(key);
+            if(!old){quotaRows.set(key,{window_started_at:t,hit_count:1});return {meta:{changes:1}}}
+            if(old.window_started_at<=resetAt){quotaRows.set(key,{window_started_at:t,hit_count:1});return {meta:{changes:1}}}
+            if(old.hit_count<limit){old.hit_count++;return {meta:{changes:1}}}
+            return {meta:{changes:0}};
+          }
+          if(sql.startsWith("UPDATE rate_limits SET hit_count=hit_count-1")){
+            const [key,started]=args,row=quotaRows.get(key);
+            if(row&&row.window_started_at===started&&row.hit_count>0){row.hit_count--;return {meta:{changes:1}}}
+            return {meta:{changes:0}};
+          }
+          return {meta:{changes:1}};
+        }
+      };
+    }};
+  },
+  async batch(statements){const out=[];for(const statement of statements)out.push(await statement.run());return out;}
+};
+const originalFetch=globalThis.fetch;
+try{
+  globalThis.fetch=async input=>{
+    if(String(input).includes("/turnstile/v0/siteverify")) return new Response(JSON.stringify({success:true,action:"register",hostname:"58er.eon21.space"}),{status:200});
+    return new Response(JSON.stringify({Success:false,Code:"isv.BUSINESS_LIMIT_CONTROL",RequestId:"mock-rejected"}),{status:400});
+  };
+  const rejected=await worker.fetch(new Request("https://api.58er.eon21.space/api/auth/register/request-code",{
+    method:"POST",headers:{"content-type":"application/json",origin:"https://58er.eon21.space","CF-Connecting-IP":"203.0.113.10"},
+    body:JSON.stringify({phone:"13812345679",turnstileToken:"mock-valid-token"})
+  }),{APP_ORIGIN:"https://58er.eon21.space",DB:quotaDb,ALIBABA_ACCESS_KEY_ID:"mock",ALIBABA_ACCESS_KEY_SECRET:"mock"});
+  if(rejected.status!==400) throw new Error("Mock PNVS rejection should return a provider error");
+  if([...quotaRows.values()].some(row=>row.hit_count!==0)) throw new Error("SMS quota reservation was not released after PNVS rejection");
+}finally{globalThis.fetch=originalFetch}
+
 const unauthTransfer=await worker.fetch(new Request("https://api.58er.eon21.space/api/teams/transfer",{method:"POST",headers:{"content-type":"application/json",origin:"https://58er.eon21.space"},body:JSON.stringify({toUserId:"a".repeat(32)})}),env);
 const unauthTransferList=await worker.fetch(new Request("https://api.58er.eon21.space/api/teams/transfers",{headers:{origin:"https://58er.eon21.space"}}),env);
 if(unauthTransfer.status!==401 || unauthTransferList.status!==401) throw new Error("team transfer endpoints must require a session");
