@@ -5,7 +5,7 @@ migrations = sorted((Path(__file__).parents[1] / "migrations").glob("*.sql"))
 db = sqlite3.connect(":memory:")
 db.execute("PRAGMA foreign_keys = ON")
 for migration in migrations:
-    db.executescript(migration.read_text())
+    db.executescript(migration.read_text(encoding="utf-8"))
 
 university_columns = {row[1] for row in db.execute("PRAGMA table_info(universities)")}
 assert {"category", "region_name", "education_level", "project_tags_json", "partner_name"} <= university_columns
