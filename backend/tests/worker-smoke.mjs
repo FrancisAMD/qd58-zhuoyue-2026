@@ -8,7 +8,7 @@ const derivedOtherSalt=await derivePassword("worker-smoke-password",new Uint8Arr
 if(derived.length!==32 || derived.some((v,i)=>v!==derivedAgain[i]) || derived.every((v,i)=>v===derivedOtherSalt[i])) throw new Error("PBKDF2 100000 smoke test failed");
 const ok=await worker.fetch(new Request("https://api.58er.eon21.space/api/health"),env);
 const health=await ok.json();
-if(ok.status!==200 || !health.ok || health.build!=="auth-ui-turnstile-20261112" || health.passwordKdf!=="pbkdf2-sha256-100000") throw new Error("health route/build marker failed");
+if(ok.status!==200 || !health.ok || health.build!=="university-categories-20261112" || health.passwordKdf!=="pbkdf2-sha256-100000") throw new Error("health route/build marker failed");
 const blocked=await worker.fetch(new Request("https://api.58er.eon21.space/api/auth/login",{method:"POST",headers:{"content-type":"application/json",origin:"https://evil.example"},body:JSON.stringify({phone:"13800000000",password:"test"})}),env);
 if(blocked.status!==403) throw new Error("origin guard failed");
 const preflight=await worker.fetch(new Request("https://api.58er.eon21.space/api/auth/login",{method:"OPTIONS",headers:{origin:"https://58er.eon21.space","access-control-request-method":"POST"}}),env);
