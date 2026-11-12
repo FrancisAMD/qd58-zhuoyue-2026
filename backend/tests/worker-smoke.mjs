@@ -1,12 +1,14 @@
-import worker, { derivePassword } from "../src/worker.js";
+import worker, { derivePassword, PBKDF2_ITERATIONS } from "../src/worker.js";
 const env={APP_ORIGIN:"https://58er.eon21.space"};
+if(PBKDF2_ITERATIONS!==100000) throw new Error("PBKDF2 iteration count must stay within Workers production limit");
 const salt=new Uint8Array(16).fill(0x5a);
 const derived=await derivePassword("worker-smoke-password",salt);
 const derivedAgain=await derivePassword("worker-smoke-password",salt);
 const derivedOtherSalt=await derivePassword("worker-smoke-password",new Uint8Array(16).fill(0x5b));
 if(derived.length!==32 || derived.some((v,i)=>v!==derivedAgain[i]) || derived.every((v,i)=>v===derivedOtherSalt[i])) throw new Error("PBKDF2 310000 smoke test failed");
 const ok=await worker.fetch(new Request("https://api.58er.eon21.space/api/health"),env);
-if(ok.status!==200 || !(await ok.json()).ok) throw new Error("health route failed");
+const health=await ok.json();
+if(ok.status!==200 || !health.ok || health.build!=="pbkdf2-100k-20261112" || health.passwordKdf!=="pbkdf2-sha256-100000") throw new Error("health route/build marker failed");
 const blocked=await worker.fetch(new Request("https://api.58er.eon21.space/api/auth/login",{method:"POST",headers:{"content-type":"application/json",origin:"https://evil.example"},body:JSON.stringify({phone:"13800000000",password:"test"})}),env);
 if(blocked.status!==403) throw new Error("origin guard failed");
 const preflight=await worker.fetch(new Request("https://api.58er.eon21.space/api/auth/login",{method:"OPTIONS",headers:{origin:"https://58er.eon21.space","access-control-request-method":"POST"}}),env);
