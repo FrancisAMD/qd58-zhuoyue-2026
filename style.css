@@ -41,3 +41,6 @@ body.dark .password-toggle{color:#b7d4c0}
  .verify button{flex-basis:118px;min-width:118px}
  .captcha-area{overflow-x:auto}
 }
+
+.captcha-help{margin:-1px 0 10px;color:var(--muted);font-size:10px;line-height:1.5}
+body.dark .captcha-help{color:var(--muted)}
