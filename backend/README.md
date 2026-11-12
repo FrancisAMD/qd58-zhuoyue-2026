@@ -47,6 +47,10 @@ npx wrangler secret put ALIBABA_ACCESS_KEY_SECRET
 
 当前 Worker 默认使用截图中的签名“恒创联众”和模板 `100001`。正式发短信前请确认这两个资源已在号码认证服务中开通可用。
 
+## 短信发送频率与 Turnstile
+
+后端在调用 Turnstile Siteverify 前先读取现有发送冷却和日/小时配额。已经处于限流状态时返回 `429`、`retryAfter`，不核销本次 Turnstile token；前端据此显示倒计时并保留尚未使用的 token。只有 Siteverify 已被调用、token 已可能核销时，响应才设置 `refreshTurnstile: true`，前端才重置验证组件。Turnstile token 为一次性凭据，不能在已核销后重复使用。
+
 ## 阿里云 PNVS 认证流程
 
 Worker 通过 ACS3-HMAC-SHA256 对 `dypnsapi.aliyuncs.com` 的请求签名：
