@@ -249,7 +249,7 @@ async function route(request, env) {
   const url=new URL(request.url), path=url.pathname, method=request.method, origin=request.headers.get("Origin");
   if(method==="OPTIONS") return new Response(null,{status:204,headers:corsHeaders(origin,env)});
   if(origin && origin!==env.APP_ORIGIN) return response({error:"origin_forbidden"},403,origin,env);
-  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"auth-ui-turnstile-20261112",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
+  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"university-categories-20261112",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
   if(path==="/api/auth/register/request-code" && method==="POST") {
     try { const d=await body(request); return response(await sendCode(String(d.phone||""),"register",d.turnstileToken,request,env),200,origin,env); }
     catch(e) {
@@ -328,30 +328,59 @@ async function route(request, env) {
   }
   if(path==="/api/profile" && method==="GET") {
     const user=await currentUser(request,env); if(!user) return response({error:"unauthorized"},401,origin,env);
-    const uni = user.university_id ? await env.DB.prepare("SELECT canonical_name FROM universities WHERE id=?").bind(user.university_id).first() : null;
-    return response({profile:{name:user.name,className:user.class_name,highSchool:user.high_school,university:uni?.canonical_name || "",grade:user.grade,province:user.province,city:user.city,bio:user.bio,phoneVisible:!!user.phone_visible_to_team}},200,origin,env);
+    const uni = user.university_id ? await env.DB.prepare("SELECT canonical_name,category,region_name,education_level,partner_name,project_tags_json FROM universities WHERE id=?").bind(user.university_id).first() : null;
+    return response({profile:{
+      name:user.name,className:user.class_name,highSchool:user.high_school,
+      university:uni?.canonical_name || "",universityCategory:uni?.category || "",
+      regionName:uni?.region_name || "",educationLevel:uni?.education_level || "",
+      partnerName:uni?.partner_name || "",projectTags:uni?.project_tags_json || "[]",
+      grade:user.grade,province:user.province,city:user.city,bio:user.bio,
+      phoneVisible:!!user.phone_visible_to_team
+    }},200,origin,env);
   }
   if(path==="/api/profile" && method==="PUT") {
     const user=await currentUser(request,env); if(!user) return response({error:"unauthorized"},401,origin,env);
     try {
       const d=await body(request);
-      if(!d.name || !d.className || !d.university || !d.grade || !d.province) return response({error:"profile_incomplete"},400,origin,env);
-      const name=String(d.name).trim(), className=String(d.className).trim();
-      const rawUniversity=String(d.university).trim().replace(/\s+/g," ");
-      const grade=String(d.grade).trim(), province=String(d.province).trim();
-      if(name.length>80 || className.length>80 || rawUniversity.length>120 || grade.length>40 || province.length>40 || String(d.city||"").length>80 || String(d.bio||"").length>500) return response({error:"profile_field_too_long"},400,origin,env);
+      const name=String(d.name||"").trim(), className=String(d.className||"").trim();
+      const rawUniversity=String(d.university||"").trim().replace(/\s+/g," ");
+      const category=String(d.universityCategory||"");
+      const grade=String(d.grade||"").trim(), province=String(d.province||"").trim();
+      const regionName=String(d.regionName||"").trim(), partnerName=String(d.partnerName||"").trim();
+      const educationLevel=String(d.educationLevel||"");
+      const allowedCategories=["mainland","hmt","sino_foreign","overseas"];
+      if(!name || !className || !rawUniversity || !grade || !province || !allowedCategories.includes(category)) return response({error:"profile_incomplete"},400,origin,env);
+      if(name.length>80 || className.length>80 || rawUniversity.length>120 || grade.length>40 || province.length>80 || String(d.city||"").length>80 || String(d.bio||"").length>500 || regionName.length>80 || partnerName.length>120) return response({error:"profile_field_too_long"},400,origin,env);
+      if(category==="mainland" && !["undergraduate","vocational"].includes(educationLevel)) return response({error:"education_level_required"},400,origin,env);
+      if(category==="hmt" && !["香港","澳门","台湾"].includes(regionName)) return response({error:"university_region_required"},400,origin,env);
+      if(category==="sino_foreign" && (!partnerName || !["undergraduate","vocational"].includes(educationLevel))) return response({error:"cooperation_details_required"},400,origin,env);
+      if(category==="overseas" && !regionName) return response({error:"university_region_required"},400,origin,env);
       const normalized=rawUniversity.normalize("NFKC").replace(/[\s\p{P}\p{S}]+/gu,"").toLowerCase();
       if(!normalized) return response({error:"invalid_university"},400,origin,env);
+      const identityKey=category+":"+normalized;
       const existingProfile=await env.DB.prepare("SELECT university_id FROM users WHERE id=?").bind(user.id).first();
-      let uni=await env.DB.prepare("SELECT id FROM universities WHERE normalized_name=?").bind(normalized).first();
-      if(!uni){
-        const candidateId=randomHex(16);
-        await env.DB.prepare("INSERT OR IGNORE INTO universities(id,canonical_name,normalized_name) VALUES(?,?,?)").bind(candidateId,rawUniversity,normalized).run();
-        uni=await env.DB.prepare("SELECT id FROM universities WHERE normalized_name=?").bind(normalized).first();
+      let uni=await env.DB.prepare("SELECT id,category FROM universities WHERE normalized_name=?").bind(identityKey).first();
+      if(!uni) {
+        // Adopt a pre-classification university row rather than splitting existing
+        // members into a duplicate team when the first member classifies it.
+        const legacy=await env.DB.prepare("SELECT id FROM universities WHERE normalized_name=? AND category='unclassified'").bind("unclassified:"+normalized).first();
+        if(legacy) {
+          await env.DB.prepare("UPDATE universities SET canonical_name=?,normalized_name=?,category=?,region_name=?,education_level=?,partner_name=? WHERE id=? AND category='unclassified'")
+            .bind(rawUniversity,identityKey,category,regionName,educationLevel,partnerName,legacy.id).run();
+          uni=await env.DB.prepare("SELECT id,category FROM universities WHERE id=?").bind(legacy.id).first();
+        }
       }
-      if(!uni) return response({error:"university_normalization_conflict"},409,origin,env);
+      if(!uni) {
+        const candidateId=randomHex(16);
+        await env.DB.prepare("INSERT OR IGNORE INTO universities(id,canonical_name,normalized_name,category,region_name,education_level,partner_name) VALUES(?,?,?,?,?,?,?)")
+          .bind(candidateId,rawUniversity,identityKey,category,regionName,educationLevel,partnerName).run();
+        uni=await env.DB.prepare("SELECT id,category FROM universities WHERE normalized_name=?").bind(identityKey).first();
+      }
+      if(!uni || uni.category!==category) return response({error:"university_normalization_conflict"},409,origin,env);
       if(existingProfile?.university_id && existingProfile.university_id!==uni.id) return response({error:"university_change_requires_support"},409,origin,env);
       await env.DB.batch([
+        env.DB.prepare("UPDATE universities SET region_name=?,education_level=?,partner_name=? WHERE id=? AND category=?")
+          .bind(regionName,educationLevel,partnerName,uni.id,category),
         env.DB.prepare("UPDATE users SET name=?,class_name=?,high_school=?,university_id=?,grade=?,province=?,city=?,bio=?,phone_visible_to_team=?,updated_at=? WHERE id=?")
           .bind(name,className,String(d.highSchool||"青岛五十八中").trim(),uni.id,grade,province,String(d.city||"").trim(),String(d.bio||"").trim(),d.phoneVisible?1:0,new Date().toISOString(),user.id),
         env.DB.prepare("INSERT OR IGNORE INTO teams(id,university_id,leader_user_id) SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM users WHERE id=? AND university_id=?)")
