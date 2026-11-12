@@ -1,11 +1,11 @@
 name = "zhuoyue-2026-api"
 main = "src/worker.js"
+compatibility_date = "2026-11-01"
 
 # Bind the public API hostname to this Worker (Custom Domain).
 [[routes]]
 pattern = "api.58er.eon21.space"
 custom_domain = true
-compatibility_date = "2026-11-01"
 
 [[d1_databases]]
 binding = "DB"
