@@ -105,4 +105,4 @@ const wrongRecipient=await worker.fetch(new Request("https://api.58er.eon21.spac
   method:"POST",headers:{origin:"https://58er.eon21.space",cookie:"__Host-qd58_session="+"c".repeat(64)}
 }),{APP_ORIGIN:"https://58er.eon21.space",DB:recipientDb});
 if(wrongRecipient.status!==403) throw new Error("only the designated transfer recipient may accept a transfer");
-console.log("Worker smoke tests: PASS (PBKDF2-100000, health/build marker, Origin/CORS, SMS cooldown token lifecycle, transfer authentication and recipient authorization).");
+console.log("Worker smoke tests: PASS (PBKDF2-100000, health/build marker, Origin/CORS, SMS cooldown token lifecycle, password-change authentication guard, transfer authentication and recipient authorization).");
