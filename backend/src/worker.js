@@ -109,6 +109,27 @@ async function rateLimitStatus(db, key, limit, windowSeconds) {
   return { allowed: false, retryAfter: Math.max(1, started + windowSeconds - t) };
 }
 
+// A quota increment is a reservation until PNVS accepts the send request.
+// Store the exact window start so a failed request only releases its own
+// reservation and never decrements a newer window.
+async function reserveRateLimit(db, item) {
+  if (!(await rateLimit(db, item.key, item.limit, item.window))) return null;
+  const row = await db.prepare("SELECT window_started_at FROM rate_limits WHERE bucket_key=?").bind(item.key).first();
+  if (!row) throw new Error("rate_limit_reservation_missing");
+  return { key: item.key, windowStartedAt: Number(row.window_started_at) };
+}
+async function releaseRateLimitReservations(db, reservations) {
+  if (!reservations.length) return;
+  try {
+    await db.batch(reservations.map(({ key, windowStartedAt }) =>
+      db.prepare("UPDATE rate_limits SET hit_count=hit_count-1 WHERE bucket_key=? AND window_started_at=? AND hit_count>0")
+        .bind(key, windowStartedAt)
+    ));
+  } catch (error) {
+    console.error("Failed to release SMS quota reservation", error?.message || "unknown");
+  }
+}
+
 async function createSession(db, userId, env) {
   const token = randomHex(32);
   const digest = await sha256(token);
@@ -133,13 +154,13 @@ async function sendCode(phone, purpose, token, request, env) {
   // the visitor's one-time Turnstile token.
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
   const limits = [
-    { key: "sms:cooldown:" + phone, limit: 1, window: Number(env.OTP_SEND_COOLDOWN_SECONDS || COOLDOWN_SECONDS) },
-    { key: "sms:phone:" + phone, limit: 5, window: 86400 },
-    { key: "sms:ip:" + ip, limit: 20, window: 3600 }
+    { key: "sms:cooldown:" + phone, limit: 1, window: Number(env.OTP_SEND_COOLDOWN_SECONDS || COOLDOWN_SECONDS), scope: "cooldown" },
+    { key: "sms:phone:" + phone, limit: 5, window: 86400, scope: "phone_daily" },
+    { key: "sms:ip:" + ip, limit: 20, window: 3600, scope: "ip_hourly" }
   ];
   for (const item of limits) {
     const status = await rateLimitStatus(env.DB, item.key, item.limit, item.window);
-    if (!status.allowed) throw err("rate_limited", 429, { retryAfter: status.retryAfter, refreshTurnstile: false });
+    if (!status.allowed) throw err("rate_limited", 429, { retryAfter: status.retryAfter, limitScope: item.scope, refreshTurnstile: false });
   }
 
   let turnstilePassed = false;
@@ -150,15 +171,20 @@ async function sendCode(phone, purpose, token, request, env) {
   }
   if (!turnstilePassed) throw err("turnstile_failed", 403, { refreshTurnstile: true });
 
-  // From this point onward Siteverify has redeemed the token. Any failure
-  // must tell the frontend to obtain a fresh token before another attempt.
+  // From this point onward Siteverify has redeemed the token. Reserve all
+  // counters, but roll them back if a later reservation or PNVS rejection fails.
+  const reservations = [];
   try {
     for (const item of limits) {
-      if (!(await rateLimit(env.DB, item.key, item.limit, item.window))) {
+      const reservation = await reserveRateLimit(env.DB, item);
+      if (!reservation) {
         const status = await rateLimitStatus(env.DB, item.key, item.limit, item.window);
-        throw err("rate_limited", 429, { retryAfter: status.retryAfter || item.window, refreshTurnstile: true });
+        await releaseRateLimitReservations(env.DB, reservations);
+        throw err("rate_limited", 429, { retryAfter: status.retryAfter || item.window, limitScope: item.scope, refreshTurnstile: true });
       }
+      reservations.push(reservation);
     }
+
     const outId = randomHex(16);
     const params = {
       CountryCode: "86", PhoneNumber: phone,
@@ -171,10 +197,17 @@ async function sendCode(phone, purpose, token, request, env) {
     };
     if (env.ALIBABA_SCHEME_NAME) params.SchemeName = env.ALIBABA_SCHEME_NAME;
     const sent = await aliyun("SendSmsVerifyCode", params, env);
+    // PNVS accepted the send: keep quota even if recording the challenge fails,
+    // because the recipient may already receive a real billable SMS.
     await env.DB.prepare("INSERT INTO otp_challenges(id,phone,code_hash,expires_at,attempts,consumed_at,created_at,purpose,out_id) VALUES(?,?,?, ?,0,NULL,?,?,?)")
       .bind(randomHex(16),phone,"ALIYUN",now()+Number(env.OTP_TTL_SECONDS || OTP_SECONDS),now(),purpose,outId).run();
     return { ok: true, requestId: sent.RequestId || null };
   } catch (error) {
+    // A PNVS API rejection means no SMS was accepted. Network/timeout failures
+    // are ambiguous, so keep their reservations to avoid duplicate billable sends.
+    if (error?.message === "sms_provider_error" || error?.message === "sms_not_configured") {
+      await releaseRateLimitReservations(env.DB, reservations);
+    }
     if (error && typeof error === "object") error.refreshTurnstile = true;
     throw error;
   }
