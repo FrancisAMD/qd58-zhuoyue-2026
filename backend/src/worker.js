@@ -216,7 +216,7 @@ async function route(request, env) {
   const url=new URL(request.url), path=url.pathname, method=request.method, origin=request.headers.get("Origin");
   if(method==="OPTIONS") return new Response(null,{status:204,headers:corsHeaders(origin,env)});
   if(origin && origin!==env.APP_ORIGIN) return response({error:"origin_forbidden"},403,origin,env);
-  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"pbkdf2-100k-20261112",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
+  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"pbkdf2-100k-smslimit-20261112",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
   if(path==="/api/auth/register/request-code" && method==="POST") {
     try { const d=await body(request); return response(await sendCode(String(d.phone||""),"register",d.turnstileToken,request,env),200,origin,env); }
     catch(e) {
