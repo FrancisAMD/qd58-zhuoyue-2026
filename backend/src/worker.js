@@ -142,9 +142,13 @@ async function sendCode(phone, purpose, token, request, env) {
     if (!status.allowed) throw err("rate_limited", 429, { retryAfter: status.retryAfter, refreshTurnstile: false });
   }
 
-  if (!(await turnstile(token, purpose, request, env))) {
-    throw err("turnstile_failed", 403, { refreshTurnstile: true });
+  let turnstilePassed = false;
+  try {
+    turnstilePassed = await turnstile(token, purpose, request, env);
+  } catch {
+    throw err("turnstile_failed", 503, { refreshTurnstile: true });
   }
+  if (!turnstilePassed) throw err("turnstile_failed", 403, { refreshTurnstile: true });
 
   // From this point onward Siteverify has redeemed the token. Any failure
   // must tell the frontend to obtain a fresh token before another attempt.
