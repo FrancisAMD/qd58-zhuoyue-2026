@@ -8,7 +8,7 @@ const derivedOtherSalt=await derivePassword("worker-smoke-password",new Uint8Arr
 if(derived.length!==32 || derived.some((v,i)=>v!==derivedAgain[i]) || derived.every((v,i)=>v===derivedOtherSalt[i])) throw new Error("PBKDF2 100000 smoke test failed");
 const ok=await worker.fetch(new Request("https://api.58er.eon21.space/api/health"),env);
 const health=await ok.json();
-if(ok.status!==200 || !health.ok || health.build!=="sms-quota-reservation-20261112" || health.passwordKdf!=="pbkdf2-sha256-100000") throw new Error("health route/build marker failed");
+if(ok.status!==200 || !health.ok || health.build!=="auth-ui-turnstile-20261112" || health.passwordKdf!=="pbkdf2-sha256-100000") throw new Error("health route/build marker failed");
 const blocked=await worker.fetch(new Request("https://api.58er.eon21.space/api/auth/login",{method:"POST",headers:{"content-type":"application/json",origin:"https://evil.example"},body:JSON.stringify({phone:"13800000000",password:"test"})}),env);
 if(blocked.status!==403) throw new Error("origin guard failed");
 const preflight=await worker.fetch(new Request("https://api.58er.eon21.space/api/auth/login",{method:"OPTIONS",headers:{origin:"https://58er.eon21.space","access-control-request-method":"POST"}}),env);
@@ -85,6 +85,8 @@ try{
   if([...quotaRows.values()].some(row=>row.hit_count!==0)) throw new Error("SMS quota reservation was not released after PNVS rejection");
 }finally{globalThis.fetch=originalFetch}
 
+const unauthPasswordChange=await worker.fetch(new Request("https://api.58er.eon21.space/api/auth/password/change",{method:"POST",headers:{"content-type":"application/json",origin:"https://58er.eon21.space"},body:JSON.stringify({})}),{APP_ORIGIN:"https://58er.eon21.space",DB:{prepare(){return {bind(){return {first:async()=>null}}}}}});
+if(unauthPasswordChange.status!==401) throw new Error("password change must require an authenticated session");
 const unauthTransfer=await worker.fetch(new Request("https://api.58er.eon21.space/api/teams/transfer",{method:"POST",headers:{"content-type":"application/json",origin:"https://58er.eon21.space"},body:JSON.stringify({toUserId:"a".repeat(32)})}),env);
 const unauthTransferList=await worker.fetch(new Request("https://api.58er.eon21.space/api/teams/transfers",{headers:{origin:"https://58er.eon21.space"}}),env);
 if(unauthTransfer.status!==401 || unauthTransferList.status!==401) throw new Error("team transfer endpoints must require a session");
