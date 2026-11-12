@@ -216,7 +216,7 @@ async function route(request, env) {
   const url=new URL(request.url), path=url.pathname, method=request.method, origin=request.headers.get("Origin");
   if(method==="OPTIONS") return new Response(null,{status:204,headers:corsHeaders(origin,env)});
   if(origin && origin!==env.APP_ORIGIN) return response({error:"origin_forbidden"},403,origin,env);
-  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"pbkdf2-100k-smslimit-20261112",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
+  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"team-transfer-20261112",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
   if(path==="/api/auth/register/request-code" && method==="POST") {
     try { const d=await body(request); return response(await sendCode(String(d.phone||""),"register",d.turnstileToken,request,env),200,origin,env); }
     catch(e) {
@@ -279,12 +279,96 @@ async function route(request, env) {
     try {
       const d=await body(request);
       if(!d.name || !d.className || !d.university || !d.grade || !d.province) return response({error:"profile_incomplete"},400,origin,env);
-      const normalized=String(d.university).normalize("NFKC").replace(/[\s\p{P}\p{S}]+/gu,"").toLowerCase();
+      const name=String(d.name).trim(), className=String(d.className).trim();
+      const rawUniversity=String(d.university).trim().replace(/\s+/g," ");
+      const grade=String(d.grade).trim(), province=String(d.province).trim();
+      if(name.length>80 || className.length>80 || rawUniversity.length>120 || grade.length>40 || province.length>40 || String(d.city||"").length>80 || String(d.bio||"").length>500) return response({error:"profile_field_too_long"},400,origin,env);
+      const normalized=rawUniversity.normalize("NFKC").replace(/[\s\p{P}\p{S}]+/gu,"").toLowerCase();
+      if(!normalized) return response({error:"invalid_university"},400,origin,env);
+      const existingProfile=await env.DB.prepare("SELECT university_id FROM users WHERE id=?").bind(user.id).first();
       let uni=await env.DB.prepare("SELECT id FROM universities WHERE normalized_name=?").bind(normalized).first();
-      if(!uni){const id=randomHex(16);await env.DB.prepare("INSERT INTO universities(id,canonical_name,normalized_name) VALUES(?,?,?)").bind(id,String(d.university).trim(),normalized).run();uni={id};await env.DB.prepare("INSERT INTO teams(id,university_id,leader_user_id) VALUES(?,?,?)").bind(randomHex(16),id,user.id).run();}
-      await env.DB.prepare("UPDATE users SET name=?,class_name=?,high_school=?,university_id=?,grade=?,province=?,city=?,bio=?,phone_visible_to_team=?,updated_at=? WHERE id=?").bind(String(d.name).trim(),String(d.className).trim(),String(d.highSchool||"青岛五十八中"),uni.id,String(d.grade),String(d.province),String(d.city||""),String(d.bio||""),d.phoneVisible?1:0,new Date().toISOString(),user.id).run();
+      if(!uni){
+        const candidateId=randomHex(16);
+        await env.DB.prepare("INSERT OR IGNORE INTO universities(id,canonical_name,normalized_name) VALUES(?,?,?)").bind(candidateId,rawUniversity,normalized).run();
+        uni=await env.DB.prepare("SELECT id FROM universities WHERE normalized_name=?").bind(normalized).first();
+      }
+      if(!uni) return response({error:"university_normalization_conflict"},409,origin,env);
+      if(existingProfile?.university_id && existingProfile.university_id!==uni.id) return response({error:"university_change_requires_support"},409,origin,env);
+      await env.DB.batch([
+        env.DB.prepare("UPDATE users SET name=?,class_name=?,high_school=?,university_id=?,grade=?,province=?,city=?,bio=?,phone_visible_to_team=?,updated_at=? WHERE id=?")
+          .bind(name,className,String(d.highSchool||"青岛五十八中").trim(),uni.id,grade,province,String(d.city||"").trim(),String(d.bio||"").trim(),d.phoneVisible?1:0,new Date().toISOString(),user.id),
+        env.DB.prepare("INSERT OR IGNORE INTO teams(id,university_id,leader_user_id) SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM users WHERE id=? AND university_id=?)")
+          .bind(randomHex(16),uni.id,user.id,user.id,uni.id)
+      ]);
       return response({ok:true},200,origin,env);
     }catch(e){return response({error:e.error||"profile_save_failed"},400,origin,env);}
+  }
+  if(path==="/api/teams/transfer" && method==="POST") {
+    const user=await currentUser(request,env); if(!user) return response({error:"unauthorized"},401,origin,env);
+    try {
+      const d=await body(request), targetId=String(d.toUserId||"").trim();
+      if(!/^[a-f0-9]{32}$/.test(targetId)) return response({error:"invalid_transfer_target"},400,origin,env);
+      const team=await env.DB.prepare("SELECT id,university_id FROM teams WHERE leader_user_id=?").bind(user.id).first();
+      if(!team) return response({error:"not_team_leader"},403,origin,env);
+      const target=await env.DB.prepare("SELECT id FROM users WHERE id=? AND university_id=?").bind(targetId,team.university_id).first();
+      if(!target || targetId===user.id) return response({error:"transfer_target_not_in_team"},400,origin,env);
+      const transferId=randomHex(16), createdAt=new Date().toISOString();
+      const inserted=await env.DB.batch([
+        env.DB.prepare(`INSERT INTO leader_transfers(id,team_id,from_user_id,to_user_id,status,created_at)
+          SELECT ?,t.id,?,?, 'pending',? FROM teams t
+          WHERE t.id=? AND t.leader_user_id=?
+            AND EXISTS(SELECT 1 FROM users target WHERE target.id=? AND target.university_id=t.university_id)
+            AND NOT EXISTS(SELECT 1 FROM leader_transfers pending WHERE pending.team_id=t.id AND pending.status='pending')`)
+          .bind(transferId,user.id,targetId,createdAt,team.id,user.id,targetId),
+        env.DB.prepare(`INSERT OR IGNORE INTO audit_logs(id,actor_type,actor_id,action,target_type,target_id,metadata_json)
+          SELECT ?, 'user', ?, 'team.transfer.requested', 'team', team_id, ?
+          FROM leader_transfers WHERE id=? AND status='pending'`)
+          .bind("transfer-requested-"+transferId,user.id,JSON.stringify({transferId,toUserId:targetId}),transferId)
+      ]);
+      if((inserted[0]?.meta?.changes||0)!==1) return response({error:"transfer_conflict_or_pending_exists"},409,origin,env);
+      return response({ok:true,transferId,status:"pending"},201,origin,env);
+    } catch(e) {
+      const conflict=String(e.message||"").toLowerCase().includes("unique") || String(e.message||"").toLowerCase().includes("constraint");
+      return response({error:conflict?"transfer_conflict_or_pending_exists":"transfer_request_failed"},conflict?409:400,origin,env);
+    }
+  }
+  if(path==="/api/teams/transfers" && method==="GET") {
+    const user=await currentUser(request,env); if(!user) return response({error:"unauthorized"},401,origin,env);
+    const rows=await env.DB.prepare(`SELECT lt.id,lt.team_id,lt.from_user_id,lt.to_user_id,lt.status,lt.created_at,lt.responded_at,
+      sender.name AS fromName,recipient.name AS toName,uni.canonical_name AS university
+      FROM leader_transfers lt
+      JOIN teams t ON t.id=lt.team_id
+      JOIN universities uni ON uni.id=t.university_id
+      JOIN users sender ON sender.id=lt.from_user_id
+      JOIN users recipient ON recipient.id=lt.to_user_id
+      WHERE lt.from_user_id=? OR lt.to_user_id=?
+      ORDER BY lt.created_at DESC LIMIT 30`).bind(user.id,user.id).all();
+    return response({transfers:rows.results||[]},200,origin,env);
+  }
+  const transferParts=path.split("/");
+  if(method==="POST" && transferParts.length===6 && transferParts[1]==="api" && transferParts[2]==="teams" && transferParts[3]==="transfer" && /^[a-f0-9]{32}$/.test(transferParts[4]) && ["accept","reject"].includes(transferParts[5])) {
+    const user=await currentUser(request,env); if(!user) return response({error:"unauthorized"},401,origin,env);
+    const transferId=transferParts[4], action=transferParts[5], status=action==="accept"?"accepted":"rejected", timestamp=new Date().toISOString();
+    const transfer=await env.DB.prepare("SELECT id,to_user_id,status FROM leader_transfers WHERE id=?").bind(transferId).first();
+    if(!transfer) return response({error:"transfer_not_found"},404,origin,env);
+    if(transfer.to_user_id!==user.id) return response({error:"transfer_forbidden"},403,origin,env);
+    try {
+      await env.DB.batch([
+        env.DB.prepare("UPDATE leader_transfers SET status=?,responded_at=? WHERE id=? AND to_user_id=? AND status='pending'")
+          .bind(status,timestamp,transferId,user.id),
+        env.DB.prepare(`INSERT OR IGNORE INTO audit_logs(id,actor_type,actor_id,action,target_type,target_id,metadata_json)
+          SELECT ?, 'user', ?, ?, 'team', team_id, ? FROM leader_transfers
+          WHERE id=? AND status=? AND responded_at=? AND to_user_id=?`)
+          .bind("transfer-"+status+"-"+transferId,user.id,"team.transfer."+status,JSON.stringify({transferId}),transferId,status,timestamp,user.id)
+      ]);
+    } catch(e) {
+      return response({error:"transfer_state_conflict"},409,origin,env);
+    }
+    const latest=await env.DB.prepare(`SELECT lt.status,lt.from_user_id,lt.to_user_id,t.leader_user_id
+      FROM leader_transfers lt JOIN teams t ON t.id=lt.team_id WHERE lt.id=?`).bind(transferId).first();
+    const completed=latest && latest.status===status && (status==="accepted"?latest.leader_user_id===user.id:latest.leader_user_id===latest.from_user_id);
+    if(!completed) return response({error:"transfer_state_conflict"},409,origin,env);
+    return response({ok:true,status,alreadyApplied:transfer.status===status},200,origin,env);
   }
   if(path==="/api/directory" && method==="GET") {
     const user=await currentUser(request,env); if(!user) return response({error:"unauthorized"},401,origin,env);

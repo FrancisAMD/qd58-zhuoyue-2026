@@ -1,22 +1,29 @@
 # 项目状态
 
-最后更新：2026-11-11
+最后更新：2026-11-12
 
 ## 已提交
-- Cloudflare Pages 前端：手机号密码登录、短信注册、短信找回密码、Turnstile 组件、资料编辑和目录界面。
-- Worker 认证阶段：手机号密码登录、PBKDF2-SHA256 密码哈希、随机会话 Cookie、密码重置后撤销全部会话。
-- 阿里云 PNVS：ACS3-HMAC-SHA256 请求签名、SendSmsVerifyCode 发送、CheckSmsVerifyCode 核验；验证码明文不返回前端、不写入 D1。
-- Turnstile：Worker 服务端 Siteverify，校验 success、action 和 hostname。
-- D1 迁移 0002：增加 password_hash、OTP purpose 和 out_id。
-- 发送频控：手机号 60 秒冷却、手机号日限额、IP 小时限额；验证码有效期 5 分钟、最多 5 次核验尝试。
-- 前端 API 对接：登录、注册、找回密码、资料和基础目录接口。
+- Cloudflare Pages 前端与 Worker API 域名配置。
+- 手机号密码登录、注册短信验证码、找回密码短信验证码。
+- PBKDF2-SHA256 密码哈希（Workers 兼容上限 100,000 次）、HttpOnly/Secure 会话 Cookie、登录限流。
+- Turnstile 服务端 Siteverify 适配；阿里云 PNVS ACS3 签名发送/核验抽象。
+- D1 用户、大学、队伍、OTP、会话、转让、管理员和审计基础表。
+- 大学规范化和并发安全的首次组队。
+- 组长转让 pending/accepted/rejected API 与接收者权限校验。
+- D1 触发器约束组长成员关系、转让状态机和接受时的原子组长切换。
+- 转让操作写入 audit_logs；队伍目录手机号默认隐藏，只在本人开启授权后对同队成员展示。
 
-## 当前未完成
-- 尚未在真实 Cloudflare Worker + D1 环境执行迁移和部署。
-- 尚未使用真实阿里云 RAM AccessKey 发送/核验短信；不能宣称短信链路已跑通。
-- 尚未在真实浏览器完成 Turnstile + Cookie 跨域联调。
-- 管理后台 API、组长转让 API、完整 RBAC、审计日志、CSV 导出尚未接入当前 Worker。
-- 大学建队并发一致性、隐私告知、数据删除/匿名化、备份恢复和安全审查仍待完成。
+## 本次新增
+- `backend/migrations/0003_team_transfer_invariants.sql`
+- Worker 组长转让 API 与并发保护
+- SQLite migration/trigger 回归测试
+- GitHub Actions 后端检查流程
 
-## 安全提示
-完成远程迁移、密钥配置、真实短信测试和完整端到端测试前，不要公开收集真实个人信息。
+## 未完成 / 阻塞
+- 管理员 API、管理员独立会话、RBAC、查询筛选和 CSV 导出尚未完成。
+- 隐私告知、用户数据删除/匿名化、备份恢复策略仍待完善。
+- 尚未在用户 Cloudflare 远程 D1 上运行迁移，也未部署 Worker。
+- 未验证真实 Turnstile + 阿里云短信链路；不代表真实短信已发送。
+- 真实云端迁移历史、Secrets 和 Pages/Worker 浏览器联调需要在用户环境完成。
+
+正式开放前必须完成管理员权限、安全审查、隐私说明和端到端测试。

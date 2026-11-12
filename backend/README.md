@@ -1,24 +1,21 @@
-# 卓越 2026 API（认证与短信接入阶段）
+# 卓越 2026 API（组队与组长转让阶段）
 
-Cloudflare Worker + D1 后端。当前已提交手机号密码认证、注册/找回密码短信认证、Turnstile 服务端校验、阿里云 PNVS API 适配，以及资料和基础目录 API。
+Cloudflare Worker + D1 后端。当前已提交手机号密码认证、注册/找回密码短信认证、Turnstile 服务端校验、阿里云 PNVS 适配、资料与目录 API，以及大学自动组队和组长转让服务端流程。
 
-## 当前认证 API
+## 本阶段新增
 
-- `POST /api/auth/register/request-code`：注册短信请求，Body: `{phone, turnstileToken}`
-- `POST /api/auth/register`：完成注册，Body: `{phone, code, password}`
-- `POST /api/auth/login`：手机号密码登录，Body: `{phone, password}`
-- `POST /api/auth/password/request-code`：找回密码短信请求，Body: `{phone, turnstileToken}`
-- `POST /api/auth/password/reset`：重设密码，Body: `{phone, code, newPassword}`
-- `POST /api/auth/logout`
-- `GET/PUT /api/profile`
-- `GET /api/directory`
-- `GET /api/health`
-
-密码使用 `node:crypto` 的 PBKDF2-SHA256（100,000 次迭代）派生后存储。注意：Cloudflare Workers 的生产运行时对 PBKDF2 设置了 100,000 次硬上限，Node.js 与本地 Workerd 测试不能验证该线上限制；不得把迭代次数提高到 100,000 以上。当前 `compatibility_date` 为 2026-11-01，已启用 Node.js crypto API（该日期起默认启用）。会话 Cookie 为 Secure、HttpOnly、SameSite=Lax，数据库仅保存会话 token 的 SHA-256 摘要。密码重置会撤销该用户所有现有会话。
+- 大学规范化后以唯一 `normalized_name` 归并，并使用 `INSERT OR IGNORE` 处理并发创建。
+- 首位完成大学资料的用户通过唯一 `teams.university_id` 成为初始组长；用户资料更新与队伍创建放在同一 D1 batch 中。
+- 已有大学的成员再次保存资料不会覆盖现任组长；用户不能直接切换已登记大学，避免现任组长脱离队伍。
+- `POST /api/teams/transfer`：仅当前组长可向同校成员发起转让。
+- `GET /api/teams/transfers`：查看本人发起或收到的转让，不返回手机号。
+- `POST /api/teams/transfer/:id/accept` 和 `/reject`：仅接收者可操作，pending 状态只能终结一次。
+- D1 triggers 保证组长必须属于该大学、转让发起者必须是现任组长、接收者必须是同校成员；接受时在同一数据库事务中变更组长。
+- 转让请求、接受、拒绝写入 `audit_logs`；审计元数据不包含手机号。
 
 ## D1 迁移
 
-本次新增 `migrations/0002_password_auth.sql`，在原有 users 表增加 password_hash，并为 OTP 记录增加 purpose/out_id。先确认远程数据库迁移历史，再运行：
+新增 `migrations/0003_team_transfer_invariants.sql`。先查看远程迁移状态，再执行：
 
 ```bash
 cd backend
@@ -26,39 +23,8 @@ npx wrangler d1 migrations list qd58-zhuoyue-db --remote
 npx wrangler d1 migrations apply qd58-zhuoyue-db --remote
 ```
 
-不要对已存在的生产数据执行手工 DROP/重建操作。
-
-## Worker Secrets
-
-在 backend 目录执行：
-
-```bash
-npx wrangler secret put TURNSTILE_SECRET_KEY
-npx wrangler secret put ALIBABA_ACCESS_KEY_ID
-npx wrangler secret put ALIBABA_ACCESS_KEY_SECRET
-```
-
-不要将 Secret 写入 wrangler.toml、前端或 GitHub。Site Key 是公开值，已放在 Pages 前端。
-
-非敏感阿里云参数可通过 Wrangler vars 配置：
-- `ALIBABA_SIGN_NAME`：控制台已审核/可用的签名名称
-- `ALIBABA_TEMPLATE_CODE`：已审核/可用模板 Code
-- `ALIBABA_SCHEME_NAME`：若发送接口配置了方案名称，核验时必须使用同一个名称；未配置则使用默认方案
-
-当前 Worker 默认使用截图中的签名“恒创联众”和模板 `100001`。正式发短信前请确认这两个资源已在号码认证服务中开通可用。
-
-## 短信发送频率与 Turnstile
-
-后端在调用 Turnstile Siteverify 前先读取现有发送冷却和日/小时配额。已经处于限流状态时返回 `429`、`retryAfter`，不核销本次 Turnstile token；前端据此显示倒计时并保留尚未使用的 token。只有 Siteverify 已被调用、token 已可能核销时，响应才设置 `refreshTurnstile: true`，前端才重置验证组件。Turnstile token 为一次性凭据，不能在已核销后重复使用。
-
-## 阿里云 PNVS 认证流程
-
-Worker 通过 ACS3-HMAC-SHA256 对 `dypnsapi.aliyuncs.com` 的请求签名：
-- `SendSmsVerifyCode`：`TemplateParam={"code":"##code##","min":"5"}`，系统生成验证码；不返回验证码明文；验证码长度明确设置为 6 位，纯数字；有效期 300 秒、发送间隔 60 秒、覆盖旧码。
-- `CheckSmsVerifyCode`：必须判断 `Model.VerifyResult === "PASS"`。仅 `Success === true` 不代表验证码正确。
-
-每次发送前必须通过 Turnstile Siteverify，检查 success、action 和 hostname。注册 action 为 `register`，找回密码 action 为 `password_reset`。
+迁移仅新增索引和触发器，不删除、不重建现有表。不要对已有数据执行 DROP。
 
 ## 当前限制
 
-本阶段尚未完成管理员 API、组长转让 API、完整管理员初始化/RBAC、审计日志、数据删除/匿名化、备份恢复和端到端真实短信测试。不要将网站开放给真实报名用户，直到完成后续测试和安全审查。
+管理员 API/RBAC/CSV、数据删除/匿名化、隐私告知页面、备份恢复和真实云端端到端测试仍待完成。未配置密钥或未部署前，不能宣称真实短信链路已验证。请先在测试数据库验证迁移，再部署；不要公开收集真实报名资料。
