@@ -9,5 +9,6 @@
   "scripts": {
     "check:worker": "node --check app.js && node --check backend/src/worker.js",
     "test:worker": "node backend/tests/worker-smoke.mjs"
-  }
+  },
+  "type": "module"
 }
