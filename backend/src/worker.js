@@ -46,7 +46,7 @@ function getCookie(request) {
 async function body(request) {
   try { return await request.json(); } catch { throw new Error("invalid_json"); }
 }
-function err(message, status = 400) { return { error: message, status }; }
+function err(message, status = 400, meta = {}) { return { error: message, status, ...meta }; }
 async function turnstile(token, action, request, env) {
   if (!env.TURNSTILE_SECRET_KEY || !token) return false;
   const form = new URLSearchParams({ secret: env.TURNSTILE_SECRET_KEY, response: token });
@@ -99,6 +99,16 @@ async function rateLimit(db, key, limit, windowSeconds) {
     .bind(key, t, t-windowSeconds, t-windowSeconds, t-windowSeconds, limit).run();
   return (result.meta?.changes || 0) > 0;
 }
+async function rateLimitStatus(db, key, limit, windowSeconds) {
+  const row = await db.prepare("SELECT window_started_at,hit_count FROM rate_limits WHERE bucket_key=?").bind(key).first();
+  if (!row) return { allowed: true, retryAfter: 0 };
+  const started = Number(row.window_started_at);
+  const hits = Number(row.hit_count);
+  const t = now();
+  if (!Number.isFinite(started) || started <= t - windowSeconds || hits < limit) return { allowed: true, retryAfter: 0 };
+  return { allowed: false, retryAfter: Math.max(1, started + windowSeconds - t) };
+}
+
 async function createSession(db, userId, env) {
   const token = randomHex(32);
   const digest = await sha256(token);
@@ -118,27 +128,54 @@ async function sendCode(phone, purpose, token, request, env) {
   const exists = await env.DB.prepare("SELECT id FROM users WHERE phone=?").bind(phone).first();
   if (purpose === "register" && exists) throw err("phone_already_registered");
   if (purpose === "password_reset" && !exists) throw err("phone_not_registered");
-  if (!(await turnstile(token, purpose, request, env))) throw err("turnstile_failed",403);
+
+  // Check existing limits before Siteverify. A blocked request must not consume
+  // the visitor's one-time Turnstile token.
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
-  if (!(await rateLimit(env.DB, "sms:cooldown:" + phone, 1, Number(env.OTP_SEND_COOLDOWN_SECONDS || COOLDOWN_SECONDS)))) throw err("rate_limited",429);
-  if (!(await rateLimit(env.DB, "sms:phone:" + phone, 5, 86400))) throw err("rate_limited",429);
-  if (!(await rateLimit(env.DB, "sms:ip:" + ip, 20, 3600))) throw err("rate_limited",429);
-  const outId = randomHex(16);
-  const params = {
-    CountryCode: "86", PhoneNumber: phone,
-    SignName: env.ALIBABA_SIGN_NAME || "恒创联众",
-    TemplateCode: env.ALIBABA_TEMPLATE_CODE || "100001",
-    TemplateParam: JSON.stringify({ code: "##code##", min: "5" }),
-    ValidTime: Number(env.OTP_TTL_SECONDS || OTP_SECONDS),
-    DuplicatePolicy: 1, Interval: Number(env.OTP_SEND_COOLDOWN_SECONDS || COOLDOWN_SECONDS),
-    CodeType: 1, CodeLength: 6, ReturnVerifyCode: false, AutoRetry: 1, OutId: outId
-  };
-  if (env.ALIBABA_SCHEME_NAME) params.SchemeName = env.ALIBABA_SCHEME_NAME;
-  const sent = await aliyun("SendSmsVerifyCode", params, env);
-  await env.DB.prepare("INSERT INTO otp_challenges(id,phone,code_hash,expires_at,attempts,consumed_at,created_at,purpose,out_id) VALUES(?,?,?, ?,0,NULL,?,?,?)")
-    .bind(randomHex(16),phone,"ALIYUN",now()+Number(env.OTP_TTL_SECONDS || OTP_SECONDS),now(),purpose,outId).run();
-  return { ok: true, requestId: sent.RequestId || null };
+  const limits = [
+    { key: "sms:cooldown:" + phone, limit: 1, window: Number(env.OTP_SEND_COOLDOWN_SECONDS || COOLDOWN_SECONDS) },
+    { key: "sms:phone:" + phone, limit: 5, window: 86400 },
+    { key: "sms:ip:" + ip, limit: 20, window: 3600 }
+  ];
+  for (const item of limits) {
+    const status = await rateLimitStatus(env.DB, item.key, item.limit, item.window);
+    if (!status.allowed) throw err("rate_limited", 429, { retryAfter: status.retryAfter, refreshTurnstile: false });
+  }
+
+  if (!(await turnstile(token, purpose, request, env))) {
+    throw err("turnstile_failed", 403, { refreshTurnstile: true });
+  }
+
+  // From this point onward Siteverify has redeemed the token. Any failure
+  // must tell the frontend to obtain a fresh token before another attempt.
+  try {
+    for (const item of limits) {
+      if (!(await rateLimit(env.DB, item.key, item.limit, item.window))) {
+        const status = await rateLimitStatus(env.DB, item.key, item.limit, item.window);
+        throw err("rate_limited", 429, { retryAfter: status.retryAfter || item.window, refreshTurnstile: true });
+      }
+    }
+    const outId = randomHex(16);
+    const params = {
+      CountryCode: "86", PhoneNumber: phone,
+      SignName: env.ALIBABA_SIGN_NAME || "恒创联众",
+      TemplateCode: env.ALIBABA_TEMPLATE_CODE || "100001",
+      TemplateParam: JSON.stringify({ code: "##code##", min: "5" }),
+      ValidTime: Number(env.OTP_TTL_SECONDS || OTP_SECONDS),
+      DuplicatePolicy: 1, Interval: Number(env.OTP_SEND_COOLDOWN_SECONDS || COOLDOWN_SECONDS),
+      CodeType: 1, CodeLength: 6, ReturnVerifyCode: false, AutoRetry: 1, OutId: outId
+    };
+    if (env.ALIBABA_SCHEME_NAME) params.SchemeName = env.ALIBABA_SCHEME_NAME;
+    const sent = await aliyun("SendSmsVerifyCode", params, env);
+    await env.DB.prepare("INSERT INTO otp_challenges(id,phone,code_hash,expires_at,attempts,consumed_at,created_at,purpose,out_id) VALUES(?,?,?, ?,0,NULL,?,?,?)")
+      .bind(randomHex(16),phone,"ALIYUN",now()+Number(env.OTP_TTL_SECONDS || OTP_SECONDS),now(),purpose,outId).run();
+    return { ok: true, requestId: sent.RequestId || null };
+  } catch (error) {
+    if (error && typeof error === "object") error.refreshTurnstile = true;
+    throw error;
+  }
 }
+
 async function verifyCode(phone, code, purpose, env) {
   if (!validPhone(phone) || !/^\d{4,8}$/.test(String(code || ""))) throw err("invalid_code");
   const challenge = await env.DB.prepare("SELECT id,out_id,expires_at,consumed_at,attempts FROM otp_challenges WHERE phone=? AND purpose=? ORDER BY created_at DESC LIMIT 1").bind(phone,purpose).first();
@@ -178,11 +215,21 @@ async function route(request, env) {
   if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"pbkdf2-100k-20261112",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
   if(path==="/api/auth/register/request-code" && method==="POST") {
     try { const d=await body(request); return response(await sendCode(String(d.phone||""),"register",d.turnstileToken,request,env),200,origin,env); }
-    catch(e) { return response({error:e.error||e.message||"request_failed"},e.status||400,origin,env); }
+    catch(e) {
+      const payload={error:e.error||e.message||"request_failed"};
+      if(e.refreshTurnstile) payload.refreshTurnstile=true;
+      if(Number.isFinite(e.retryAfter)) payload.retryAfter=e.retryAfter;
+      return response(payload,e.status||400,origin,env);
+    }
   }
   if(path==="/api/auth/password/request-code" && method==="POST") {
     try { const d=await body(request); return response(await sendCode(String(d.phone||""),"password_reset",d.turnstileToken,request,env),200,origin,env); }
-    catch(e) { return response({error:e.error||e.message||"request_failed"},e.status||400,origin,env); }
+    catch(e) {
+      const payload={error:e.error||e.message||"request_failed"};
+      if(e.refreshTurnstile) payload.refreshTurnstile=true;
+      if(Number.isFinite(e.retryAfter)) payload.retryAfter=e.retryAfter;
+      return response(payload,e.status||400,origin,env);
+    }
   }
   if(path==="/api/auth/register" && method==="POST") {
     try { const d=await body(request); const userId=await register(d,env); const s=await createSession(env.DB,userId,env); return response({ok:true},201,origin,env,{"set-cookie":cookie(s.token,s.maxAge)}); }
