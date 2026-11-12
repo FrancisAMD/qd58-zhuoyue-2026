@@ -43,7 +43,7 @@ const lockedDb={
 const limited=await worker.fetch(new Request("https://api.58er.eon21.space/api/auth/register/request-code",{
   method:"POST",
   headers:{"content-type":"application/json",origin:"https://58er.eon21.space"},
-  body:JSON.stringify({phone:"13812345678",turnstileToken:"unused-test-token"})
+  body:JSON.stringify({phone:"13812345678",turnstileToken:"unused-test-token",accountConsent:true})
 }),{APP_ORIGIN:"https://58er.eon21.space",DB:lockedDb});
 const limitedBody=await limited.json();
 
@@ -88,7 +88,7 @@ try{
   };
   const rejected=await worker.fetch(new Request("https://api.58er.eon21.space/api/auth/register/request-code",{
     method:"POST",headers:{"content-type":"application/json",origin:"https://58er.eon21.space","CF-Connecting-IP":"203.0.113.10"},
-    body:JSON.stringify({phone:"13812345679",turnstileToken:"mock-valid-token"})
+    body:JSON.stringify({phone:"13812345679",turnstileToken:"mock-valid-token",accountConsent:true})
   }),{APP_ORIGIN:"https://58er.eon21.space",DB:quotaDb,TURNSTILE_SECRET_KEY:"mock-secret",ALIBABA_ACCESS_KEY_ID:"mock",ALIBABA_ACCESS_KEY_SECRET:"mock"});
   if(rejected.status!==400) throw new Error("Mock PNVS rejection should return a provider error");
   if([...quotaRows.values()].some(row=>row.hit_count!==0)) throw new Error("SMS quota reservation was not released after PNVS rejection");
