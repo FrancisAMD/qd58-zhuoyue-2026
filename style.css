@@ -80,3 +80,6 @@ body.dark .selected-university-type strong,body.dark .type-number,body.dark .typ
 
 .university-category-chip{display:inline-block;vertical-align:middle;margin-left:8px;padding:3px 8px;border-radius:20px;background:var(--mint);color:var(--green);font-size:9px;font-weight:650;letter-spacing:.2px}
 body.dark .university-category-chip{background:#344d3c;color:#c5e0cc}
+
+.university-tag-chip{display:inline-block;vertical-align:middle;margin:3px 4px 3px 0;padding:3px 7px;border:1px solid #b8cdbd;border-radius:20px;color:var(--green);font-size:9px;background:#f6faf6}
+body.dark .university-tag-chip{background:#273d30;border-color:#526f5b;color:#c5e0cc}
