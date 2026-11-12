@@ -8,7 +8,7 @@ const derivedOtherSalt=await derivePassword("worker-smoke-password",new Uint8Arr
 if(derived.length!==32 || derived.some((v,i)=>v!==derivedAgain[i]) || derived.every((v,i)=>v===derivedOtherSalt[i])) throw new Error("PBKDF2 100000 smoke test failed");
 const ok=await worker.fetch(new Request("https://api.58er.eon21.space/api/health"),env);
 const health=await ok.json();
-if(ok.status!==200 || !health.ok || health.build!=="team-transfer-20261112" || health.passwordKdf!=="pbkdf2-sha256-100000") throw new Error("health route/build marker failed");
+if(ok.status!==200 || !health.ok || health.build!=="sms-quota-reservation-20261112" || health.passwordKdf!=="pbkdf2-sha256-100000") throw new Error("health route/build marker failed");
 const blocked=await worker.fetch(new Request("https://api.58er.eon21.space/api/auth/login",{method:"POST",headers:{"content-type":"application/json",origin:"https://evil.example"},body:JSON.stringify({phone:"13800000000",password:"test"})}),env);
 if(blocked.status!==403) throw new Error("origin guard failed");
 const preflight=await worker.fetch(new Request("https://api.58er.eon21.space/api/auth/login",{method:"OPTIONS",headers:{origin:"https://58er.eon21.space","access-control-request-method":"POST"}}),env);
@@ -53,7 +53,7 @@ const quotaDb={
         },
         run:async()=>{
           if(sql.startsWith("INSERT INTO rate_limits")){
-            const [key,t,resetAt,, ,limit]=args,old=quotaRows.get(key);
+            const key=args[0],t=args[1],resetAt=args[2],limit=args[5],old=quotaRows.get(key);
             if(!old){quotaRows.set(key,{window_started_at:t,hit_count:1});return {meta:{changes:1}}}
             if(old.window_started_at<=resetAt){quotaRows.set(key,{window_started_at:t,hit_count:1});return {meta:{changes:1}}}
             if(old.hit_count<limit){old.hit_count++;return {meta:{changes:1}}}
@@ -80,7 +80,7 @@ try{
   const rejected=await worker.fetch(new Request("https://api.58er.eon21.space/api/auth/register/request-code",{
     method:"POST",headers:{"content-type":"application/json",origin:"https://58er.eon21.space","CF-Connecting-IP":"203.0.113.10"},
     body:JSON.stringify({phone:"13812345679",turnstileToken:"mock-valid-token"})
-  }),{APP_ORIGIN:"https://58er.eon21.space",DB:quotaDb,ALIBABA_ACCESS_KEY_ID:"mock",ALIBABA_ACCESS_KEY_SECRET:"mock"});
+  }),{APP_ORIGIN:"https://58er.eon21.space",DB:quotaDb,TURNSTILE_SECRET_KEY:"mock-secret",ALIBABA_ACCESS_KEY_ID:"mock",ALIBABA_ACCESS_KEY_SECRET:"mock"});
   if(rejected.status!==400) throw new Error("Mock PNVS rejection should return a provider error");
   if([...quotaRows.values()].some(row=>row.hit_count!==0)) throw new Error("SMS quota reservation was not released after PNVS rejection");
 }finally{globalThis.fetch=originalFetch}
