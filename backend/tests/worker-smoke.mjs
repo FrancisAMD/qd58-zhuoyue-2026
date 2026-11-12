@@ -13,4 +13,29 @@ const blocked=await worker.fetch(new Request("https://api.58er.eon21.space/api/a
 if(blocked.status!==403) throw new Error("origin guard failed");
 const preflight=await worker.fetch(new Request("https://api.58er.eon21.space/api/auth/login",{method:"OPTIONS",headers:{origin:"https://58er.eon21.space","access-control-request-method":"POST"}}),env);
 if(preflight.status!==204 || preflight.headers.get("access-control-allow-credentials")!=="true") throw new Error("CORS preflight failed");
-console.log("Worker smoke tests: PASS (PBKDF2-310000, health, Origin rejection, CORS preflight).");
+const nowSeconds=Math.floor(Date.now()/1000);
+const lockedDb={
+  prepare(sql){
+    return {bind(...args){
+      return {
+        first:async()=>{
+          if(sql.startsWith("SELECT id FROM users")) return null;
+          if(sql.startsWith("SELECT window_started_at,hit_count FROM rate_limits")){
+            if(args[0]==="sms:cooldown:13812345678") return {window_started_at:nowSeconds-20,hit_count:1};
+            return null;
+          }
+          return null;
+        },
+        run:async()=>({meta:{changes:1}})
+      };
+    }};
+  }
+};
+const limited=await worker.fetch(new Request("https://api.58er.eon21.space/api/auth/register/request-code",{
+  method:"POST",
+  headers:{"content-type":"application/json",origin:"https://58er.eon21.space"},
+  body:JSON.stringify({phone:"13812345678",turnstileToken:"unused-test-token"})
+}),{APP_ORIGIN:"https://58er.eon21.space",DB:lockedDb});
+const limitedBody=await limited.json();
+if(limited.status!==429 || limitedBody.error!=="rate_limited" || limitedBody.refreshTurnstile===true || !(limitedBody.retryAfter>0)) throw new Error("SMS cooldown must not consume Turnstile token");
+console.log("Worker smoke tests: PASS (PBKDF2-100000, health/build marker, Origin rejection, CORS preflight, SMS cooldown preserves Turnstile token).");
