@@ -13,6 +13,15 @@ const blocked=await worker.fetch(new Request("https://api.58er.eon21.space/api/a
 if(blocked.status!==403) throw new Error("origin guard failed");
 const preflight=await worker.fetch(new Request("https://api.58er.eon21.space/api/auth/login",{method:"OPTIONS",headers:{origin:"https://58er.eon21.space","access-control-request-method":"POST"}}),env);
 if(preflight.status!==204 || preflight.headers.get("access-control-allow-credentials")!=="true") throw new Error("CORS preflight failed");
+const registrationWithoutConsent=await worker.fetch(new Request("https://api.58er.eon21.space/api/auth/register/request-code",{method:"POST",headers:{"content-type":"application/json",origin:"https://58er.eon21.space"},body:JSON.stringify({phone:"13812345678",turnstileToken:"unused"})}),{APP_ORIGIN:"https://58er.eon21.space"});
+const registrationWithoutConsentBody=await registrationWithoutConsent.json();
+if(registrationWithoutConsent.status!==400 || registrationWithoutConsentBody.error!=="consent_required") throw new Error("registration SMS must require privacy consent");
+
+const consentDb={prepare(sql){return {bind(){return {first:async()=>sql.startsWith("SELECT u.id,u.phone")?{id:"consent-user",phone:"13800000000",consent_given:0,consent_at:"",consent_version:"",account_consent_at:"",account_consent_version:""}:null,run:async()=>({meta:{changes:1}})}}}}};
+const missingConsent=await worker.fetch(new Request("https://api.58er.eon21.space/api/profile",{method:"PUT",headers:{"content-type":"application/json",origin:"https://58er.eon21.space",cookie:"__Host-qd58_session="+"d".repeat(64)},body:JSON.stringify({})}),{APP_ORIGIN:"https://58er.eon21.space",DB:consentDb});
+const missingConsentBody=await missingConsent.json();
+if(missingConsent.status!==400 || missingConsentBody.error!=="consent_required") throw new Error("profile save must require explicit privacy consent");
+
 const nowSeconds=Math.floor(Date.now()/1000);
 const lockedDb={
   prepare(sql){

@@ -5,10 +5,16 @@ migrations = sorted((Path(__file__).parents[1] / "migrations").glob("*.sql"))
 db = sqlite3.connect(":memory:")
 db.execute("PRAGMA foreign_keys = ON")
 for migration in migrations:
+    if migration.name == "0005_explicit_consent.sql":
+        db.execute("INSERT INTO users(id,phone,consent_at) VALUES(?,?,?)", ("legacy-consent","13800000099","2026-11-11T00:00:00Z"))
     db.executescript(migration.read_text(encoding="utf-8"))
+
+assert db.execute("SELECT consent_given,consent_at,consent_version,account_consent_at,account_consent_version FROM users WHERE id=?", ("legacy-consent",)).fetchone() == (0, "", "", "", "")
 
 university_columns = {row[1] for row in db.execute("PRAGMA table_info(universities)")}
 assert {"category", "region_name", "education_level", "project_tags_json", "partner_name"} <= university_columns
+user_columns = {row[1] for row in db.execute("PRAGMA table_info(users)")}
+assert {"consent_given", "consent_version", "account_consent_at", "account_consent_version"} <= user_columns
 
 def must_fail(sql, params=()):
     try:

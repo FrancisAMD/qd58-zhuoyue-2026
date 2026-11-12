@@ -9,6 +9,7 @@ const OTP_SECONDS = 300;
 const COOLDOWN_SECONDS = 60;
 const ALI_HOST = "dypnsapi.aliyuncs.com";
 const ALI_VERSION = "2017-05-25";
+const PRIVACY_NOTICE_VERSION = "2026-11-12-v1";
 
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", ...headers } });
@@ -141,7 +142,7 @@ async function currentUser(request, env) {
   const token = getCookie(request);
   if (!token) return null;
   const digest = await sha256(token);
-  const row = await env.DB.prepare("SELECT u.id,u.phone,u.name,u.high_school,u.class_name,u.university_id,u.grade,u.province,u.city,u.bio,u.phone_visible_to_team FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?").bind(digest,now()).first();
+  const row = await env.DB.prepare("SELECT u.id,u.phone,u.name,u.high_school,u.class_name,u.university_id,u.grade,u.province,u.city,u.bio,u.phone_visible_to_team,u.consent_given,u.consent_at,u.consent_version,u.account_consent_at,u.account_consent_version FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?").bind(digest,now()).first();
   return row || null;
 }
 async function sendCode(phone, purpose, token, request, env) {
@@ -227,6 +228,7 @@ async function verifyCode(phone, code, purpose, env) {
 async function register(data, env) {
   const phone=String(data.phone||""), password=String(data.password||"");
   if (!validPhone(phone)) throw err("invalid_phone");
+  if (data.accountConsent !== true) throw err("consent_required");
   if (password.length < 10 || password.length > 128) throw err("weak_password");
   const salt=crypto.getRandomValues(new Uint8Array(16));
   const derived=await derivePassword(password,salt);
@@ -234,7 +236,7 @@ async function register(data, env) {
   await verifyCode(phone,data.code,"register",env);
   const hash="pbkdf2-sha256$"+PBKDF2_ITERATIONS+"$"+b64(salt)+"$"+b64(derived);
   const id=randomHex(16);
-  try { await env.DB.prepare("INSERT INTO users(id,phone,password_hash,consent_at) VALUES(?,?,?,?)").bind(id,phone,hash,new Date().toISOString()).run(); }
+  try { await env.DB.prepare("INSERT INTO users(id,phone,password_hash,consent_at,consent_given,consent_version,account_consent_at,account_consent_version) VALUES(?,?,?,'',0,'',?,?)").bind(id,phone,hash,new Date().toISOString(),PRIVACY_NOTICE_VERSION).run(); }
   catch { throw err("phone_already_registered",409); }
   return id;
 }
@@ -251,7 +253,7 @@ async function route(request, env) {
   if(origin && origin!==env.APP_ORIGIN) return response({error:"origin_forbidden"},403,origin,env);
   if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"classmates-directory-20261112",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
   if(path==="/api/auth/register/request-code" && method==="POST") {
-    try { const d=await body(request); return response(await sendCode(String(d.phone||""),"register",d.turnstileToken,request,env),200,origin,env); }
+    try { const d=await body(request); if(d.accountConsent !== true) return response({error:"consent_required"},400,origin,env); return response(await sendCode(String(d.phone||""),"register",d.turnstileToken,request,env),200,origin,env); }
     catch(e) {
       const payload={error:e.error||e.message||"request_failed"};
       if(e.refreshTurnstile) payload.refreshTurnstile=true;
@@ -335,13 +337,17 @@ async function route(request, env) {
       regionName:uni?.region_name || "",educationLevel:uni?.education_level || "",
       partnerName:uni?.partner_name || "",projectTags:uni?.project_tags_json || "[]",
       grade:user.grade,province:user.province,city:user.city,bio:user.bio,
-      phoneVisible:!!user.phone_visible_to_team
+      phoneVisible:!!user.phone_visible_to_team,
+      consentGiven:!!user.consent_given && !!user.account_consent_at,
+      consentAt:user.consent_at||"",consentVersion:user.consent_version||"",
+      accountConsentGiven:!!user.account_consent_at
     }},200,origin,env);
   }
   if(path==="/api/profile" && method==="PUT") {
     const user=await currentUser(request,env); if(!user) return response({error:"unauthorized"},401,origin,env);
     try {
       const d=await body(request);
+      if(d.consent !== true) return response({error:"consent_required"},400,origin,env);
       const name=String(d.name||"").trim(), className=String(d.className||"").trim();
       const rawUniversity=String(d.university||"").trim().replace(/\s+/g," ");
       const category=String(d.universityCategory||"");
@@ -380,11 +386,12 @@ async function route(request, env) {
       if(existingProfile?.university_id && existingProfile.university_id!==uni.id) return response({error:"university_change_requires_support"},409,origin,env);
       const existingUniversity=await env.DB.prepare("SELECT region_name,education_level,partner_name FROM universities WHERE id=?").bind(uni.id).first();
       if(existingUniversity && ((existingUniversity.region_name && regionName && existingUniversity.region_name!==regionName) || (existingUniversity.education_level && educationLevel && existingUniversity.education_level!==educationLevel) || (existingUniversity.partner_name && partnerName && existingUniversity.partner_name!==partnerName))) return response({error:"university_metadata_conflict"},409,origin,env);
+      const savedAt=new Date().toISOString();
       await env.DB.batch([
         env.DB.prepare("UPDATE universities SET region_name=CASE WHEN region_name='' THEN ? ELSE region_name END,education_level=CASE WHEN education_level='' THEN ? ELSE education_level END,partner_name=CASE WHEN partner_name='' THEN ? ELSE partner_name END WHERE id=? AND category=?")
           .bind(regionName,educationLevel,partnerName,uni.id,category),
-        env.DB.prepare("UPDATE users SET name=?,class_name=?,high_school=?,university_id=?,grade=?,province=?,city=?,bio=?,phone_visible_to_team=?,updated_at=? WHERE id=?")
-          .bind(name,className,String(d.highSchool||"青岛五十八中").trim(),uni.id,grade,province,String(d.city||"").trim(),String(d.bio||"").trim(),d.phoneVisible?1:0,new Date().toISOString(),user.id),
+        env.DB.prepare("UPDATE users SET name=?,class_name=?,high_school=?,university_id=?,grade=?,province=?,city=?,bio=?,phone_visible_to_team=?,consent_given=1,consent_at=CASE WHEN consent_given=0 OR consent_version<>? THEN ? ELSE consent_at END,consent_version=?,account_consent_at=CASE WHEN account_consent_at='' OR account_consent_version<>? THEN ? ELSE account_consent_at END,account_consent_version=?,updated_at=? WHERE id=?")
+          .bind(name,className,String(d.highSchool||"青岛五十八中").trim(),uni.id,grade,province,String(d.city||"").trim(),String(d.bio||"").trim(),d.phoneVisible?1:0,PRIVACY_NOTICE_VERSION,savedAt,PRIVACY_NOTICE_VERSION,PRIVACY_NOTICE_VERSION,savedAt,PRIVACY_NOTICE_VERSION,savedAt,user.id),
         env.DB.prepare("INSERT OR IGNORE INTO teams(id,university_id,leader_user_id) SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM users WHERE id=? AND university_id=?)")
           .bind(randomHex(16),uni.id,user.id,user.id,uni.id)
       ]);
