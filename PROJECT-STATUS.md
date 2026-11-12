@@ -11,10 +11,12 @@
 - 大学规范化和并发安全的首次组队。
 - 组长转让 pending/accepted/rejected API 与接收者权限校验。
 - D1 触发器约束组长成员关系、转让状态机和接受时的原子组长切换。
+- 资料登记改为先选高校类别，再填写类别专属信息；高校目录保留 985、211、双一流可重叠标签字段。
 - 转让操作写入 audit_logs；队伍目录手机号默认隐藏，只在本人开启授权后对同队成员展示。
 
 ## 本次新增
 - `backend/migrations/0003_team_transfer_invariants.sql`
+- `backend/migrations/0004_university_categories.sql`：高校实体增加四类分类、地区、办学层次、合作院校和可叠加项目标签。
 - Worker 组长转让 API 与并发保护
 - SQLite migration/trigger 回归测试
 - GitHub Actions 后端检查流程
@@ -22,7 +24,7 @@
 ## 未完成 / 阻塞
 - 管理员 API、管理员独立会话、RBAC、查询筛选和 CSV 导出尚未完成。
 - 隐私告知、用户数据删除/匿名化、备份恢复策略仍待完善。
-- 尚未在用户 Cloudflare 远程 D1 上运行迁移，也未部署 Worker。
+- 高校分类迁移 0004 已提交，仍需在用户 Cloudflare 远程 D1 上应用；然后部署 Worker 与 Pages。
 - 未验证真实 Turnstile + 阿里云短信链路；不代表真实短信已发送。
 - 真实云端迁移历史、Secrets 和 Pages/Worker 浏览器联调需要在用户环境完成。
 
