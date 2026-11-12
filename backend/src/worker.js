@@ -1,7 +1,7 @@
 import { pbkdf2 } from "node:crypto";
 
 const encoder = new TextEncoder();
-const PBKDF2_ITERATIONS = 310000;
+export const PBKDF2_ITERATIONS = 100000;
 const PBKDF2_KEY_BYTES = 32;
 const COOKIE = "__Host-qd58_session";
 const SESSION_SECONDS = 7 * 24 * 60 * 60;
@@ -175,7 +175,7 @@ async function route(request, env) {
   const url=new URL(request.url), path=url.pathname, method=request.method, origin=request.headers.get("Origin");
   if(method==="OPTIONS") return new Response(null,{status:204,headers:corsHeaders(origin,env)});
   if(origin && origin!==env.APP_ORIGIN) return response({error:"origin_forbidden"},403,origin,env);
-  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api"},200,origin,env);
+  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"pbkdf2-100k-20261112",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
   if(path==="/api/auth/register/request-code" && method==="POST") {
     try { const d=await body(request); return response(await sendCode(String(d.phone||""),"register",d.turnstileToken,request,env),200,origin,env); }
     catch(e) { return response({error:e.error||e.message||"request_failed"},e.status||400,origin,env); }
