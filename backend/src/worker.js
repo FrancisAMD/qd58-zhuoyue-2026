@@ -459,8 +459,8 @@ async function route(request, env) {
   if(path==="/api/directory" && method==="GET") {
     const user=await currentUser(request,env); if(!user) return response({error:"unauthorized"},401,origin,env);
     const own=await env.DB.prepare("SELECT university_id,province FROM users WHERE id=?").bind(user.id).first();
-    const members=own.university_id?await env.DB.prepare("SELECT u.name,u.class_name AS className,u.grade,u.province,uni.canonical_name AS university,CASE WHEN u.phone_visible_to_team=1 THEN u.phone ELSE NULL END AS phone FROM users u JOIN universities uni ON uni.id=u.university_id WHERE u.university_id=? ORDER BY u.created_at").bind(own.university_id).all():{results:[]};
-    const leaders=await env.DB.prepare("SELECT u.name,u.grade,u.province,uni.canonical_name AS university FROM teams t JOIN users u ON u.id=t.leader_user_id JOIN universities uni ON uni.id=t.university_id WHERE u.province=? ORDER BY uni.canonical_name").bind(own.province||"").all();
+    const members=own.university_id?await env.DB.prepare("SELECT u.name,u.class_name AS className,u.grade,u.province,uni.canonical_name AS university,uni.category AS universityCategory,uni.region_name AS universityRegion,uni.education_level AS educationLevel,CASE WHEN u.phone_visible_to_team=1 THEN u.phone ELSE NULL END AS phone FROM users u JOIN universities uni ON uni.id=u.university_id WHERE u.university_id=? ORDER BY u.created_at").bind(own.university_id).all():{results:[]};
+    const leaders=await env.DB.prepare("SELECT u.name,u.grade,u.province,uni.canonical_name AS university,uni.category AS universityCategory,uni.region_name AS universityRegion,uni.education_level AS educationLevel FROM teams t JOIN users u ON u.id=t.leader_user_id JOIN universities uni ON uni.id=t.university_id WHERE u.province=? ORDER BY uni.canonical_name").bind(own.province||"").all();
     return response({members:members.results||[],provinceLeaders:leaders.results||[]},200,origin,env);
   }
   return response({error:"not_found"},404,origin,env);
