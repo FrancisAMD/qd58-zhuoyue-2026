@@ -21,7 +21,7 @@ header>div:last-child{display:flex;align-items:center;gap:8px}
 .auth-form .wide span{margin-left:7px}
 .auth-form .wide:disabled,.auth-form .verify button:disabled{opacity:.7;cursor:not-allowed}
 .auth-note{border-top:1px solid var(--line);padding-top:13px;margin-top:18px!important;color:var(--muted)!important;font-size:10px!important;text-align:center}
-.captcha-area{min-height:66px;margin:8px 0 2px;display:flex;align-items:center;max-width:100%;overflow:hidden}
+.captcha-area{min-height:66px;margin:8px 0 2px;display:flex;align-items:center;max-width:100%;overflow:visible}
 .verify{gap:10px;align-items:end}
 .verify label{flex:1;min-width:0}
 .verify button{height:44px;flex:0 0 132px;min-width:132px;white-space:normal;overflow-wrap:anywhere;font-size:11px;padding:7px 8px;margin-bottom:13px}
@@ -39,7 +39,7 @@ body.dark .password-toggle{color:#b7d4c0}
  .auth-form .form-heading h2{font-size:25px}
  .verify{gap:7px}
  .verify button{flex-basis:118px;min-width:118px}
- .captcha-area{overflow-x:auto}
+
 }
 
 .captcha-help{margin:-1px 0 10px;color:var(--muted);font-size:10px;line-height:1.5}
