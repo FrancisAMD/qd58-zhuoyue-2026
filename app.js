@@ -19,7 +19,7 @@ function showAuthStage(){
   $("authStage").hidden=false;
   $("appStage").hidden=true;
   $("mainNav").hidden=true;
-  $("pageFooter").hidden=false;
+  $("pageFooter").hidden=true;
   $("openAuth").hidden=false;
   $("changePassword").hidden=true;
   $("logout").hidden=true;
@@ -61,10 +61,17 @@ async function load(){
     showAppStage(p);
     if(p.university&&universityCategories[p.universityCategory])await loadDirectory();
   }catch(e){
-    if(e.message!=="unauthorized")console.warn(e);
-    showAuthStage();
+    if(e.message==="unauthorized"){
+      showAuthStage();
+    }else{
+      console.warn(e);
+      document.body.classList.remove("session-checking");
+      $("bootMessage").textContent="暂时无法确认登录状态，请检查网络后重新尝试。";
+      $("retrySession").hidden=false;
+    }
   }
 }
+$("retrySession").onclick=()=>location.reload();
 async function loadDirectory(){try{directory=await call("/directory");render()}catch(e){console.warn(e)}}
 function render(){if(!directory)return;const rows=view==="members"?(directory.members||[]):(directory.provinceLeaders||[]),q=$("search").value.toLowerCase(),categoryNames={mainland:"中国大陆",hmt:"港澳台",sino_foreign:"中外合作",overseas:"海外"},tagNames={"985":"985工程","211":"211工程",double_first_class:"双一流"};$("results").innerHTML=rows.filter(x=>([x.name,x.university,x.province,x.className].join(" ")).toLowerCase().includes(q)).map(x=>{let tags=[];try{tags=JSON.parse(x.projectTags||"[]").filter(t=>tagNames[t]).map(t=>'<span class="university-tag-chip">'+tagNames[t]+'</span>')}catch{}return '<article class="panel"><b>'+safe(x.university||x.name||"同学")+'</b>'+(categoryNames[x.universityCategory]?'<span class="university-category-chip">'+categoryNames[x.universityCategory]+'</span>':"")+tags.join("")+'<p>'+safe(x.name||"")+' · '+safe(x.grade||"")+' · '+safe(x.province||"")+'</p><small>'+(x.phone?"已授权联系方式："+safe(x.phone):"手机号未授权公开")+'</small></article>'}).join("")||"<p>暂无可展示的信息。</p>"}
 document.querySelectorAll("[data-close]").forEach(x=>x.onclick=()=>$("modal").classList.remove("show"));document.querySelectorAll("[data-university-category]").forEach(b=>b.onclick=()=>{if(categoryLocked)return;selectUniversityCategory(b.dataset.universityCategory);msg("universityCategoryMsg","已选择："+universityCategories[b.dataset.universityCategory]);});$("universityNext").onclick=()=>openUniversityDetails();$("universityBack").onclick=showUniversityCategoryStep;$("universityBackBottom").onclick=showUniversityCategoryStep;["mainlandEducationLevel","jointEducationLevel","hmtRegion","overseasRegion","jointPartnerName"].forEach(id=>$(id).addEventListener("change",()=>syncUniversityFields()));["openAuth","authStageLogin","gateLogin","directoryLogin"].forEach(x=>$(x).onclick=()=>auth("login"));$("authStageRegister").onclick=()=>auth("register");$("changePassword").onclick=()=>auth("changePassword");$("theme").onclick=()=>document.body.classList.toggle("dark");document.querySelectorAll("[data-auth]").forEach(x=>x.onclick=()=>auth(x.dataset.auth));$("forgot").onclick=()=>auth("reset");$("backLogin").onclick=()=>auth("login");$("cancelPasswordChange").onclick=()=>$("modal").classList.remove("show");$("regSend").onclick=()=>sendCode("register");$("resetSend").onclick=()=>sendCode("reset");
