@@ -7,6 +7,9 @@ db.execute("PRAGMA foreign_keys = ON")
 for migration in migrations:
     db.executescript(migration.read_text())
 
+university_columns = {row[1] for row in db.execute("PRAGMA table_info(universities)")}
+assert {"category", "region_name", "education_level", "project_tags_json", "partner_name"} <= university_columns
+
 def must_fail(sql, params=()):
     try:
         db.execute(sql, params)
@@ -16,6 +19,10 @@ def must_fail(sql, params=()):
 
 db.execute("INSERT INTO universities(id,canonical_name,normalized_name) VALUES(?,?,?)", ("uni1","北京大学","北京大学"))
 db.execute("INSERT INTO universities(id,canonical_name,normalized_name) VALUES(?,?,?)", ("uni2","清华大学","清华大学"))
+db.execute("UPDATE universities SET category='mainland',education_level='undergraduate',project_tags_json='[\"985\",\"211\",\"double_first_class\"]' WHERE id='uni1'")
+assert db.execute("SELECT category,education_level,project_tags_json FROM universities WHERE id='uni1'").fetchone() == ("mainland","undergraduate",'["985","211","double_first_class"]')
+db.execute("INSERT INTO universities(id,canonical_name,normalized_name,category,region_name) VALUES(?,?,?,?,?)", ("uni3","香港大学","hmt:香港大学","hmt","香港"))
+
 db.execute("INSERT INTO users(id,phone,consent_at,university_id) VALUES(?,?,?,?)", ("u1","13800000000","2026-11-12T00:00:00Z","uni1"))
 db.execute("INSERT INTO users(id,phone,consent_at,university_id) VALUES(?,?,?,?)", ("u2","13800000001","2026-11-12T00:00:00Z","uni1"))
 db.execute("INSERT INTO users(id,phone,consent_at,university_id) VALUES(?,?,?,?)", ("u3","13800000002","2026-11-12T00:00:00Z","uni2"))
