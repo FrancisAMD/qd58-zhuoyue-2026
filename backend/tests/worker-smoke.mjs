@@ -195,8 +195,14 @@ const peopleResponse=await worker.fetch(new Request("https://api.58er.eon21.spac
 const peopleBody=await peopleResponse.json();
 if(peopleResponse.status!==200 || peopleBody.items?.length!==1 || peopleBody.pagination?.total!==1 || /u\\.phone|SELECT[^]*phone/i.test(peopleSql)) throw new Error("admin roster filtering or phone minimization failed");
 const csvResponse=await worker.fetch(new Request("https://api.58er.eon21.space/api/admin/people?format=csv",{headers:{origin:"https://58er.eon21.space",cookie:adminCookieHeader}}),{APP_ORIGIN:"https://58er.eon21.space",DB:adminDb});
-const csv=await csvResponse.text();
-if(csvResponse.status!==200 || !csv.startsWith(String.fromCharCode(65279)) || !csv.includes("'=2+2") || csv.includes("13800000000") || !csvResponse.headers.get("content-disposition")?.includes("zhuoyue-2026-roster.csv")) throw new Error("CSV export safety and headers failed");
+const csvBytes=new Uint8Array(await csvResponse.arrayBuffer());
+const csv=new TextDecoder().decode(csvBytes);
+const hasUtf8Bom=csvBytes.length>=3 && csvBytes[0]===0xef && csvBytes[1]===0xbb && csvBytes[2]===0xbf;
+if(csvResponse.status!==200) throw new Error("CSV export should return HTTP 200");
+if(!hasUtf8Bom) throw new Error("CSV export should include UTF-8 BOM");
+if(!csv.includes("'=2+2")) throw new Error("CSV formula-injection prefix missing");
+if(csv.includes("13800000000")) throw new Error("CSV export must not include phone numbers");
+if(!csvResponse.headers.get("content-disposition")?.includes("zhuoyue-2026-roster.csv")) throw new Error("CSV download filename missing");
 const auditResponse=await worker.fetch(new Request("https://api.58er.eon21.space/api/admin/audit",{headers:{origin:"https://58er.eon21.space",cookie:adminCookieHeader}}),{APP_ORIGIN:"https://58er.eon21.space",DB:adminDb});
 if(auditResponse.status!==200) throw new Error("admin audit read failed");
 const adminCannotManage=await worker.fetch(new Request("https://api.58er.eon21.space/api/admin/admins",{method:"GET",headers:{origin:"https://58er.eon21.space",cookie:adminCookieHeader}}),{APP_ORIGIN:"https://58er.eon21.space",DB:adminDb});
