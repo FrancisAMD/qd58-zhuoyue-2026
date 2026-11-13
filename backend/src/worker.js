@@ -176,6 +176,22 @@ async function writeAudit(db, actorType, actorId, action, targetType, targetId, 
   await db.prepare("INSERT INTO audit_logs(id,actor_type,actor_id,action,target_type,target_id,metadata_json) VALUES(?,?,?,?,?,?,?)")
     .bind(randomHex(16), actorType, actorId || null, action, targetType || null, targetId || null, JSON.stringify(metadata)).run();
 }
+
+// Pending leadership offers expire after the configured TTL. The scheduled
+// handler is the backstop; API paths also run this sweep before reading or
+// creating transfers so a delayed cron cannot leave a stale pending lock.
+async function expirePendingTransfers(db) {
+  const timestamp = new Date().toISOString();
+  await db.batch([
+    db.prepare("UPDATE leader_transfers SET status='expired',responded_at=? WHERE status='pending' AND expires_at<>'' AND expires_at<=?")
+      .bind(timestamp, timestamp),
+    db.prepare(`INSERT OR IGNORE INTO audit_logs(id,actor_type,actor_id,action,target_type,target_id,metadata_json)
+      SELECT 'transfer-expired-' || id, 'system', NULL, 'team.transfer.expired', 'team', team_id, json_object('transferId',id)
+      FROM leader_transfers
+      WHERE status='expired' AND responded_at=? AND expires_at<>'' AND expires_at<=?`)
+      .bind(timestamp, timestamp)
+  ]);
+}
 function csvCell(value) {
   let text = value === null || value === undefined ? "" : String(value);
   if (/^[\s\u0000-\u001f]*[=+\-@]/.test(text)) text = "'" + text;
@@ -475,18 +491,22 @@ async function route(request, env) {
     try {
       const d=await body(request), targetId=String(d.toUserId||"").trim();
       if(!/^[a-f0-9]{32}$/.test(targetId)) return response({error:"invalid_transfer_target"},400,origin,env);
+      await expirePendingTransfers(env.DB);
       const team=await env.DB.prepare("SELECT id,university_id FROM teams WHERE leader_user_id=?").bind(user.id).first();
       if(!team) return response({error:"not_team_leader"},403,origin,env);
       const target=await env.DB.prepare("SELECT id FROM users WHERE id=? AND university_id=?").bind(targetId,team.university_id).first();
       if(!target || targetId===user.id) return response({error:"transfer_target_not_in_team"},400,origin,env);
       const transferId=randomHex(16), createdAt=new Date().toISOString();
+      const configuredTtl = Number(env.TRANSFER_TTL_SECONDS || 604800);
+      const ttlSeconds = Number.isInteger(configuredTtl) && configuredTtl >= 3600 && configuredTtl <= 2592000 ? configuredTtl : 604800;
+      const expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString();
       const inserted=await env.DB.batch([
-        env.DB.prepare(`INSERT INTO leader_transfers(id,team_id,from_user_id,to_user_id,status,created_at)
-          SELECT ?,t.id,?,?, 'pending',? FROM teams t
+        env.DB.prepare(`INSERT INTO leader_transfers(id,team_id,from_user_id,to_user_id,status,created_at,expires_at)
+          SELECT ?,t.id,?,?, 'pending',?,? FROM teams t
           WHERE t.id=? AND t.leader_user_id=?
             AND EXISTS(SELECT 1 FROM users target WHERE target.id=? AND target.university_id=t.university_id)
             AND NOT EXISTS(SELECT 1 FROM leader_transfers pending WHERE pending.team_id=t.id AND pending.status='pending')`)
-          .bind(transferId,user.id,targetId,createdAt,team.id,user.id,targetId),
+          .bind(transferId,user.id,targetId,createdAt,expiresAt,team.id,user.id,targetId),
         env.DB.prepare(`INSERT OR IGNORE INTO audit_logs(id,actor_type,actor_id,action,target_type,target_id,metadata_json)
           SELECT ?, 'user', ?, 'team.transfer.requested', 'team', team_id, ?
           FROM leader_transfers WHERE id=? AND status='pending'`)
@@ -501,7 +521,8 @@ async function route(request, env) {
   }
   if(path==="/api/teams/transfers" && method==="GET") {
     const user=await currentUser(request,env); if(!user) return response({error:"unauthorized"},401,origin,env);
-    const rows=await env.DB.prepare(`SELECT lt.id,lt.team_id,lt.from_user_id,lt.to_user_id,lt.status,lt.created_at,lt.responded_at,
+    await expirePendingTransfers(env.DB);
+    const rows=await env.DB.prepare(`SELECT lt.id,lt.team_id,lt.from_user_id,lt.to_user_id,lt.status,lt.created_at,lt.expires_at AS expiresAt,lt.responded_at,
       sender.name AS fromName,recipient.name AS toName,uni.canonical_name AS university
       FROM leader_transfers lt
       JOIN teams t ON t.id=lt.team_id
@@ -516,9 +537,12 @@ async function route(request, env) {
   if(method==="POST" && transferParts.length===6 && transferParts[1]==="api" && transferParts[2]==="teams" && transferParts[3]==="transfer" && /^[a-f0-9]{32}$/.test(transferParts[4]) && ["accept","reject"].includes(transferParts[5])) {
     const user=await currentUser(request,env); if(!user) return response({error:"unauthorized"},401,origin,env);
     const transferId=transferParts[4], action=transferParts[5], status=action==="accept"?"accepted":"rejected", timestamp=new Date().toISOString();
+    await expirePendingTransfers(env.DB);
     const transfer=await env.DB.prepare("SELECT id,to_user_id,status FROM leader_transfers WHERE id=?").bind(transferId).first();
     if(!transfer) return response({error:"transfer_not_found"},404,origin,env);
     if(transfer.to_user_id!==user.id) return response({error:"transfer_forbidden"},403,origin,env);
+    if(transfer.status==="expired") return response({error:"transfer_expired"},409,origin,env);
+    if(transfer.status!=="pending") return response({error:"transfer_state_conflict"},409,origin,env);
     try {
       await env.DB.batch([
         env.DB.prepare("UPDATE leader_transfers SET status=?,responded_at=? WHERE id=? AND to_user_id=? AND status='pending'")
@@ -710,4 +734,16 @@ async function route(request, env) {
 
   return response({error:"not_found"},404,origin,env);
 }
-export default { fetch(request,env) { return route(request,env).catch(e=>{console.error("Worker unhandled error",e.message);return json({error:"internal_error"},500);}); } };
+export default {
+  fetch(request,env) {
+    return route(request,env).catch(e=>{
+      console.error("Worker unhandled error",e?.message||"unknown");
+      return json({error:"internal_error"},500);
+    });
+  },
+  scheduled(_controller,env,ctx) {
+    ctx.waitUntil(expirePendingTransfers(env.DB).catch(error=>{
+      console.error("Scheduled transfer expiry failed",error?.message||"unknown");
+    }));
+  }
+};

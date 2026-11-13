@@ -15,6 +15,8 @@ university_columns = {row[1] for row in db.execute("PRAGMA table_info(universiti
 assert {"category", "region_name", "education_level", "project_tags_json", "partner_name"} <= university_columns
 user_columns = {row[1] for row in db.execute("PRAGMA table_info(users)")}
 assert {"consent_given", "consent_version", "account_consent_at", "account_consent_version"} <= user_columns
+transfer_columns = {row[1] for row in db.execute("PRAGMA table_info(leader_transfers)")}
+assert "expires_at" in transfer_columns
 
 def must_fail(sql, params=()):
     try:
@@ -49,6 +51,15 @@ db.execute("INSERT INTO leader_transfers(id,team_id,from_user_id,to_user_id,stat
 db.execute("UPDATE leader_transfers SET status='accepted',responded_at='2026-11-12T01:02:00Z' WHERE id='accept-me'")
 assert db.execute("SELECT leader_user_id FROM teams WHERE id='t1'").fetchone()[0] == "u2"
 must_fail("UPDATE users SET university_id='uni2' WHERE id='u2'")
+
+# A pending transfer past its deadline transitions to expired and cannot later be accepted.
+db.execute("INSERT INTO leader_transfers(id,team_id,from_user_id,to_user_id,status,created_at,expires_at) VALUES(?,?,?,?,?,?,?)",
+           ("expired-me","t1","u2","u1","pending","2026-11-01T00:00:00.000Z","2026-11-02T00:00:00.000Z"))
+db.execute("UPDATE leader_transfers SET status='expired',responded_at=? WHERE id=? AND status='pending' AND expires_at<=?",
+           ("2026-11-03T00:00:00.000Z","expired-me","2026-11-03T00:00:00.000Z"))
+assert db.execute("SELECT status FROM leader_transfers WHERE id='expired-me'").fetchone()[0] == "expired"
+assert db.execute("SELECT leader_user_id FROM teams WHERE id='t1'").fetchone()[0] == "u2"
+must_fail("UPDATE leader_transfers SET status='accepted',responded_at='2026-11-03T00:01:00.000Z' WHERE id='expired-me'")
 
 # A newly completed profile is assigned to a team only after membership is written.
 db.execute("INSERT INTO users(id,phone,consent_at) VALUES(?,?,?)", ("u4","13800000004","2026-11-12T00:00:00Z"))

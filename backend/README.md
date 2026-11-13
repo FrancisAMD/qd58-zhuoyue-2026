@@ -41,3 +41,9 @@ Cloudflare Worker + D1 后端。已提交手机号密码认证、Turnstile 服�
     python backend/tests/schema-smoke.py
 
 远程 D1 迁移、真实短信、Turnstile、部署和浏览器联调均未由本次提交执行。
+## 组长转让到期
+
+- 默认待处理转让有效期为 7 天（`TRANSFER_TTL_SECONDS`，允许配置范围 1 小时至 30 天）。
+- `backend/migrations/0007_transfer_expiry.sql` 为历史记录补齐到期时间。
+- API 在新建、读取和响应转让前执行惰性清理；Worker Cron 每 15 分钟执行兜底清理。
+- 过期转让变为 `expired` 并写入系统审计，不会改变当前队长。

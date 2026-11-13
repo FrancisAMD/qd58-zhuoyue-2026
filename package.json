@@ -8,7 +8,7 @@
   },
   "scripts": {
     "check:worker": "node --check app.js && node --check admin.js && node --check backend/src/worker.js && node --check scripts/create-admin.mjs",
-    "test:worker": "node backend/tests/worker-smoke.mjs"
+    "test:worker": "node backend/tests/worker-smoke.mjs && node backend/tests/transfer-expiry-smoke.mjs"
   },
   "type": "module"
 }
