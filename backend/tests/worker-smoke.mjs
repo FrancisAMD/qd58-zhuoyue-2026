@@ -162,7 +162,7 @@ if(adminMe.status!==200 || (await adminMe.json()).admin?.role!=="owner") throw n
 
 function sessionDb(role){
   return {
-    prepare(sql){return {bind(...args){return {
+    prepare(sql){return {first:async()=>{if(sql.startsWith("SELECT COUNT(*) AS total FROM users"))return {total:1,completed:1,consented:1};if(sql.startsWith("SELECT COUNT(*) AS total FROM teams"))return {total:1};if(sql.startsWith("SELECT COUNT(*) AS total FROM audit_logs"))return {total:1};return null;},bind(...args){return {
       first:async()=>{
         if(sql.startsWith("SELECT a.id,a.username,a.role FROM admin_sessions")) return {id:"c".repeat(32),username:"role-test",role};
         if(sql.startsWith("SELECT COUNT(*) AS total FROM users u")) return {total:1};
