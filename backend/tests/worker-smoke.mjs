@@ -126,7 +126,9 @@ const adminHash=await makePasswordHash(adminPassword);
 const ownerRow={id:"a".repeat(32),username:"rootops",password_hash:adminHash,role:"owner",active:1};
 const ownerDb={
   prepare(sql){
-    return {bind(...args){
+    return {
+      all:async()=>sql.startsWith("SELECT id,username,role,active")?{results:[{id:"b".repeat(32),username:"ops",role:"admin",active:1}]}:{results:[]},
+      bind(...args){
       return {
         first:async()=>{
           if(sql.startsWith("SELECT id,username,password_hash,role,active FROM admin_users")) return ownerRow;
