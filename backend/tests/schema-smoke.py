@@ -56,4 +56,20 @@ db.execute("UPDATE users SET university_id='uni2' WHERE id='u4'")
 db.execute("INSERT OR IGNORE INTO teams(id,university_id,leader_user_id) SELECT 't2','uni2','u4' WHERE EXISTS(SELECT 1 FROM users WHERE id='u4' AND university_id='uni2')")
 assert db.execute("SELECT leader_user_id FROM teams WHERE id='t2'").fetchone()[0] == "u4"
 
-print("D1 schema tests: PASS (all migrations, privacy default, leader membership, transfer guards, pending uniqueness, reject/accept, atomic leader change).")
+
+# Administrator identities are case-insensitive and preserve one active owner.
+db.execute("INSERT INTO admin_users(id,username,password_hash,role,active,updated_at) VALUES(?,?,?,?,1,?)",
+           ("admin-owner","RootOps","hash","owner","2026-11-13T00:00:00Z"))
+db.execute("INSERT INTO admin_users(id,username,password_hash,role,active,updated_at,created_by) VALUES(?,?,?,?,1,?,?)",
+           ("admin-viewer","readOnly","hash","viewer","2026-11-13T00:00:00Z","admin-owner"))
+must_fail("INSERT INTO admin_users(id,username,password_hash,role) VALUES(?,?,?,?)",
+          ("admin-duplicate","READONLY","hash","viewer"))
+must_fail("UPDATE admin_users SET role='admin' WHERE id='admin-owner'")
+must_fail("UPDATE admin_users SET active=0 WHERE id='admin-owner'")
+db.execute("INSERT INTO admin_users(id,username,password_hash,role,active) VALUES(?,?,?,?,1)",
+           ("admin-owner2","SecondRoot","hash","owner"))
+db.execute("UPDATE admin_users SET role='admin' WHERE id='admin-owner'")
+must_fail("DELETE FROM admin_users WHERE id='admin-owner2'")
+assert db.execute("SELECT role,active FROM admin_users WHERE id='admin-owner2'").fetchone() == ("owner",1)
+
+print("D1 schema tests: PASS (all migrations, consent defaults, team/transfer invariants, case-insensitive admin usernames and last-owner protection).")

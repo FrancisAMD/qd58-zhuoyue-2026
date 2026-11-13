@@ -1,41 +1,32 @@
 # 项目状态
 
-最后更新：2026-11-12
+最后更新：2026-11-13
 
 ## 已提交
-- Cloudflare Pages 前端与 Worker API 域名配置。
-- 手机号密码登录、注册短信验证码、找回密码短信验证码。
-- PBKDF2-SHA256 密码哈希（Workers 兼容上限 100,000 次）、HttpOnly/Secure 会话 Cookie、登录限流。
-- Turnstile 服务端 Siteverify 适配；阿里云 PNVS ACS3 签名发送/核验抽象。
-- D1 用户、大学、队伍、OTP、会话、转让、管理员和审计基础表。
-- 大学规范化和并发安全的首次组队。
-- 组长转让 pending/accepted/rejected API 与接收者权限校验。
-- D1 触发器约束组长成员关系、转让状态机和接受时的原子组长切换。
-- 资料登记改为先选高校类别，再填写类别专属信息；高校目录保留 985、211、双一流可重叠标签字段。
-- 前端流程拆分为登录、个人高校资料、同校同学目录三个阶段；登录后直接显示资料表单，保存后进入同校目录。
-- 同校目录只展示其他同学；手机号严格按每位同学的授权状态返回。
-- 转让操作写入 audit_logs；队伍目录手机号默认隐藏，只在本人开启授权后对同队成员展示。
+- Cloudflare Pages/Worker 域名与 D1 配置。
+- 手机号密码登录、短信注册/找回密码、PBKDF2-SHA256 密码摘要、会话 Cookie 和登录限流。
+- Turnstile 服务端 Siteverify；阿里云 PNVS ACS3 签名发送/核验适配。
+- 个人资料、高校类别/规范化、并发安全大学自动组队、同校目录和同省组长列表。
+- 组长转让 pending/accepted/rejected API、接收者权限校验和 D1 状态触发器。
+- 注册/资料明确同意记录与隐私说明初稿。
+- 管理员独立登录/登出/会话校验，独立 HttpOnly Cookie，登录 IP/用户名摘要限流。
+- owner/admin/viewer RBAC；名单分页、关键词/省份/大学/年级/类别筛选；最多 5000 行公式安全 CSV；审计查询；owner 创建/停用 admin/viewer。
+- 管理员名单和 CSV 不包含手机号与个人备注；viewer 仅可查看汇总统计。
 
-## 本次新增
-- `backend/migrations/0003_team_transfer_invariants.sql`
-- `backend/migrations/0004_university_categories.sql`：高校实体增加四类分类、地区、办学层次、合作院校和可叠加项目标签。
-- Worker 组长转让 API 与并发保护
-- SQLite migration/trigger 回归测试
-- GitHub Actions 后端检查流程
+## 本次里程碑（2026-11-13）
+- 新增 backend/migrations/0006_admin_rbac.sql：管理员生命周期字段、大小写不敏感用户名唯一索引、会话/审计索引和最后一个 active owner 保护。
+- 扩展 Worker 管理 API 与独立管理员 Session。
+- 新增 owner 初始化脚本 scripts/create-admin.mjs，只生成哈希 SQL，不访问远程 D1。
+- 更新管理后台 UI、角色视图、筛选、CSV、审计和账号管理。
+- PBKDF2 改为 Workers 原生 Web Crypto deriveBits，避免依赖 node:crypto Node 兼容层；密码摘要比较采用固定长度 XOR 累积。
+- 新增管理员登录/RBAC/CSV/审计测试与迁移约束测试。
 
 ## 未完成 / 阻塞
-- 管理员 API、管理员独立会话、RBAC、查询筛选和 CSV 导出尚未完成。
-- 隐私告知、用户数据删除/匿名化、备份恢复策略仍待完善。
-- 高校分类迁移 0004 已提交，仍需在用户 Cloudflare 远程 D1 上应用；然后部署 Worker 与 Pages。
-- 本轮 Worker 目录查询更新（build marker：`classmates-directory-20261112`），需要重新部署 Worker；静态页面由 Pages 自动部署。
-- 未验证真实 Turnstile + 阿里云短信链路；不代表真实短信已发送。
-- 真实云端迁移历史、Secrets 和 Pages/Worker 浏览器联调需要在用户环境完成。
+- 远程 D1 尚未应用 0003-0006（必须先读取远程迁移状态，再按序应用）。
+- 尚未初始化首位 owner；需在用户终端运行脚本并用 Wrangler 写入管理员摘要。
+- 用户数据删除/匿名化 API 尚未实现；正式保留期限、删除申请邮箱/负责人尚待组织方确定。
+- 备份恢复方案已形成操作建议，但未执行备份或恢复演练。
+- 真实 Turnstile、阿里云 PNVS 短信、Worker/Pages 部署和浏览器端到端联调未验证。
+- 高校权威目录补全、转让前端 UI、管理员安全加固/登录失败告警仍待完善。
 
-正式开放前必须完成管理员权限、安全审查、隐私说明和端到端测试。
-
-
-## 本次新增（2026-11-12）
-- 新增 `backend/migrations/0005_explicit_consent.sql`：分别记录手机号/账号使用同意与个人资料/目录使用同意；清除旧版本注册时自动写入的非真实同意时间。
-- 注册短信申请与账号创建都要求明确勾选隐私说明；个人资料保存再次要求明确同意，服务端记录同意时间和版本 `2026-11-12-v1`。
-- 新增 `privacy.html`，说明收集字段、用途、展示范围、Cloudflare/阿里云服务和正式开放前待补充事项。
-- 新增注册短信和资料保存同意校验回归测试。未部署、未应用远程迁移，也未触碰真实用户数据。
+**不要开放真实报名**，直至远程迁移、owner 初始化、数据删除渠道、保留期限、备份恢复演练和端到端安全测试全部完成。

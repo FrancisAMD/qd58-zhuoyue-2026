@@ -1,1 +1,26 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>卓越2026 · 管理后台</title><link rel="stylesheet" href="style.css"></head><body><header><a class="brand" href="index.html"><b>58</b><span>卓越 · 2026<small>组织管理后台</small></span></a><a href="index.html">返回首页 ↗</a></header><main class="section"><p class="eyebrow">ADMIN CONSOLE</p><h2>同学信息总览</h2><form id="adminLogin" class="panel" style="max-width:440px"><label>管理员用户名<input id="username" required autocomplete="username"></label><label>管理员密码<input id="password" type="password" required autocomplete="current-password"></label><button class="btn">登录后台</button><p id="adminMsg" class="msg"></p></form><section id="dashboard" hidden class="panel"><h3>报名名单</h3><button id="export" class="btn">导出 CSV</button><div id="summary"></div><input id="q" placeholder="搜索姓名 / 大学 / 手机号"><div id="rows"></div><button id="adminLogout" class="ghost">退出</button></section></main><script src="admin.js" defer></script></body></html>
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>卓越2026 · 管理后台</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<header><a class="brand" href="index.html"><b>58</b><span>卓越 · 2026<small>组织管理后台</small></span></a><a href="index.html">返回首页 ↗</a></header>
+<main class="section admin-shell">
+  <p class="eyebrow">ADMIN CONSOLE · PRIVATE ACCESS</p><h2>组织管理后台</h2>
+  <form id="adminLogin" class="panel admin-login"><p>管理员账号独立于同学账号，请勿共用密码。</p><label>管理员用户名<input id="username" required autocomplete="username" maxlength="40"></label><label>管理员密码<input id="password" type="password" required autocomplete="current-password"></label><button class="btn">安全登录</button><p id="adminMsg" class="msg"></p></form>
+  <section id="dashboard" hidden>
+    <div class="admin-toolbar panel"><div><b id="adminIdentity">已登录</b><small id="adminRole"></small></div><button id="adminLogout" class="ghost">退出后台</button></div>
+    <div class="admin-stats" id="summary"></div>
+    <section id="peoplePanel" class="panel">
+      <div class="admin-heading"><div><p class="eyebrow">PEOPLE DIRECTORY</p><h3>报名名单</h3></div><button id="export" class="btn">导出当前筛选 CSV</button></div>
+      <form id="filters" class="admin-filters">
+        <label>关键词<input id="q" placeholder="姓名、班级、大学或省份"></label><label>省份<input id="province" placeholder="例如：山东省"></label><label>大学<input id="university" placeholder="大学名称"></label><label>年级<input id="grade" placeholder="例如：大一"></label>
+        <label>高校类别<select id="category"><option value="">全部类别</option><option value="mainland">中国大陆</option><option value="hmt">港澳台</option><option value="sino_foreign">中外合作办学</option><option value="overseas">海外</option><option value="unclassified">未分类</option></select></label>
+        <div class="filter-actions"><button class="btn">筛选</button><button type="reset" id="clearFilters" class="ghost">清空</button></div>
+      </form>
+      <p id="peopleMeta" class="muted"></p><div class="table-wrap"><table class="admin-table"><thead><tr><th>姓名</th><th>高中班级</th><th>大学</th><th>年级</th><th>省份</th><th>资料同意</th><th>登记时间</th></tr></thead><tbody id="peopleRows"></tbody></table></div>
+      <div class="pagination"><button id="prevPage" class="ghost">上一页</button><span id="pageLabel"></span><button id="nextPage" class="ghost">下一页</button></div>
+    </section>
+    <section id="auditPanel" class="panel" hidden><div class="admin-heading"><div><p class="eyebrow">AUDIT TRAIL</p><h3>管理员操作审计</h3></div><button id="refreshAudit" class="ghost">刷新</button></div><div class="table-wrap"><table class="admin-table"><thead><tr><th>时间</th><th>操作者</th><th>操作</th><th>对象</th><th>记录摘要</th></tr></thead><tbody id="auditRows"></tbody></table></div></section>
+    <section id="managePanel" class="panel" hidden><p class="eyebrow">ACCESS CONTROL</p><h3>管理员账号与角色</h3><form id="createAdmin" class="admin-filters"><label>用户名<input id="newUsername" required minlength="3" maxlength="40"></label><label>初始密码（至少14位）<input id="newPassword" type="password" required minlength="14" maxlength="128"></label><label>角色<select id="newRole"><option value="admin">管理员：名单、审计和导出</option><option value="viewer">只读：仅统计概览</option></select></label><div class="filter-actions"><button class="btn">创建账号</button></div></form><p id="createAdminMsg" class="msg"></p><div id="adminAccounts" class="admin-account-list"></div></section>
+  </section>
+</main>
+<script src="admin.js" defer></script></body></html>

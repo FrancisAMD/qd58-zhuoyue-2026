@@ -6,3 +6,6 @@ node_modules/
 !.env.example
 .DS_Store
 coverage/
+
+# Temporary one-time admin bootstrap SQL (contains a password hash)
+admin-bootstrap.sql

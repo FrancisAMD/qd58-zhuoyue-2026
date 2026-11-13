@@ -157,3 +157,34 @@ body.dark .classmate-avatar,body.dark .classmate-meta span{background:#344d3c;co
  .profile-next{justify-content:stretch}
  .profile-next .btn{width:100%}
 }
+
+
+/* Administrator console */
+.admin-shell{max-width:1180px}
+.admin-login{max-width:440px}
+.admin-toolbar,.admin-heading,.pagination,.admin-account{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.admin-toolbar{margin:18px 0}
+.admin-toolbar small,.admin-account small{display:block;color:var(--muted);font-size:11px;margin-top:5px}
+.admin-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:18px 0}
+.admin-stats .stat{padding:18px 20px;background:var(--paper);border:1px solid white;border-radius:10px}
+.admin-stats .stat small{display:block;color:var(--muted);font-size:11px}
+.admin-stats .stat b{display:block;font:600 27px Georgia;margin-top:7px}
+.admin-shell>section{margin:18px 0}
+.admin-heading h3,.admin-shell h3{margin:5px 0 12px;font:600 22px "Noto Serif SC",serif}
+.admin-filters{display:grid;grid-template-columns:repeat(3,minmax(140px,1fr));gap:8px 14px;align-items:end;margin:18px 0}
+.admin-filters label{margin:0}
+.admin-filters input,.admin-filters select{width:100%;padding:10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);margin-top:6px}
+.filter-actions{display:flex;gap:8px;padding-bottom:2px}
+.table-wrap{width:100%;overflow:auto}
+.admin-table{width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap}
+.admin-table th,.admin-table td{padding:12px 10px;text-align:left;border-bottom:1px solid var(--line)}
+.admin-table th{color:var(--muted);font-weight:600;background:var(--paper)}
+.admin-table td{color:var(--ink)}
+.pagination{justify-content:center;margin-top:18px;color:var(--muted);font-size:12px}
+.pagination button:disabled{opacity:.4;cursor:not-allowed}
+.admin-account-list{display:grid;gap:8px;margin-top:16px}
+.admin-account{padding:12px 14px;border:1px solid var(--line);border-radius:8px}
+.muted{color:var(--muted);font-size:11px}
+body.dark .admin-stats .stat{border-color:var(--line)}
+@media(max-width:760px){.admin-stats{grid-template-columns:repeat(2,1fr)}.admin-filters{grid-template-columns:1fr 1fr}.admin-heading{align-items:flex-start;flex-direction:column}.admin-toolbar{align-items:flex-start}.admin-account{align-items:flex-start}.admin-shell .panel{padding:17px}}
+@media(max-width:460px){.admin-filters{grid-template-columns:1fr}.admin-stats .stat{padding:14px}.admin-stats .stat b{font-size:22px}}

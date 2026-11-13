@@ -1,43 +1,43 @@
-# 卓越 2026 API（组队与组长转让阶段）
+# 卓越 2026 API（管理员 RBAC 阶段）
 
-Cloudflare Worker + D1 后端。当前已提交手机号密码认证、注册/找回密码短信认证、Turnstile 服务端校验、阿里云 PNVS 适配、资料与目录 API，以及大学自动组队和组长转让服务端流程。
+Cloudflare Worker + D1 后端。已提交手机号密码认证、Turnstile 服务端校验、阿里云 PNVS 接口适配、个人资料、大学自动组队、组长转让、同校目录，以及独立管理员认证与角色权限。
 
-## 本阶段新增
+## 管理员 API
 
-- 大学规范化后以唯一 `normalized_name` 归并，并使用 `INSERT OR IGNORE` 处理并发创建。
-- 首位完成大学资料的用户通过唯一 `teams.university_id` 成为初始组长；用户资料更新与队伍创建放在同一 D1 batch 中。
-- 已有大学的成员再次保存资料不会覆盖现任组长；用户不能直接切换已登记大学，避免现任组长脱离队伍。
-- `POST /api/teams/transfer`：仅当前组长可向同校成员发起转让。
-- `POST /api/auth/password/change`：登录状态下校验当前密码后修改密码，保留当前设备 Session、撤销其他设备 Session。
-- 注册与找回密码的 Turnstile 票据一次性使用；前端在短信成功后保留验证成功的视觉状态，不重复提交票据。再次主动申请短信时才重置组件获取新票据。
-- 高校分类：`mainland`（中国大陆）、`hmt`（港澳台）、`sino_foreign`（内地中外合作办学）、`overseas`（海外）；类别存于高校实体，不存为用户自由文本。
-- 大陆高校的本科/专科层次单独保存；985、211、双一流保留为可重叠的 `project_tags_json` 标签，由后续权威高校目录补全，不作为互斥选项。
-- `GET /api/teams/transfers`：查看本人发起或收到的转让，不返回手机号。
-- `POST /api/teams/transfer/:id/accept` 和 `/reject`：仅接收者可操作，pending 状态只能终结一次。
-- D1 triggers 保证组长必须属于该大学、转让发起者必须是现任组长、接收者必须是同校成员；接受时在同一数据库事务中变更组长。
-- 转让请求、接受、拒绝写入 `audit_logs`；审计元数据不包含手机号。
+- POST /api/admin/login：独立管理员用户名/密码登录，IP 和用户名摘要双重限流，签发独立 Secure / HttpOnly / SameSite=Strict Cookie。
+- POST /api/admin/logout、GET /api/admin/me。
+- GET /api/admin/overview：统计概览；viewer 仅获得汇总数字。
+- GET /api/admin/people：owner/admin 名单查询，支持 q、province、university、grade、category、page、pageSize。
+- GET /api/admin/people?format=csv：最多导出 5000 行，执行公式注入转义；不含手机号和个人备注。
+- GET /api/admin/audit：查看管理员审计记录。
+- GET/POST /api/admin/admins：owner 创建 admin/viewer；POST /api/admin/admins/:id 更新角色或停用状态。
+
+### RBAC
+
+- owner：统计、名单、导出、审计、管理员账号管理。
+- admin：统计、名单、导出、审计。
+- viewer：仅统计概览。
+- owner 账号不允许通过普通管理 API 修改或停用；D1 迁移触发器保护最后一个 active owner。
+- 管理员名单和 CSV 不返回手机号、个人备注或验证码。手机号只在同校目录中按本人明确授权展示。
 
 ## D1 迁移
 
-新增 `migrations/0003_team_transfer_invariants.sql` 和 `migrations/0004_university_categories.sql`。先查看远程迁移状态，再执行：
+本次新增 migrations/0006_admin_rbac.sql，为管理员增加更新时间、最近登录时间和创建者，增加大小写不敏感的用户名唯一索引、会话/审计索引及最后一个 active owner 保护触发器。
 
-```bash
-cd backend
-npx wrangler d1 migrations list qd58-zhuoyue-db --remote --config wrangler.toml
-npx wrangler d1 migrations apply qd58-zhuoyue-db --remote --config wrangler.toml
-```
+先检查远程状态，再按迁移系统应用；不要手动重复执行 SQL：
 
-迁移 0004 在高校表中新增分类与属性字段，并将旧高校规范化键迁入 `unclassified:` 命名空间；保留原高校 ID、用户关联和队伍，不删除、不重建现有表。应用前请先查看远程迁移状态，不要手动重复执行 SQL。
+    npx wrangler d1 migrations list qd58-zhuoyue-db --remote --config backend/wrangler.toml
+    npx wrangler d1 migrations apply qd58-zhuoyue-db --remote --config backend/wrangler.toml
 
-## 当前限制
+## 初始化 owner
 
-管理员 API/RBAC/CSV、数据删除/匿名化、隐私告知页面、备份恢复和真实云端端到端测试仍待完成。未配置密钥或未部署前，不能宣称真实短信链路已验证。请先在测试数据库验证迁移，再部署；不要公开收集真实报名资料。
+见仓库根目录 OPERATIONS-SECURITY.md。脚本 scripts/create-admin.mjs 只生成 PBKDF2 摘要 SQL，不连接数据库。密码通过临时环境变量传入，不得提交密码或生成的 SQL。
 
+## 本地检查
 
-## 前端三阶段流程（2026-11-12）
+    npm ci
+    npm run check:worker
+    npm run test:worker
+    python backend/tests/schema-smoke.py
 
-- 第一阶段：未登录访问只显示登录 / 注册入口；页面先验证现有 Session，避免登录态用户看到登录页。
-- 第二阶段：登录后显示高校类别选择与个人资料表单；保存成功进入第三阶段。
-- 第三阶段：展示同一所高校的其他五十八中同学。目录 API 排除当前登录用户本人；手机号仅在对应同学主动开启同校可见授权时返回，并以电话链接呈现。
-- Worker build marker：`classmates-directory-20261112`。
-- 本轮 Worker 变更需要重新部署；仅修改静态前端文件的提交由 Cloudflare Pages 自动部署。
+远程 D1 迁移、真实短信、Turnstile、部署和浏览器联调均未由本次提交执行。

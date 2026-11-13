@@ -114,4 +114,94 @@ const wrongRecipient=await worker.fetch(new Request("https://api.58er.eon21.spac
   method:"POST",headers:{origin:"https://58er.eon21.space",cookie:"__Host-qd58_session="+"c".repeat(64)}
 }),{APP_ORIGIN:"https://58er.eon21.space",DB:recipientDb});
 if(wrongRecipient.status!==403) throw new Error("only the designated transfer recipient may accept a transfer");
-console.log("Worker smoke tests: PASS (PBKDF2-100000, health/build marker, Origin/CORS, SMS cooldown token lifecycle, password-change authentication guard, transfer authentication and recipient authorization).");
+
+function encodeBase64(bytes){return Buffer.from(bytes).toString("base64")}
+async function makePasswordHash(password){
+  const salt=new Uint8Array(16).fill(0x61);
+  const derived=await derivePassword(password,salt);
+  return "pbkdf2-sha256$"+PBKDF2_ITERATIONS+"$"+encodeBase64(salt)+"$"+encodeBase64(derived);
+}
+const adminPassword="Admin-Test-Passphrase-2026!";
+const adminHash=await makePasswordHash(adminPassword);
+const ownerRow={id:"a".repeat(32),username:"rootops",password_hash:adminHash,role:"owner",active:1};
+const ownerDb={
+  prepare(sql){
+    return {bind(...args){
+      return {
+        first:async()=>{
+          if(sql.startsWith("SELECT id,username,password_hash,role,active FROM admin_users")) return ownerRow;
+          if(sql.startsWith("SELECT a.id,a.username,a.role FROM admin_sessions")) return {id:ownerRow.id,username:ownerRow.username,role:ownerRow.role};
+          if(sql.startsWith("SELECT COUNT(*) AS total FROM users u")) return {total:1};
+          if(sql.startsWith("SELECT COUNT(*) AS total FROM users")) return {total:3,completed:2,consented:2};
+          if(sql.startsWith("SELECT COUNT(*) AS total FROM teams")) return {total:1};
+          if(sql.startsWith("SELECT COUNT(*) AS total FROM audit_logs")) return {total:2};
+          if(sql.startsWith("SELECT id,role,active FROM admin_users")) return {id:"b".repeat(32),role:"admin",active:1};
+          return null;
+        },
+        all:async()=>{
+          if(sql.startsWith("SELECT u.id")) return {results:[{id:"u1",name:"=2+2",className:"高一(1)班",university:"青岛大学",grade:"大一",province:"山东省",consentGiven:1,createdAt:"2026-11-13"}]};
+          if(sql.startsWith("SELECT l.id")) return {results:[{id:"log1",actorType:"admin",actorUsername:"rootops",action:"admin.people.exported",targetType:"user_collection",targetId:null,metadata:"{}",createdAt:"2026-11-13"}]};
+          if(sql.startsWith("SELECT id,username,role,active")) return {results:[{id:"b".repeat(32),username:"ops",role:"admin",active:1}]};
+          return {results:[]};
+        },
+        run:async()=>({meta:{changes:1}})
+      };
+    }};
+  },
+  async batch(statements){const out=[];for(const statement of statements)out.push(await statement.run());return out;}
+};
+const adminLogin=await worker.fetch(new Request("https://api.58er.eon21.space/api/admin/login",{
+  method:"POST",headers:{"content-type":"application/json",origin:"https://58er.eon21.space","CF-Connecting-IP":"203.0.113.20"},
+  body:JSON.stringify({username:"rootops",password:adminPassword})
+}),{APP_ORIGIN:"https://58er.eon21.space",DB:ownerDb});
+const adminLoginBody=await adminLogin.json();
+const adminCookie=adminLogin.headers.get("set-cookie")||"";
+if(adminLogin.status!==200 || adminLoginBody.admin?.role!=="owner" || !adminCookie.startsWith("__Host-qd58_admin=") || !adminCookie.includes("HttpOnly") || !adminCookie.includes("SameSite=Strict")) throw new Error("independent admin login and secure cookie failed");
+const adminMe=await worker.fetch(new Request("https://api.58er.eon21.space/api/admin/me",{headers:{origin:"https://58er.eon21.space",cookie:adminCookie.split(";")[0]}}),{APP_ORIGIN:"https://58er.eon21.space",DB:ownerDb});
+if(adminMe.status!==200 || (await adminMe.json()).admin?.role!=="owner") throw new Error("admin session validation failed");
+
+function sessionDb(role){
+  return {
+    prepare(sql){return {bind(...args){return {
+      first:async()=>{
+        if(sql.startsWith("SELECT a.id,a.username,a.role FROM admin_sessions")) return {id:"c".repeat(32),username:"role-test",role};
+        if(sql.startsWith("SELECT COUNT(*) AS total FROM users u")) return {total:1};
+        if(sql.startsWith("SELECT COUNT(*) AS total FROM users")) return {total:1,completed:1,consented:1};
+        if(sql.startsWith("SELECT COUNT(*) AS total FROM teams")) return {total:1};
+        if(sql.startsWith("SELECT COUNT(*) AS total FROM audit_logs")) return {total:1};
+        if(sql.startsWith("SELECT id,role,active FROM admin_users")) return {id:"b".repeat(32),role:"admin",active:1};
+        return null;
+      },
+      all:async()=>{
+        if(sql.startsWith("SELECT u.id")) return {results:[{id:"u1",name:"=2+2",className:"高一(1)班",university:"青岛大学",grade:"大一",province:"山东省",consentGiven:1,createdAt:"2026-11-13"}]};
+        if(sql.startsWith("SELECT l.id")) return {results:[{id:"log1",actorType:"admin",actorUsername:"role-test",action:"admin.test",targetType:"user",targetId:"u1",metadata:"{}",createdAt:"2026-11-13"}]};
+        if(sql.startsWith("SELECT id,username,role,active")) return {results:[{id:"b".repeat(32),username:"ops",role:"admin",active:1}]};
+        return {results:[]};
+      },
+      run:async()=>({meta:{changes:1}})
+    }}}},
+    async batch(statements){const out=[];for(const statement of statements)out.push(await statement.run());return out;}
+  };
+}
+const viewerDb=sessionDb("viewer"),viewerCookie="__Host-qd58_admin="+"f".repeat(64);
+const viewerPeople=await worker.fetch(new Request("https://api.58er.eon21.space/api/admin/people",{headers:{origin:"https://58er.eon21.space",cookie:viewerCookie}}),{APP_ORIGIN:"https://58er.eon21.space",DB:viewerDb});
+const viewerAudit=await worker.fetch(new Request("https://api.58er.eon21.space/api/admin/audit",{headers:{origin:"https://58er.eon21.space",cookie:viewerCookie}}),{APP_ORIGIN:"https://58er.eon21.space",DB:viewerDb});
+if(viewerPeople.status!==403 || viewerAudit.status!==403) throw new Error("viewer role must not read roster or audit trail");
+const adminDb=sessionDb("admin"),adminCookieHeader="__Host-qd58_admin="+"e".repeat(64);
+let peopleSql="";
+const originalPrepare=adminDb.prepare.bind(adminDb);
+adminDb.prepare=(sql)=>{if(sql.startsWith("SELECT u.id"))peopleSql=sql;return originalPrepare(sql)};
+const peopleResponse=await worker.fetch(new Request("https://api.58er.eon21.space/api/admin/people?q=青岛&province=山东省&page=1&pageSize=20",{headers:{origin:"https://58er.eon21.space",cookie:adminCookieHeader}}),{APP_ORIGIN:"https://58er.eon21.space",DB:adminDb});
+const peopleBody=await peopleResponse.json();
+if(peopleResponse.status!==200 || peopleBody.items?.length!==1 || peopleBody.pagination?.total!==1 || /u\\.phone|SELECT[^]*phone/i.test(peopleSql)) throw new Error("admin roster filtering or phone minimization failed");
+const csvResponse=await worker.fetch(new Request("https://api.58er.eon21.space/api/admin/people?format=csv",{headers:{origin:"https://58er.eon21.space",cookie:adminCookieHeader}}),{APP_ORIGIN:"https://58er.eon21.space",DB:adminDb});
+const csv=await csvResponse.text();
+if(csvResponse.status!==200 || !csv.startsWith(String.fromCharCode(65279)) || !csv.includes("'=2+2") || csv.includes("13800000000") || !csvResponse.headers.get("content-disposition")?.includes("zhuoyue-2026-roster.csv")) throw new Error("CSV export safety and headers failed");
+const auditResponse=await worker.fetch(new Request("https://api.58er.eon21.space/api/admin/audit",{headers:{origin:"https://58er.eon21.space",cookie:adminCookieHeader}}),{APP_ORIGIN:"https://58er.eon21.space",DB:adminDb});
+if(auditResponse.status!==200) throw new Error("admin audit read failed");
+const adminCannotManage=await worker.fetch(new Request("https://api.58er.eon21.space/api/admin/admins",{method:"GET",headers:{origin:"https://58er.eon21.space",cookie:adminCookieHeader}}),{APP_ORIGIN:"https://58er.eon21.space",DB:adminDb});
+if(adminCannotManage.status!==403) throw new Error("only owner role may manage administrator accounts");
+const ownerAdmins=await worker.fetch(new Request("https://api.58er.eon21.space/api/admin/admins",{headers:{origin:"https://58er.eon21.space",cookie:adminCookie}}),{APP_ORIGIN:"https://58er.eon21.space",DB:ownerDb});
+if(ownerAdmins.status!==200) throw new Error("owner administrator management read failed");
+console.log("Admin RBAC tests: PASS (independent password login, secure admin cookie/session, viewer restrictions, filtered roster without phone, formula-safe CSV, audit access and owner-only account management).");
+

@@ -1,15 +1,15 @@
-import { pbkdf2 } from "node:crypto";
-
 const encoder = new TextEncoder();
 export const PBKDF2_ITERATIONS = 100000;
 const PBKDF2_KEY_BYTES = 32;
 const COOKIE = "__Host-qd58_session";
+const ADMIN_COOKIE = "__Host-qd58_admin";
 const SESSION_SECONDS = 7 * 24 * 60 * 60;
+const ADMIN_SESSION_SECONDS = 8 * 60 * 60;
 const OTP_SECONDS = 300;
 const COOLDOWN_SECONDS = 60;
 const ALI_HOST = "dypnsapi.aliyuncs.com";
 const ALI_VERSION = "2017-05-25";
-const PRIVACY_NOTICE_VERSION = "2026-11-12-v1";
+const PRIVACY_NOTICE_VERSION = "2026-11-13-v1";
 
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", ...headers } });
@@ -28,13 +28,15 @@ async function hmac(secret, value) {
   const key = await crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   return hex(await crypto.subtle.sign("HMAC", key, encoder.encode(value)));
 }
-export function derivePassword(password, salt) {
-  return new Promise((resolve, reject) => {
-    pbkdf2(password, salt, PBKDF2_ITERATIONS, PBKDF2_KEY_BYTES, "sha256", (error, derived) => {
-      if (error) reject(error);
-      else resolve(new Uint8Array(derived));
-    });
-  });
+export async function derivePassword(password, salt) {
+  const key = await crypto.subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits({
+    name: "PBKDF2",
+    salt: new Uint8Array(salt),
+    iterations: PBKDF2_ITERATIONS,
+    hash: "SHA-256"
+  }, key, PBKDF2_KEY_BYTES * 8);
+  return new Uint8Array(bits);
 }
 function randomHex(n = 16) { const a = crypto.getRandomValues(new Uint8Array(n)); return hex(a); }
 function now() { return Math.floor(Date.now() / 1000); }
@@ -145,6 +147,73 @@ async function currentUser(request, env) {
   const row = await env.DB.prepare("SELECT u.id,u.phone,u.name,u.high_school,u.class_name,u.university_id,u.grade,u.province,u.city,u.bio,u.phone_visible_to_team,u.consent_given,u.consent_at,u.consent_version,u.account_consent_at,u.account_consent_version FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?").bind(digest,now()).first();
   return row || null;
 }
+
+function getNamedCookie(request, name) {
+  const raw = request.headers.get("cookie") || "";
+  const prefix = name + "=";
+  const item = raw.split(";").map(x => x.trim()).find(x => x.startsWith(prefix));
+  return item ? item.slice(prefix.length) : "";
+}
+function adminCookie(token, maxAge) {
+  return ADMIN_COOKIE + "=" + token + "; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=" + maxAge;
+}
+async function currentAdmin(request, env) {
+  const token = getNamedCookie(request, ADMIN_COOKIE);
+  if (!token) return null;
+  const digest = await sha256(token);
+  return await env.DB.prepare("SELECT a.id,a.username,a.role FROM admin_sessions s JOIN admin_users a ON a.id=s.admin_user_id WHERE s.token_hash=? AND s.expires_at>? AND a.active=1")
+    .bind(digest, now()).first();
+}
+const ADMIN_PERMISSIONS = {
+  owner: ["overview", "people:read", "people:export", "audit:read", "admins:manage"],
+  admin: ["overview", "people:read", "people:export", "audit:read"],
+  viewer: ["overview"]
+};
+function hasAdminPermission(admin, permission) {
+  return !!admin && (ADMIN_PERMISSIONS[admin.role] || []).includes(permission);
+}
+async function writeAudit(db, actorType, actorId, action, targetType, targetId, metadata = {}) {
+  await db.prepare("INSERT INTO audit_logs(id,actor_type,actor_id,action,target_type,target_id,metadata_json) VALUES(?,?,?,?,?,?,?)")
+    .bind(randomHex(16), actorType, actorId || null, action, targetType || null, targetId || null, JSON.stringify(metadata)).run();
+}
+function csvCell(value) {
+  let text = value === null || value === undefined ? "" : String(value);
+  if (/^[\s\u0000-\u001f]*[=+\-@]/.test(text)) text = "'" + text;
+  return '"' + text.replace(/"/g, '""') + '"';
+}
+function adminPage(value, fallback, max) {
+  const n = Number.parseInt(value || "", 10);
+  return Number.isFinite(n) && n > 0 ? Math.min(n, max) : fallback;
+}
+function adminPeopleFilters(url) {
+  const where = [];
+  const bindings = [];
+  let filterCount = 0;
+  const q = (url.searchParams.get("q") || "").trim().slice(0, 100);
+  if (q) {
+    where.push("(instr(lower(coalesce(u.name,'')),lower(?))>0 OR instr(lower(coalesce(u.class_name,'')),lower(?))>0 OR instr(lower(coalesce(u.high_school,'')),lower(?))>0 OR instr(lower(coalesce(uni.canonical_name,'')),lower(?))>0 OR instr(lower(coalesce(u.province,'')),lower(?))>0)");
+    bindings.push(q, q, q, q, q);
+    filterCount++;
+  }
+  for (const [parameter, column] of [["province", "u.province"], ["grade", "u.grade"], ["category", "uni.category"]]) {
+    const value = (url.searchParams.get(parameter) || "").trim().slice(0, 80);
+    if (!value) continue;
+    if (parameter === "category" && !["mainland", "hmt", "sino_foreign", "overseas", "unclassified"].includes(value)) {
+      return { error: "invalid_filter" };
+    }
+    where.push(column + "=?");
+    bindings.push(value);
+    filterCount++;
+  }
+  const university = (url.searchParams.get("university") || "").trim().slice(0, 120);
+  if (university) {
+    where.push("instr(lower(coalesce(uni.canonical_name,'')),lower(?))>0");
+    bindings.push(university);
+    filterCount++;
+  }
+  return { clause: where.length ? " WHERE " + where.join(" AND ") : "", bindings, filterCount };
+}
+
 async function sendCode(phone, purpose, token, request, env) {
   if (!validPhone(phone)) throw err("invalid_phone");
   const exists = await env.DB.prepare("SELECT id FROM users WHERE phone=?").bind(phone).first();
@@ -245,13 +314,16 @@ async function verifyPassword(password, stored) {
   if(kind!=="pbkdf2-sha256" || Number(iterations)!==PBKDF2_ITERATIONS || !salt || !expected) return false;
   const derived=await derivePassword(password,unb64(salt));
   const a=unb64(expected),b=derived;
-  return a.length===b.length && a.every((v,i)=>v===b[i]);
+  if (a.length !== b.length) return false;
+  let difference = 0;
+  for (let i=0;i<a.length;i++) difference |= a[i] ^ b[i];
+  return difference === 0;
 }
 async function route(request, env) {
   const url=new URL(request.url), path=url.pathname, method=request.method, origin=request.headers.get("Origin");
   if(method==="OPTIONS") return new Response(null,{status:204,headers:corsHeaders(origin,env)});
   if(origin && origin!==env.APP_ORIGIN) return response({error:"origin_forbidden"},403,origin,env);
-  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"classmates-directory-20261112",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
+  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"admin-rbac-20261113",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
   if(path==="/api/auth/register/request-code" && method==="POST") {
     try { const d=await body(request); if(d.accountConsent !== true) return response({error:"consent_required"},400,origin,env); return response(await sendCode(String(d.phone||""),"register",d.turnstileToken,request,env),200,origin,env); }
     catch(e) {
@@ -472,6 +544,170 @@ async function route(request, env) {
     const leaders=await env.DB.prepare("SELECT u.name,u.grade,u.province,uni.canonical_name AS university,uni.category AS universityCategory,uni.region_name AS universityRegion,uni.education_level AS educationLevel,uni.project_tags_json AS projectTags FROM teams t JOIN users u ON u.id=t.leader_user_id JOIN universities uni ON uni.id=t.university_id WHERE u.province=? ORDER BY uni.canonical_name").bind(own.province||"").all();
     return response({members:members.results||[],provinceLeaders:leaders.results||[]},200,origin,env);
   }
+
+  if (path === "/api/admin/login" && method === "POST") {
+    if (origin !== env.APP_ORIGIN) return response({error:"origin_forbidden"},403,origin,env);
+    try {
+      const d = await body(request);
+      const username = String(d.username || "").trim();
+      const password = String(d.password || "");
+      if (!/^[A-Za-z0-9._-]{3,40}$/.test(username) || password.length < 1 || password.length > 128) {
+        return response({error:"invalid_credentials"},401,origin,env);
+      }
+      const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+      const ipKey = await sha256(ip);
+      const usernameKey = await sha256(username.toLowerCase());
+      const ipAllowed = await rateLimit(env.DB, "admin:login:ip:" + ipKey, 20, 900);
+      const usernameAllowed = await rateLimit(env.DB, "admin:login:user:" + usernameKey, 10, 900);
+      if (!ipAllowed || !usernameAllowed) return response({error:"rate_limited"},429,origin,env);
+      const account = await env.DB.prepare("SELECT id,username,password_hash,role,active FROM admin_users WHERE username=? COLLATE NOCASE")
+        .bind(username).first();
+      if (!account || Number(account.active) !== 1 || !(await verifyPassword(password, account.password_hash))) {
+        return response({error:"invalid_credentials"},401,origin,env);
+      }
+      const token = randomHex(32);
+      const digest = await sha256(token);
+      const created = now();
+      const expires = created + ADMIN_SESSION_SECONDS;
+      await env.DB.batch([
+        env.DB.prepare("INSERT INTO admin_sessions(token_hash,admin_user_id,expires_at,created_at) VALUES(?,?,?,?)")
+          .bind(digest,account.id,expires,created),
+        env.DB.prepare("UPDATE admin_users SET last_login_at=?,updated_at=? WHERE id=? AND active=1")
+          .bind(new Date().toISOString(),new Date().toISOString(),account.id),
+        env.DB.prepare("INSERT INTO audit_logs(id,actor_type,actor_id,action,target_type,target_id,metadata_json) VALUES(?,?,?,?,?,?,?)")
+          .bind(randomHex(16),"admin",account.id,"admin.login.succeeded","admin_user",account.id,JSON.stringify({role:account.role}))
+      ]);
+      return response({ok:true,admin:{id:account.id,username:account.username,role:account.role,permissions:ADMIN_PERMISSIONS[account.role]||[]}},
+        200,origin,env,{"set-cookie":adminCookie(token,expires-created)});
+    } catch (e) {
+      console.error("Admin login failed",e?.message||"unknown");
+      return response({error:"admin_login_failed"},500,origin,env);
+    }
+  }
+  if (path === "/api/admin/logout" && method === "POST") {
+    const token = getNamedCookie(request, ADMIN_COOKIE);
+    const admin = await currentAdmin(request,env);
+    if (token) {
+      const digest = await sha256(token);
+      await env.DB.prepare("DELETE FROM admin_sessions WHERE token_hash=?").bind(digest).run();
+      if (admin) await writeAudit(env.DB,"admin",admin.id,"admin.logout","admin_user",admin.id);
+    }
+    return response({ok:true},200,origin,env,{"set-cookie":adminCookie("",0)});
+  }
+  if (path === "/api/admin/me" && method === "GET") {
+    const admin = await currentAdmin(request,env);
+    if (!admin) return response({error:"unauthorized"},401,origin,env);
+    return response({admin:{id:admin.id,username:admin.username,role:admin.role,permissions:ADMIN_PERMISSIONS[admin.role]||[]}},200,origin,env);
+  }
+  if (path === "/api/admin/overview" && method === "GET") {
+    const admin = await currentAdmin(request,env);
+    if (!admin) return response({error:"unauthorized"},401,origin,env);
+    if (!hasAdminPermission(admin,"overview")) return response({error:"forbidden"},403,origin,env);
+    const counts = await env.DB.prepare("SELECT COUNT(*) AS total, SUM(CASE WHEN university_id IS NOT NULL THEN 1 ELSE 0 END) AS completed, SUM(CASE WHEN consent_given=1 THEN 1 ELSE 0 END) AS consented FROM users").first();
+    const teamCount = await env.DB.prepare("SELECT COUNT(*) AS total FROM teams").first();
+    let teams = [];
+    if (admin.role === "owner" || admin.role === "admin") {
+      const rows = await env.DB.prepare("SELECT t.id,uni.canonical_name AS university,COUNT(u.id) AS memberCount,leader.name AS leaderName,leader.province AS leaderProvince FROM teams t JOIN universities uni ON uni.id=t.university_id LEFT JOIN users u ON u.university_id=t.university_id LEFT JOIN users leader ON leader.id=t.leader_user_id GROUP BY t.id ORDER BY uni.canonical_name LIMIT 500").all();
+      teams = rows.results || [];
+    }
+    return response({counts:{total:Number(counts?.total||0),completed:Number(counts?.completed||0),consented:Number(counts?.consented||0)},teamCount:Number(teamCount?.total||0),teams},200,origin,env);
+  }
+  if (path === "/api/admin/people" && method === "GET") {
+    const admin = await currentAdmin(request,env);
+    if (!admin) return response({error:"unauthorized"},401,origin,env);
+    if (!hasAdminPermission(admin,"people:read")) return response({error:"forbidden"},403,origin,env);
+    const filters = adminPeopleFilters(url);
+    if (filters.error) return response({error:filters.error},400,origin,env);
+    const page = adminPage(url.searchParams.get("page"),1,1000000);
+    const pageSize = adminPage(url.searchParams.get("pageSize"),50,100);
+    const base = " FROM users u LEFT JOIN universities uni ON uni.id=u.university_id" + filters.clause;
+    const count = await env.DB.prepare("SELECT COUNT(*) AS total" + base).bind(...filters.bindings).first();
+    const total = Number(count?.total||0);
+    const format = url.searchParams.get("format") || "";
+    if (format === "csv" && !hasAdminPermission(admin,"people:export")) return response({error:"forbidden"},403,origin,env);
+    if (format === "csv" && total > 5000) return response({error:"export_limit_exceeded",maxRows:5000},413,origin,env);
+    const select = "SELECT u.id,u.name,u.class_name AS className,u.high_school AS highSchool,uni.canonical_name AS university,uni.category AS universityCategory,u.grade,u.province,u.city,u.created_at AS createdAt,u.updated_at AS updatedAt,u.consent_given AS consentGiven";
+    const sql = select + base + " ORDER BY u.created_at DESC LIMIT ? OFFSET ?";
+    const rows = await env.DB.prepare(sql).bind(...filters.bindings,format==="csv"?5000:pageSize,format==="csv"?0:(page-1)*pageSize).all();
+    const items = rows.results || [];
+    if (format === "csv") {
+      const header = ["用户编号","姓名","高中班级","高中学校","大学","高校类别","年级","省份","城市","资料同意状态","创建时间","更新时间"];
+      const keys = ["id","name","className","highSchool","university","universityCategory","grade","province","city","consentGiven","createdAt","updatedAt"];
+      const lines = [header.map(csvCell).join(",")];
+      for (const item of items) lines.push(keys.map(key => csvCell(key==="consentGiven"?(item[key]?"已同意":"未同意"):item[key])).join(","));
+      await writeAudit(env.DB,"admin",admin.id,"admin.people.exported","user_collection",null,{rowCount:items.length,filterCount:filters.filterCount});
+      return new Response(String.fromCharCode(65279) + lines.join(String.fromCharCode(13,10)),{status:200,headers:{...corsHeaders(origin,env),"content-type":"text/csv; charset=utf-8","content-disposition":'attachment; filename="zhuoyue-2026-roster.csv"',"cache-control":"no-store"}});
+    }
+    await writeAudit(env.DB,"admin",admin.id,"admin.people.listed","user_collection",null,{page,pageSize,filterCount:filters.filterCount});
+    return response({items,pagination:{page,pageSize,total,totalPages:Math.ceil(total/pageSize)}},200,origin,env);
+  }
+  if (path === "/api/admin/audit" && method === "GET") {
+    const admin = await currentAdmin(request,env);
+    if (!admin) return response({error:"unauthorized"},401,origin,env);
+    if (!hasAdminPermission(admin,"audit:read")) return response({error:"forbidden"},403,origin,env);
+    const page = adminPage(url.searchParams.get("page"),1,1000000);
+    const pageSize = adminPage(url.searchParams.get("pageSize"),50,100);
+    await writeAudit(env.DB,"admin",admin.id,"admin.audit.viewed","audit_collection",null,{page,pageSize});
+    const count = await env.DB.prepare("SELECT COUNT(*) AS total FROM audit_logs").first();
+    const rows = await env.DB.prepare("SELECT l.id,l.actor_type AS actorType,l.actor_id AS actorId,a.username AS actorUsername,l.action,l.target_type AS targetType,l.target_id AS targetId,l.metadata_json AS metadata,l.created_at AS createdAt FROM audit_logs l LEFT JOIN admin_users a ON l.actor_type='admin' AND a.id=l.actor_id ORDER BY l.created_at DESC LIMIT ? OFFSET ?")
+      .bind(pageSize,(page-1)*pageSize).all();
+    const total = Number(count?.total||0);
+    return response({items:rows.results||[],pagination:{page,pageSize,total,totalPages:Math.ceil(total/pageSize)}},200,origin,env);
+  }
+  if (path === "/api/admin/admins" && (method === "GET" || method === "POST")) {
+    const admin = await currentAdmin(request,env);
+    if (!admin) return response({error:"unauthorized"},401,origin,env);
+    if (!hasAdminPermission(admin,"admins:manage")) return response({error:"forbidden"},403,origin,env);
+    if (method === "GET") {
+      const rows = await env.DB.prepare("SELECT id,username,role,active,created_at AS createdAt,updated_at AS updatedAt,last_login_at AS lastLoginAt FROM admin_users ORDER BY created_at").all();
+      return response({items:rows.results||[]},200,origin,env);
+    }
+    try {
+      const d = await body(request);
+      const username = String(d.username||"").trim();
+      const password = String(d.password||"");
+      const role = String(d.role||"admin");
+      if (!/^[A-Za-z0-9._-]{3,40}$/.test(username)) return response({error:"invalid_admin_username"},400,origin,env);
+      if (password.length < 14 || password.length > 128) return response({error:"admin_password_too_weak"},400,origin,env);
+      if (!["admin","viewer"].includes(role)) return response({error:"invalid_admin_role"},400,origin,env);
+      const salt = crypto.getRandomValues(new Uint8Array(16));
+      const derived = await derivePassword(password,salt);
+      const hash = "pbkdf2-sha256$" + PBKDF2_ITERATIONS + "$" + b64(salt) + "$" + b64(derived);
+      const id = randomHex(16);
+      await env.DB.prepare("INSERT INTO admin_users(id,username,password_hash,role,active,created_by,updated_at) VALUES(?,?,?,?,1,?,?)")
+        .bind(id,username,hash,role,admin.id,new Date().toISOString()).run();
+      await writeAudit(env.DB,"admin",admin.id,"admin.account.created","admin_user",id,{role});
+      return response({ok:true,id,username,role},201,origin,env);
+    } catch (e) {
+      const conflict = String(e?.message||"").toLowerCase().includes("unique");
+      return response({error:conflict?"admin_username_exists":"admin_create_failed"},conflict?409:400,origin,env);
+    }
+  }
+  const adminAccountMatch = path.match(/^\/api\/admin\/admins\/([a-f0-9]{32})$/);
+  if (adminAccountMatch && method === "POST") {
+    const admin = await currentAdmin(request,env);
+    if (!admin) return response({error:"unauthorized"},401,origin,env);
+    if (!hasAdminPermission(admin,"admins:manage")) return response({error:"forbidden"},403,origin,env);
+    const targetId = adminAccountMatch[1];
+    const target = await env.DB.prepare("SELECT id,role,active FROM admin_users WHERE id=?").bind(targetId).first();
+    if (!target) return response({error:"admin_not_found"},404,origin,env);
+    if (target.role === "owner") return response({error:"owner_account_protected"},403,origin,env);
+    try {
+      const d = await body(request);
+      const role = d.role === undefined ? target.role : String(d.role);
+      const active = d.active === undefined ? Number(target.active) : (d.active === true ? 1 : d.active === false ? 0 : -1);
+      if (!["admin","viewer"].includes(role) || ![0,1].includes(active)) return response({error:"invalid_admin_update"},400,origin,env);
+      if (targetId === admin.id && active === 0) return response({error:"cannot_disable_self"},400,origin,env);
+      const result = await env.DB.prepare("UPDATE admin_users SET role=?,active=?,updated_at=? WHERE id=? AND role IN ('admin','viewer')")
+        .bind(role,active,new Date().toISOString(),targetId).run();
+      if ((result.meta?.changes||0)!==1) return response({error:"admin_update_conflict"},409,origin,env);
+      await writeAudit(env.DB,"admin",admin.id,"admin.account.updated","admin_user",targetId,{role,active});
+      return response({ok:true,id:targetId,role,active:!!active},200,origin,env);
+    } catch {
+      return response({error:"admin_update_failed"},400,origin,env);
+    }
+  }
+
   return response({error:"not_found"},404,origin,env);
 }
 export default { fetch(request,env) { return route(request,env).catch(e=>{console.error("Worker unhandled error",e.message);return json({error:"internal_error"},500);}); } };
