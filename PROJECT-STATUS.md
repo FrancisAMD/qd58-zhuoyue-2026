@@ -35,3 +35,5 @@
 - Worker 在创建、查看和响应转让时先清理过期记录；Cloudflare Cron 每 15 分钟执行一次兜底清理。
 - 过期转让写入 system audit_logs，过期后无法再接受或拒绝；队长归属保持不变。
 - 新增转让过期迁移约束和 scheduled handler 测试。
+
+- 追加到期竞态保护：响应更新同时校验 D1 当前时间，D1 触发器阻止到期后直接改为 accepted/rejected；未授权接收者不会触发清理批处理。

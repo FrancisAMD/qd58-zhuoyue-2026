@@ -538,14 +538,17 @@ async function route(request, env) {
     const user=await currentUser(request,env); if(!user) return response({error:"unauthorized"},401,origin,env);
     const transferId=transferParts[4], action=transferParts[5], status=action==="accept"?"accepted":"rejected", timestamp=new Date().toISOString();
     await expirePendingTransfers(env.DB);
-    const transfer=await env.DB.prepare("SELECT id,to_user_id,status FROM leader_transfers WHERE id=?").bind(transferId).first();
+    let transfer=await env.DB.prepare("SELECT id,to_user_id,status FROM leader_transfers WHERE id=?").bind(transferId).first();
     if(!transfer) return response({error:"transfer_not_found"},404,origin,env);
     if(transfer.to_user_id!==user.id) return response({error:"transfer_forbidden"},403,origin,env);
+    await expirePendingTransfers(env.DB);
+    transfer=await env.DB.prepare("SELECT id,to_user_id,status FROM leader_transfers WHERE id=?").bind(transferId).first();
+    if(!transfer) return response({error:"transfer_not_found"},404,origin,env);
     if(transfer.status==="expired") return response({error:"transfer_expired"},409,origin,env);
     if(transfer.status!=="pending") return response({error:"transfer_state_conflict"},409,origin,env);
     try {
       await env.DB.batch([
-        env.DB.prepare("UPDATE leader_transfers SET status=?,responded_at=? WHERE id=? AND to_user_id=? AND status='pending'")
+        env.DB.prepare("UPDATE leader_transfers SET status=?,responded_at=? WHERE id=? AND to_user_id=? AND status='pending' AND expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now')")
           .bind(status,timestamp,transferId,user.id),
         env.DB.prepare(`INSERT OR IGNORE INTO audit_logs(id,actor_type,actor_id,action,target_type,target_id,metadata_json)
           SELECT ?, 'user', ?, ?, 'team', team_id, ? FROM leader_transfers
@@ -555,8 +558,12 @@ async function route(request, env) {
     } catch(e) {
       return response({error:"transfer_state_conflict"},409,origin,env);
     }
-    const latest=await env.DB.prepare(`SELECT lt.status,lt.from_user_id,lt.to_user_id,t.leader_user_id
+    const latest=await env.DB.prepare(`SELECT lt.status,lt.expires_at,lt.from_user_id,lt.to_user_id,t.leader_user_id
       FROM leader_transfers lt JOIN teams t ON t.id=lt.team_id WHERE lt.id=?`).bind(transferId).first();
+    if(latest?.status==="expired" || (latest?.status==="pending" && latest.expires_at && Date.parse(latest.expires_at)<=Date.now())) {
+      await expirePendingTransfers(env.DB);
+      return response({error:"transfer_expired"},409,origin,env);
+    }
     const completed=latest && latest.status===status && (status==="accepted"?latest.leader_user_id===user.id:latest.leader_user_id===latest.from_user_id);
     if(!completed) return response({error:"transfer_state_conflict"},409,origin,env);
     return response({ok:true,status,alreadyApplied:transfer.status===status},200,origin,env);

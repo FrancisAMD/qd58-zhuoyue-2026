@@ -40,14 +40,14 @@ must_fail("INSERT INTO teams(id,university_id,leader_user_id) VALUES(?,?,?)", ("
 
 # A non-leader cannot create a transfer; only a current leader can target a same-team member.
 must_fail("INSERT INTO leader_transfers(id,team_id,from_user_id,to_user_id,status) VALUES(?,?,?,?,?)", ("bad-transfer","t1","u2","u1","pending"))
-db.execute("INSERT INTO leader_transfers(id,team_id,from_user_id,to_user_id,status) VALUES(?,?,?,?,?)", ("reject-me","t1","u1","u2","pending"))
+db.execute("INSERT INTO leader_transfers(id,team_id,from_user_id,to_user_id,status,expires_at) VALUES(?,?,?,?,?,?)", ("reject-me","t1","u1","u2","pending","2099-01-01T00:00:00.000Z"))
 must_fail("INSERT INTO leader_transfers(id,team_id,from_user_id,to_user_id,status) VALUES(?,?,?,?,?)", ("second-pending","t1","u1","u2","pending"))
 db.execute("UPDATE leader_transfers SET status='rejected',responded_at='2026-11-12T01:00:00Z' WHERE id='reject-me'")
 assert db.execute("SELECT leader_user_id FROM teams WHERE id='t1'").fetchone()[0] == "u1"
 must_fail("UPDATE leader_transfers SET status='accepted',responded_at='2026-11-12T01:01:00Z' WHERE id='reject-me'")
 
 # Accepting a transfer atomically changes the leader; the new leader cannot leave the university.
-db.execute("INSERT INTO leader_transfers(id,team_id,from_user_id,to_user_id,status) VALUES(?,?,?,?,?)", ("accept-me","t1","u1","u2","pending"))
+db.execute("INSERT INTO leader_transfers(id,team_id,from_user_id,to_user_id,status,expires_at) VALUES(?,?,?,?,?,?)", ("accept-me","t1","u1","u2","pending","2099-01-01T00:00:00.000Z"))
 db.execute("UPDATE leader_transfers SET status='accepted',responded_at='2026-11-12T01:02:00Z' WHERE id='accept-me'")
 assert db.execute("SELECT leader_user_id FROM teams WHERE id='t1'").fetchone()[0] == "u2"
 must_fail("UPDATE users SET university_id='uni2' WHERE id='u2'")
@@ -55,6 +55,9 @@ must_fail("UPDATE users SET university_id='uni2' WHERE id='u2'")
 # A pending transfer past its deadline transitions to expired and cannot later be accepted.
 db.execute("INSERT INTO leader_transfers(id,team_id,from_user_id,to_user_id,status,created_at,expires_at) VALUES(?,?,?,?,?,?,?)",
            ("expired-me","t1","u2","u1","pending","2026-11-01T00:00:00.000Z","2026-11-02T00:00:00.000Z"))
+db.execute("UPDATE leader_transfers SET status='expired',responded_at=? WHERE id=? AND status='pending' AND expires_at<=?",
+           ("2026-11-03T00:00:00.000Z","expired-me","2026-11-03T00:00:00.000Z"))
+must_fail("UPDATE leader_transfers SET status='accepted',responded_at='2026-11-03T00:00:00.000Z' WHERE id='expired-me'")
 db.execute("UPDATE leader_transfers SET status='expired',responded_at=? WHERE id=? AND status='pending' AND expires_at<=?",
            ("2026-11-03T00:00:00.000Z","expired-me","2026-11-03T00:00:00.000Z"))
 assert db.execute("SELECT status FROM leader_transfers WHERE id='expired-me'").fetchone()[0] == "expired"
