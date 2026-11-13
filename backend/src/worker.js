@@ -537,7 +537,6 @@ async function route(request, env) {
   if(method==="POST" && transferParts.length===6 && transferParts[1]==="api" && transferParts[2]==="teams" && transferParts[3]==="transfer" && /^[a-f0-9]{32}$/.test(transferParts[4]) && ["accept","reject"].includes(transferParts[5])) {
     const user=await currentUser(request,env); if(!user) return response({error:"unauthorized"},401,origin,env);
     const transferId=transferParts[4], action=transferParts[5], status=action==="accept"?"accepted":"rejected", timestamp=new Date().toISOString();
-    await expirePendingTransfers(env.DB);
     let transfer=await env.DB.prepare("SELECT id,to_user_id,status FROM leader_transfers WHERE id=?").bind(transferId).first();
     if(!transfer) return response({error:"transfer_not_found"},404,origin,env);
     if(transfer.to_user_id!==user.id) return response({error:"transfer_forbidden"},403,origin,env);
