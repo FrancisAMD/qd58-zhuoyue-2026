@@ -46,3 +46,11 @@
 - 登录、目录、同省队长列表、管理员统计和名单均排除已删除账号。
 - 隐私页更新为 2026-11-14-v2；备份与恢复说明明确每日加密备份、建议 30 天滚动保留、每月独立测试库恢复演练（待组织方确认，尚未执行）。
 - 本次没有运行远程 D1 迁移、备份导出、生产部署或真实短信发送。
+
+
+## 本次增量里程碑（2026-11-14）：账号删除原子性验证
+
+- 新增 `backend/migrations/0009_account_deletion_atomicity.sql`：`account.deleted` 审计事件必须引用已匿名化 tombstone。若删除 batch 中用户更新未成功，最后的审计插入触发约束失败，使 D1 batch 回滚，避免半完成删除。
+- Worker 将 D1 删除冲突统一映射为 HTTP 409 `account_delete_conflict`；仍有其他队员的队长仍返回 `leader_transfer_required`。
+- 扩充账号生命周期测试：模拟 Turnstile Siteverify 与阿里云 PNVS 发送/核验，覆盖会话绑定手机号、错误验证码、错误密码、队长限制、删除后会话撤销、审计信息最小化及 batch 冲突回滚。
+- 测试使用 mock D1 和 mock 外部服务；不代表真实 D1、Turnstile、PNVS 或浏览器联调已完成。未执行远程迁移、真实短信、备份或部署。

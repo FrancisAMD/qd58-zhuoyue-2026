@@ -95,6 +95,14 @@ must_fail("UPDATE users SET phone='deleted:'||id,password_hash=NULL,name=NULL,hi
 db.execute("UPDATE teams SET leader_user_id=NULL WHERE id='t-solo'")
 db.execute("UPDATE users SET phone='deleted:'||id,password_hash=NULL,name=NULL,high_school=NULL,class_name=NULL,university_id=NULL,grade=NULL,province=NULL,city=NULL,bio=NULL,phone_visible_to_team=0,consent_at='',consent_given=0,consent_version='',account_consent_at='',account_consent_version='',deleted_at='2026-11-14T00:00:00Z' WHERE id='u-solo'")
 assert db.execute("SELECT phone,password_hash,name,university_id,phone_visible_to_team,consent_given,deleted_at FROM users WHERE id='u-solo'").fetchone() == ("deleted:u-solo",None,None,None,0,0,"2026-11-14T00:00:00Z")
+
+# The account.deleted audit trigger is the final guard in the deletion D1 batch.
+# If the guarded user update matched no row, the audit insert fails and D1 rolls back
+# all earlier session/team/OTP cleanup statements in that same batch.
+must_fail("INSERT INTO audit_logs(id,actor_type,actor_id,action,target_type,target_id,metadata_json) VALUES(?,?,?,?,?,?,?)",
+          ("premature-delete-audit","system",None,"account.deleted","user","u1","{}"))
+db.execute("INSERT INTO audit_logs(id,actor_type,actor_id,action,target_type,target_id,metadata_json) VALUES(?,?,?,?,?,?,?)",
+           ("valid-delete-audit","system",None,"account.deleted","user","u-solo","{}"))
 must_fail("UPDATE users SET name='restore' WHERE id='u-solo'")
 must_fail("INSERT INTO teams(id,university_id,leader_user_id) VALUES(?,?,?)", ("bad-deleted-leader","uni5","u-solo"))
 assert db.execute("SELECT leader_user_id FROM teams WHERE id='t-solo'").fetchone()[0] is None

@@ -14,7 +14,7 @@
 
 ## 首位 owner 账号引导
 
-1. 先在 Cloudflare D1 测试库应用所有迁移，确认包含 0008_account_anonymization.sql（以及之前全部迁移）。
+1. 先在 Cloudflare D1 测试库应用所有迁移，确认包含 0009_account_deletion_atomicity.sql（以及之前全部迁移）。
 2. 在本地 PowerShell 临时输入密码并生成 SQL（密码不会写入脚本或仓库）：
 
     $secure = Read-Host "输入至少14位管理员密码" -AsSecureString

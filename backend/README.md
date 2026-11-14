@@ -58,3 +58,11 @@ Cloudflare Worker + D1 后端。已提交手机号密码认证、Turnstile 服�
 - 删除事件只写入不含手机号和姓名的 system audit。历史转让/审计保留随机 ID；数据库备份中的历史快照不会因在线删除自动消失，须按备份保留政策到期清除。
 
 迁移：`0008_account_anonymization.sql`。本次没有对远程 D1 执行迁移。
+
+
+## 账号删除原子性与测试边界
+
+- 新增 `migrations/0009_account_deletion_atomicity.sql`：只有用户 tombstone 已成功写入时，才允许插入 `account.deleted` 审计事件。该审计插入位于删除 D1 batch 末尾；若用户更新未命中，触发器使整批回滚，避免只撤销 Session/队长/验证码却未匿名化用户资料。
+- 删除冲突统一返回 HTTP 409 和 `account_delete_conflict`；仍有队员的队长返回 `leader_transfer_required`。
+- `account-deletion-smoke.mjs` 使用假的 D1 与模拟 Turnstile/PNVS HTTP 响应，覆盖会话手机号绑定、验证码发送与核验、错误密码、队长限制、删除后 Session 失效和 batch 冲突回滚。
+- 这些是隔离测试，不等同于真实 Cloudflare D1、Turnstile 或阿里云 PNVS 联调；生产环境验证仍待执行。

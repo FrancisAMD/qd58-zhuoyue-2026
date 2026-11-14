@@ -339,7 +339,7 @@ async function route(request, env) {
   const url=new URL(request.url), path=url.pathname, method=request.method, origin=request.headers.get("Origin");
   if(method==="OPTIONS") return new Response(null,{status:204,headers:corsHeaders(origin,env)});
   if(origin && origin!==env.APP_ORIGIN) return response({error:"origin_forbidden"},403,origin,env);
-  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"account-anonymization-20261114",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
+  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"account-deletion-atomicity-20261114",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
   if(path==="/api/auth/register/request-code" && method==="POST") {
     try { const d=await body(request); if(d.accountConsent !== true) return response({error:"consent_required"},400,origin,env); return response(await sendCode(String(d.phone||""),"register",d.turnstileToken,request,env),200,origin,env); }
     catch(e) {
@@ -460,9 +460,11 @@ async function route(request, env) {
       if((results[5]?.meta?.changes||0)!==1) return response({error:"account_delete_conflict"},409,origin,env);
       return response({ok:true,anonymized:true},200,origin,env,{"set-cookie":cookie("",0)});
     } catch(e) {
-      const known=e.error||e.message;
-      const status=e.status||((known==="account_deletion_requires_team_transfer"||known==="account_deletion_requires_no_pending_transfer")?409:400);
-      return response({error:known||"account_delete_failed"},status,origin,env);
+      const known=String(e.error||e.message||"account_delete_failed");
+      const conflict=["account_delete_conflict","account_deletion_requires_team_transfer","account_deletion_requires_no_pending_transfer"].find(code=>known.includes(code));
+      const error=conflict==="account_deletion_requires_team_transfer"?"leader_transfer_required":conflict?"account_delete_conflict":known;
+      const status=e.status||(conflict?409:400);
+      return response({error},status,origin,env);
     }
   }
   if(path==="/api/auth/logout" && method==="POST") {
