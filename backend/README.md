@@ -47,3 +47,14 @@ Cloudflare Worker + D1 后端。已提交手机号密码认证、Turnstile 服�
 - `backend/migrations/0007_transfer_expiry.sql` 为历史记录补齐到期时间。
 - API 在新建、读取和响应转让前执行惰性清理；Worker Cron 每 15 分钟执行兜底清理。
 - 过期转让变为 `expired` 并写入系统审计，不会改变当前队长。
+
+
+## 用户账号删除与匿名化
+
+- POST /api/account/delete/request-code：必须先登录；Worker 从当前 Session 读取绑定手机号，校验 Turnstile action 为 `account_delete` 后调用 PNVS。请求体只接收 `turnstileToken`，不接受客户端指定手机号。
+- POST /api/account/delete：必须登录，提交当前密码、短信验证码和 `confirmText: "DELETE"`。验证通过后撤销全部用户 Session、清除 OTP 与手机号相关限流键、终止涉及该用户的待处理转让，并清空直接身份资料和授权记录。
+- 如果用户是仍有其他有效成员的队伍队长，返回 `409 leader_transfer_required`，必须先完成队长转让。独自担任队长时释放空队伍队长槽位，后续首位新成员可成为新队长。
+- 为保持历史转让与审计外键完整，用户行保留不可逆 tombstone：随机用户 ID、`deleted:` 占位号码和删除时间；直接身份字段与密码摘要清空。删除后的用户不能再登录、访问资料或出现在目录/管理员名单中。
+- 删除事件只写入不含手机号和姓名的 system audit。历史转让/审计保留随机 ID；数据库备份中的历史快照不会因在线删除自动消失，须按备份保留政策到期清除。
+
+迁移：`0008_account_anonymization.sql`。本次没有对远程 D1 执行迁移。
