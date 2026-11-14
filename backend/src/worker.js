@@ -9,7 +9,7 @@ const OTP_SECONDS = 300;
 const COOLDOWN_SECONDS = 60;
 const ALI_HOST = "dypnsapi.aliyuncs.com";
 const ALI_VERSION = "2017-05-25";
-const PRIVACY_NOTICE_VERSION = "2026-11-13-v1";
+const PRIVACY_NOTICE_VERSION = "2026-11-14-v2";
 
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", ...headers } });
@@ -144,7 +144,7 @@ async function currentUser(request, env) {
   const token = getCookie(request);
   if (!token) return null;
   const digest = await sha256(token);
-  const row = await env.DB.prepare("SELECT u.id,u.phone,u.name,u.high_school,u.class_name,u.university_id,u.grade,u.province,u.city,u.bio,u.phone_visible_to_team,u.consent_given,u.consent_at,u.consent_version,u.account_consent_at,u.account_consent_version FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?").bind(digest,now()).first();
+  const row = await env.DB.prepare("SELECT u.id,u.phone,u.name,u.high_school,u.class_name,u.university_id,u.grade,u.province,u.city,u.bio,u.phone_visible_to_team,u.consent_given,u.consent_at,u.consent_version,u.account_consent_at,u.account_consent_version FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.deleted_at=''").bind(digest,now()).first();
   return row || null;
 }
 
@@ -232,9 +232,9 @@ function adminPeopleFilters(url) {
 
 async function sendCode(phone, purpose, token, request, env) {
   if (!validPhone(phone)) throw err("invalid_phone");
-  const exists = await env.DB.prepare("SELECT id FROM users WHERE phone=?").bind(phone).first();
+  const exists = await env.DB.prepare("SELECT id FROM users WHERE phone=? AND deleted_at=''").bind(phone).first();
   if (purpose === "register" && exists) throw err("phone_already_registered");
-  if (purpose === "password_reset" && !exists) throw err("phone_not_registered");
+  if ((purpose === "password_reset" || purpose === "account_delete") && !exists) throw err("phone_not_registered");
 
   // Check existing limits before Siteverify. A blocked request must not consume
   // the visitor's one-time Turnstile token.
@@ -339,7 +339,7 @@ async function route(request, env) {
   const url=new URL(request.url), path=url.pathname, method=request.method, origin=request.headers.get("Origin");
   if(method==="OPTIONS") return new Response(null,{status:204,headers:corsHeaders(origin,env)});
   if(origin && origin!==env.APP_ORIGIN) return response({error:"origin_forbidden"},403,origin,env);
-  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"admin-rbac-20261113",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
+  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"account-anonymization-20261114",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
   if(path==="/api/auth/register/request-code" && method==="POST") {
     try { const d=await body(request); if(d.accountConsent !== true) return response({error:"consent_required"},400,origin,env); return response(await sendCode(String(d.phone||""),"register",d.turnstileToken,request,env),200,origin,env); }
     catch(e) {
@@ -352,6 +352,19 @@ async function route(request, env) {
   if(path==="/api/auth/password/request-code" && method==="POST") {
     try { const d=await body(request); return response(await sendCode(String(d.phone||""),"password_reset",d.turnstileToken,request,env),200,origin,env); }
     catch(e) {
+      const payload={error:e.error||e.message||"request_failed"};
+      if(e.refreshTurnstile) payload.refreshTurnstile=true;
+      if(Number.isFinite(e.retryAfter)) payload.retryAfter=e.retryAfter;
+      return response(payload,e.status||400,origin,env);
+    }
+  }
+  if(path==="/api/account/delete/request-code" && method==="POST") {
+    const user=await currentUser(request,env);
+    if(!user) return response({error:"unauthorized"},401,origin,env);
+    try {
+      const d=await body(request);
+      return response(await sendCode(user.phone,"account_delete",d.turnstileToken,request,env),200,origin,env);
+    } catch(e) {
       const payload={error:e.error||e.message||"request_failed"};
       if(e.refreshTurnstile) payload.refreshTurnstile=true;
       if(Number.isFinite(e.retryAfter)) payload.retryAfter=e.retryAfter;
@@ -411,6 +424,46 @@ async function route(request, env) {
       await env.DB.prepare("DELETE FROM sessions WHERE user_id=(SELECT id FROM users WHERE phone=?)").bind(phone).run();
       return response({ok:true},200,origin,env,{"set-cookie":cookie("",0)});
     } catch(e) { return response({error:e.error||e.message||"password_reset_failed"},e.status||400,origin,env); }
+  }
+  if(path==="/api/account/delete" && method==="POST") {
+    const user=await currentUser(request,env);
+    if(!user) return response({error:"unauthorized"},401,origin,env);
+    try {
+      const d=await body(request);
+      if(d.confirmText!=="DELETE") return response({error:"account_delete_confirm_required"},400,origin,env);
+      const password=String(d.password||"");
+      if(!password || password.length>128) return response({error:"current_password_invalid"},401,origin,env);
+      const account=await env.DB.prepare("SELECT password_hash FROM users WHERE id=? AND deleted_at=''").bind(user.id).first();
+      if(!account || !(await verifyPassword(password,account.password_hash))) return response({error:"current_password_invalid"},401,origin,env);
+      const leadership=await env.DB.prepare(`SELECT t.id,
+        (SELECT COUNT(*) FROM users member WHERE member.university_id=t.university_id AND member.deleted_at='' AND member.id<>?) AS other_members
+        FROM teams t WHERE t.leader_user_id=? LIMIT 1`).bind(user.id,user.id).first();
+      if(leadership && Number(leadership.other_members||0)>0) return response({error:"leader_transfer_required"},409,origin,env);
+      await verifyCode(user.phone,d.code,"account_delete",env);
+      const timestamp=new Date().toISOString();
+      const statements=[
+        env.DB.prepare("UPDATE leader_transfers SET status='expired',responded_at=? WHERE status='pending' AND (from_user_id=? OR to_user_id=?)").bind(timestamp,user.id,user.id),
+        env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(user.id),
+        env.DB.prepare("DELETE FROM otp_challenges WHERE phone=?").bind(user.phone),
+        env.DB.prepare("DELETE FROM rate_limits WHERE bucket_key IN (?,?,?)").bind("sms:cooldown:"+user.phone,"sms:phone:"+user.phone,"login:phone:"+user.phone),
+        env.DB.prepare("UPDATE teams SET leader_user_id=NULL WHERE leader_user_id=? AND id=? AND NOT EXISTS (SELECT 1 FROM users member WHERE member.university_id=teams.university_id AND member.deleted_at='' AND member.id<>?)").bind(user.id,leadership?.id||"",user.id),
+        env.DB.prepare(`UPDATE users SET phone='deleted:'||id,password_hash=NULL,name=NULL,high_school=NULL,class_name=NULL,
+          university_id=NULL,grade=NULL,province=NULL,city=NULL,bio=NULL,phone_visible_to_team=0,
+          consent_at='',consent_given=0,consent_version='',account_consent_at='',account_consent_version='',
+          deleted_at=?,updated_at=? WHERE id=? AND deleted_at=''
+          AND NOT EXISTS(SELECT 1 FROM teams WHERE leader_user_id=users.id)
+          AND NOT EXISTS(SELECT 1 FROM leader_transfers WHERE status='pending' AND (from_user_id=users.id OR to_user_id=users.id))`).bind(timestamp,timestamp,user.id),
+        env.DB.prepare("INSERT INTO audit_logs(id,actor_type,actor_id,action,target_type,target_id,metadata_json) VALUES(?,'system',NULL,'account.deleted','user',?,?)")
+          .bind(randomHex(16),user.id,JSON.stringify({method:"password_and_sms_anonymization"}))
+      ];
+      const results=await env.DB.batch(statements);
+      if((results[5]?.meta?.changes||0)!==1) return response({error:"account_delete_conflict"},409,origin,env);
+      return response({ok:true,anonymized:true},200,origin,env,{"set-cookie":cookie("",0)});
+    } catch(e) {
+      const known=e.error||e.message;
+      const status=e.status||((known==="account_deletion_requires_team_transfer"||known==="account_deletion_requires_no_pending_transfer")?409:400);
+      return response({error:known||"account_delete_failed"},status,origin,env);
+    }
   }
   if(path==="/api/auth/logout" && method==="POST") {
     const token=getCookie(request); if(token) await env.DB.prepare("DELETE FROM sessions WHERE token_hash=?").bind(await sha256(token)).run();
@@ -480,8 +533,8 @@ async function route(request, env) {
           .bind(regionName,educationLevel,partnerName,uni.id,category),
         env.DB.prepare("UPDATE users SET name=?,class_name=?,high_school=?,university_id=?,grade=?,province=?,city=?,bio=?,phone_visible_to_team=?,consent_given=1,consent_at=CASE WHEN consent_given=0 OR consent_version<>? THEN ? ELSE consent_at END,consent_version=?,account_consent_at=CASE WHEN account_consent_at='' OR account_consent_version<>? THEN ? ELSE account_consent_at END,account_consent_version=?,updated_at=? WHERE id=?")
           .bind(name,className,String(d.highSchool||"青岛五十八中").trim(),uni.id,grade,province,String(d.city||"").trim(),String(d.bio||"").trim(),d.phoneVisible?1:0,PRIVACY_NOTICE_VERSION,savedAt,PRIVACY_NOTICE_VERSION,PRIVACY_NOTICE_VERSION,savedAt,PRIVACY_NOTICE_VERSION,savedAt,user.id),
-        env.DB.prepare("INSERT OR IGNORE INTO teams(id,university_id,leader_user_id) SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM users WHERE id=? AND university_id=?)")
-          .bind(randomHex(16),uni.id,user.id,user.id,uni.id)
+        env.DB.prepare("UPDATE teams SET leader_user_id=? WHERE university_id=? AND leader_user_id IS NULL AND (SELECT COUNT(*) FROM users WHERE university_id=? AND deleted_at='')=1 AND EXISTS(SELECT 1 FROM users WHERE id=? AND university_id=? AND deleted_at='')").bind(user.id,uni.id,uni.id,user.id,uni.id),
+        env.DB.prepare("INSERT OR IGNORE INTO teams(id,university_id,leader_user_id) SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM users WHERE id=? AND university_id=? AND deleted_at='')").bind(randomHex(16),uni.id,user.id,user.id,uni.id)
       ]);
       return response({ok:true},200,origin,env);
     }catch(e){return response({error:e.error||"profile_save_failed"},400,origin,env);}
@@ -570,8 +623,8 @@ async function route(request, env) {
   if(path==="/api/directory" && method==="GET") {
     const user=await currentUser(request,env); if(!user) return response({error:"unauthorized"},401,origin,env);
     const own=await env.DB.prepare("SELECT university_id,province FROM users WHERE id=?").bind(user.id).first();
-    const members=own.university_id?await env.DB.prepare("SELECT u.name,u.class_name AS className,u.grade,u.province,uni.canonical_name AS university,uni.category AS universityCategory,uni.region_name AS universityRegion,uni.education_level AS educationLevel,uni.project_tags_json AS projectTags,CASE WHEN u.phone_visible_to_team=1 THEN u.phone ELSE NULL END AS phone FROM users u JOIN universities uni ON uni.id=u.university_id WHERE u.university_id=? AND u.id<>? ORDER BY u.created_at").bind(own.university_id,user.id).all():{results:[]};
-    const leaders=await env.DB.prepare("SELECT u.name,u.grade,u.province,uni.canonical_name AS university,uni.category AS universityCategory,uni.region_name AS universityRegion,uni.education_level AS educationLevel,uni.project_tags_json AS projectTags FROM teams t JOIN users u ON u.id=t.leader_user_id JOIN universities uni ON uni.id=t.university_id WHERE u.province=? ORDER BY uni.canonical_name").bind(own.province||"").all();
+    const members=own.university_id?await env.DB.prepare("SELECT u.name,u.class_name AS className,u.grade,u.province,uni.canonical_name AS university,uni.category AS universityCategory,uni.region_name AS universityRegion,uni.education_level AS educationLevel,uni.project_tags_json AS projectTags,CASE WHEN u.phone_visible_to_team=1 THEN u.phone ELSE NULL END AS phone FROM users u JOIN universities uni ON uni.id=u.university_id WHERE u.university_id=? AND u.id<>? AND u.deleted_at='' ORDER BY u.created_at").bind(own.university_id,user.id).all():{results:[]};
+    const leaders=await env.DB.prepare("SELECT u.name,u.grade,u.province,uni.canonical_name AS university,uni.category AS universityCategory,uni.region_name AS universityRegion,uni.education_level AS educationLevel,uni.project_tags_json AS projectTags FROM teams t JOIN users u ON u.id=t.leader_user_id JOIN universities uni ON uni.id=t.university_id WHERE u.province=? AND u.deleted_at='' ORDER BY uni.canonical_name").bind(own.province||"").all();
     return response({members:members.results||[],provinceLeaders:leaders.results||[]},200,origin,env);
   }
 
@@ -633,11 +686,11 @@ async function route(request, env) {
     const admin = await currentAdmin(request,env);
     if (!admin) return response({error:"unauthorized"},401,origin,env);
     if (!hasAdminPermission(admin,"overview")) return response({error:"forbidden"},403,origin,env);
-    const counts = await env.DB.prepare("SELECT COUNT(*) AS total, SUM(CASE WHEN university_id IS NOT NULL THEN 1 ELSE 0 END) AS completed, SUM(CASE WHEN consent_given=1 THEN 1 ELSE 0 END) AS consented FROM users").first();
-    const teamCount = await env.DB.prepare("SELECT COUNT(*) AS total FROM teams").first();
+    const counts = await env.DB.prepare("SELECT COUNT(*) AS total, SUM(CASE WHEN university_id IS NOT NULL THEN 1 ELSE 0 END) AS completed, SUM(CASE WHEN consent_given=1 THEN 1 ELSE 0 END) AS consented FROM users WHERE deleted_at=''").first();
+    const teamCount = await env.DB.prepare("SELECT COUNT(*) AS total FROM teams WHERE leader_user_id IS NOT NULL").first();
     let teams = [];
     if (admin.role === "owner" || admin.role === "admin") {
-      const rows = await env.DB.prepare("SELECT t.id,uni.canonical_name AS university,COUNT(u.id) AS memberCount,leader.name AS leaderName,leader.province AS leaderProvince FROM teams t JOIN universities uni ON uni.id=t.university_id LEFT JOIN users u ON u.university_id=t.university_id LEFT JOIN users leader ON leader.id=t.leader_user_id GROUP BY t.id ORDER BY uni.canonical_name LIMIT 500").all();
+      const rows = await env.DB.prepare("SELECT t.id,uni.canonical_name AS university,COUNT(u.id) AS memberCount,leader.name AS leaderName,leader.province AS leaderProvince FROM teams t JOIN universities uni ON uni.id=t.university_id LEFT JOIN users u ON u.university_id=t.university_id AND u.deleted_at='' LEFT JOIN users leader ON leader.id=t.leader_user_id AND leader.deleted_at='' WHERE leader.id IS NOT NULL GROUP BY t.id ORDER BY uni.canonical_name LIMIT 500").all();
       teams = rows.results || [];
     }
     return response({counts:{total:Number(counts?.total||0),completed:Number(counts?.completed||0),consented:Number(counts?.consented||0)},teamCount:Number(teamCount?.total||0),teams},200,origin,env);
@@ -650,7 +703,7 @@ async function route(request, env) {
     if (filters.error) return response({error:filters.error},400,origin,env);
     const page = adminPage(url.searchParams.get("page"),1,1000000);
     const pageSize = adminPage(url.searchParams.get("pageSize"),50,100);
-    const base = " FROM users u LEFT JOIN universities uni ON uni.id=u.university_id" + filters.clause;
+    const base = " FROM users u LEFT JOIN universities uni ON uni.id=u.university_id WHERE u.deleted_at=''" + filters.clause.replace(/^ WHERE /," AND ");
     const count = await env.DB.prepare("SELECT COUNT(*) AS total" + base).bind(...filters.bindings).first();
     const total = Number(count?.total||0);
     const format = url.searchParams.get("format") || "";

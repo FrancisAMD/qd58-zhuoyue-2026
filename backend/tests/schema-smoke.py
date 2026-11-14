@@ -86,4 +86,17 @@ db.execute("UPDATE admin_users SET role='admin' WHERE id='admin-owner'")
 must_fail("DELETE FROM admin_users WHERE id='admin-owner2'")
 assert db.execute("SELECT role,active FROM admin_users WHERE id='admin-owner2'").fetchone() == ("owner",1)
 
-print("D1 schema tests: PASS (all migrations, consent defaults, team/transfer invariants, case-insensitive admin usernames and last-owner protection).")
+# Account anonymization keeps the historical row but removes direct profile/auth data.
+db.execute("INSERT INTO universities(id,canonical_name,normalized_name) VALUES(?,?,?)", ("uni5","Deletion Test University","mainland:deletion-test"))
+db.execute("INSERT INTO users(id,phone,password_hash,name,high_school,class_name,university_id,grade,province,city,bio,phone_visible_to_team,consent_at,consent_given,consent_version,account_consent_at,account_consent_version) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+           ("u-solo","test-phone","hash","Test User","School","Class","uni5","Freshman","Region","City","Note",1,"now",1,"v1","now","v1"))
+db.execute("INSERT INTO teams(id,university_id,leader_user_id) VALUES(?,?,?)", ("t-solo","uni5","u-solo"))
+must_fail("UPDATE users SET phone='deleted:'||id,password_hash=NULL,name=NULL,high_school=NULL,class_name=NULL,university_id=NULL,grade=NULL,province=NULL,city=NULL,bio=NULL,phone_visible_to_team=0,consent_at='',consent_given=0,consent_version='',account_consent_at='',account_consent_version='',deleted_at='2026-11-14T00:00:00Z' WHERE id='u-solo'")
+db.execute("UPDATE teams SET leader_user_id=NULL WHERE id='t-solo'")
+db.execute("UPDATE users SET phone='deleted:'||id,password_hash=NULL,name=NULL,high_school=NULL,class_name=NULL,university_id=NULL,grade=NULL,province=NULL,city=NULL,bio=NULL,phone_visible_to_team=0,consent_at='',consent_given=0,consent_version='',account_consent_at='',account_consent_version='',deleted_at='2026-11-14T00:00:00Z' WHERE id='u-solo'")
+assert db.execute("SELECT phone,password_hash,name,university_id,phone_visible_to_team,consent_given,deleted_at FROM users WHERE id='u-solo'").fetchone() == ("deleted:u-solo",None,None,None,0,0,"2026-11-14T00:00:00Z")
+must_fail("UPDATE users SET name='restore' WHERE id='u-solo'")
+must_fail("INSERT INTO teams(id,university_id,leader_user_id) VALUES(?,?,?)", ("bad-deleted-leader","uni5","u-solo"))
+assert db.execute("SELECT leader_user_id FROM teams WHERE id='t-solo'").fetchone()[0] is None
+
+print("D1 schema tests: PASS (all migrations, consent defaults, team/transfer invariants, admin owner protection and account anonymization guards).")
