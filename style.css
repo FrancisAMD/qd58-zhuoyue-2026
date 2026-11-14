@@ -188,3 +188,11 @@ body.dark .classmate-avatar,body.dark .classmate-meta span{background:#344d3c;co
 body.dark .admin-stats .stat{border-color:var(--line)}
 @media(max-width:760px){.admin-stats{grid-template-columns:repeat(2,1fr)}.admin-filters{grid-template-columns:1fr 1fr}.admin-heading{align-items:flex-start;flex-direction:column}.admin-toolbar{align-items:flex-start}.admin-account{align-items:flex-start}.admin-shell .panel{padding:17px}}
 @media(max-width:460px){.admin-filters{grid-template-columns:1fr}.admin-stats .stat{padding:14px}.admin-stats .stat b{font-size:22px}}
+
+.account-danger-zone{margin-top:22px;padding:18px 20px;border:1px solid #d8b7ae;border-radius:10px;background:#fff8f6}
+.account-danger-zone p{margin:0 0 10px;color:#8d716b;font-size:12px;line-height:1.8}
+.danger-link{border:0;background:none;padding:0;color:#a64d43;text-decoration:underline;cursor:pointer;font-weight:650}
+.deletion-warning{padding:13px 15px;border:1px solid #d8b7ae;border-radius:8px;background:#fff8f6;color:#8d5149;font-size:12px;line-height:1.8}
+.danger-button{background:#9f4941}
+body.dark .account-danger-zone,body.dark .deletion-warning{background:#382a28;border-color:#79504b;color:#e2b8b1}
+body.dark .account-danger-zone p{color:#c5a6a1}
