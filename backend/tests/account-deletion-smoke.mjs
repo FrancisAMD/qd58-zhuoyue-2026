@@ -80,8 +80,8 @@ function makeDb({ hash, otherMembers = 0, forceDeleteConflict = false } = {}) {
           if (sql.startsWith("INSERT INTO otp_challenges")) {
             state.challenge = {
               id: a[0], phone: a[1], code_hash: a[2], expires_at: a[3],
-              attempts: a[4], consumed_at: a[5], created_at: a[6],
-              purpose: a[7], out_id: a[8]
+              attempts: 0, consumed_at: null, created_at: a[4],
+              purpose: a[5], out_id: a[6]
             };
             return { meta: { changes: 1 } };
           }
