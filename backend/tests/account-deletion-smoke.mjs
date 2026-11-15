@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import worker, { derivePassword, PBKDF2_ITERATIONS } from "../src/worker.js";
+import worker, { createRateLimitKey, derivePassword, PBKDF2_ITERATIONS } from "../src/worker.js";
 
 const ORIGIN = "https://58er.eon21.space";
 const API = "https://api.58er.eon21.space";
@@ -167,6 +167,7 @@ function makeDb({ hash, otherMembers = 0, forceDeleteConflict = false } = {}) {
 function envFor(DB) {
   return {
     APP_ORIGIN: ORIGIN, DB,
+    RATE_LIMIT_HMAC_SECRET: "account-delete-rate-limit-secret-0123456789abcdef",
     TURNSTILE_SECRET_KEY: "turnstile-test-secret",
     ALIBABA_ACCESS_KEY_ID: "test-access-key-id",
     ALIBABA_ACCESS_KEY_SECRET: "test-access-key-secret",
@@ -253,6 +254,7 @@ try {
   assert.equal(sendCall?.phone, PHONE, "PNVS must receive the session-bound phone");
   assert.equal(state.challenge?.purpose, "account_delete");
   assert.equal(state.challenge?.code_hash, "ALIYUN", "the verification code itself must not be stored");
+  assert([...state.rateLimits.keys()].every(key => !key.includes(PHONE) && !key.includes("198.51.100.20")), "rate-limit rows must not contain raw phone or IP identifiers");
 
   const wrongCode = await worker.fetch(request("/api/account/delete", {
     confirmText: "DELETE", password: PASSWORD, code: "000000"
@@ -274,6 +276,10 @@ try {
   assert.equal(state.sessionsRevoked, true);
   assert.equal(state.leaderReleased, true);
   assert.equal(state.challengeDeleted, true);
+  for (const scope of ["sms:cooldown","sms:phone","login:phone"]) {
+    const key = await createRateLimitKey(env.RATE_LIMIT_HMAC_SECRET,scope,PHONE);
+    assert.equal(state.rateLimits.has(key),false,"account deletion must clear phone-scoped pseudonymous rate-limit keys");
+  }
   assert.equal(state.audit?.targetId, USER_ID);
   assert.equal(state.audit?.metadata.includes(PHONE), false);
   assert.equal(state.audit?.metadata.includes("Example Student"), false);

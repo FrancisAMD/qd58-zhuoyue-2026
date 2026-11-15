@@ -9,7 +9,7 @@ const OTP_SECONDS = 300;
 const COOLDOWN_SECONDS = 60;
 const ALI_HOST = "dypnsapi.aliyuncs.com";
 const ALI_VERSION = "2017-05-25";
-const PRIVACY_NOTICE_VERSION = "2026-11-14-v2";
+const PRIVACY_NOTICE_VERSION = "2026-11-15-v3";
 
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", ...headers } });
@@ -27,6 +27,19 @@ async function sha256(value) { return hex(await crypto.subtle.digest("SHA-256", 
 async function hmac(secret, value) {
   const key = await crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   return hex(await crypto.subtle.sign("HMAC", key, encoder.encode(value)));
+}
+export async function createRateLimitKey(secret, scope, value) {
+  if (typeof secret !== "string" || secret.length < 32) throw new Error("rate_limit_secret_not_configured");
+  if (!/^[a-z][a-z0-9:_-]{1,48}$/.test(scope)) throw new Error("invalid_rate_limit_scope");
+  return "rl:v1:" + scope + ":" + await hmac(secret, scope + "\0" + String(value ?? ""));
+}
+async function rateLimitKey(env, scope, value) {
+  try {
+    return await createRateLimitKey(env.RATE_LIMIT_HMAC_SECRET, scope, value);
+  } catch (error) {
+    if (error?.message === "rate_limit_secret_not_configured") throw err("rate_limit_secret_not_configured", 503);
+    throw error;
+  }
 }
 export async function derivePassword(password, salt) {
   const key = await crypto.subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, ["deriveBits"]);
@@ -192,6 +205,34 @@ async function expirePendingTransfers(db) {
       .bind(timestamp, timestamp)
   ]);
 }
+// Keep short-lived authentication data only as long as it can still affect
+// verification or abuse controls. Audit logs are intentionally retained until
+// the organizer approves a formal retention schedule.
+export async function cleanupExpiredSecurityData(db, timestamp = now()) {
+  const otpCutoff = timestamp - 86400;
+  const legacyRateLimitCutoff = timestamp - 86400;
+  const rateLimitCutoff = timestamp - 172800;
+  return db.batch([
+    db.prepare(`DELETE FROM otp_challenges
+      WHERE id IN (
+        SELECT id FROM otp_challenges
+        WHERE (consumed_at IS NOT NULL AND consumed_at<=?) OR expires_at<=?
+        LIMIT 500
+      )`).bind(otpCutoff, otpCutoff),
+    db.prepare(`DELETE FROM sessions
+      WHERE token_hash IN (SELECT token_hash FROM sessions WHERE expires_at<=? LIMIT 500)`).bind(timestamp),
+    db.prepare(`DELETE FROM admin_sessions
+      WHERE token_hash IN (SELECT token_hash FROM admin_sessions WHERE expires_at<=? LIMIT 500)`).bind(timestamp),
+    db.prepare(`DELETE FROM rate_limits
+      WHERE bucket_key IN (
+        SELECT bucket_key FROM rate_limits
+        WHERE (bucket_key NOT LIKE 'rl:v1:%' AND window_started_at<=?)
+           OR (bucket_key LIKE 'rl:v1:%' AND window_started_at<=?)
+        LIMIT 500
+      )`).bind(legacyRateLimitCutoff, rateLimitCutoff)
+  ]);
+}
+
 function csvCell(value) {
   let text = value === null || value === undefined ? "" : String(value);
   if (/^[\s\u0000-\u001f]*[=+\-@]/.test(text)) text = "'" + text;
@@ -239,11 +280,11 @@ async function sendCode(phone, purpose, token, request, env) {
   // Check existing limits before Siteverify. A blocked request must not consume
   // the visitor's one-time Turnstile token.
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
-  const limits = [
-    { key: "sms:cooldown:" + phone, limit: 1, window: Number(env.OTP_SEND_COOLDOWN_SECONDS || COOLDOWN_SECONDS), scope: "cooldown" },
-    { key: "sms:phone:" + phone, limit: 5, window: 86400, scope: "phone_daily" },
-    { key: "sms:ip:" + ip, limit: 20, window: 3600, scope: "ip_hourly" }
-  ];
+  const limits = await Promise.all([
+    { scope: "sms:cooldown", identity: phone, limit: 1, window: Number(env.OTP_SEND_COOLDOWN_SECONDS || COOLDOWN_SECONDS), limitScope: "cooldown" },
+    { scope: "sms:phone", identity: phone, limit: 5, window: 86400, limitScope: "phone_daily" },
+    { scope: "sms:ip", identity: ip, limit: 20, window: 3600, limitScope: "ip_hourly" }
+  ].map(async item => ({ ...item, key: await rateLimitKey(env, item.scope, item.identity) })));
   for (const item of limits) {
     const status = await rateLimitStatus(env.DB, item.key, item.limit, item.window);
     if (!status.allowed) throw err("rate_limited", 429, { retryAfter: status.retryAfter, limitScope: item.scope, refreshTurnstile: false });
@@ -339,7 +380,7 @@ async function route(request, env) {
   const url=new URL(request.url), path=url.pathname, method=request.method, origin=request.headers.get("Origin");
   if(method==="OPTIONS") return new Response(null,{status:204,headers:corsHeaders(origin,env)});
   if(origin && origin!==env.APP_ORIGIN) return response({error:"origin_forbidden"},403,origin,env);
-  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"account-deletion-atomicity-20261114",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
+  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"privacy-rate-limit-retention-20261115",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
   if(path==="/api/auth/register/request-code" && method==="POST") {
     try { const d=await body(request); if(d.accountConsent !== true) return response({error:"consent_required"},400,origin,env); return response(await sendCode(String(d.phone||""),"register",d.turnstileToken,request,env),200,origin,env); }
     catch(e) {
@@ -380,12 +421,17 @@ async function route(request, env) {
       const d=await body(request),phone=String(d.phone||""),password=String(d.password||"");
       if(!validPhone(phone) || !password) return response({error:"invalid_credentials"},400,origin,env);
       const ip=request.headers.get("CF-Connecting-IP")||"unknown";
-      if(!(await rateLimit(env.DB,"login:ip:"+ip,30,900)) || !(await rateLimit(env.DB,"login:phone:"+phone,10,900))) return response({error:"rate_limited"},429,origin,env);
+      const ipKey = await rateLimitKey(env,"login:ip",ip);
+      const phoneKey = await rateLimitKey(env,"login:phone",phone);
+      if(!(await rateLimit(env.DB,ipKey,30,900)) || !(await rateLimit(env.DB,phoneKey,10,900))) return response({error:"rate_limited"},429,origin,env);
       const user=await env.DB.prepare("SELECT id,password_hash FROM users WHERE phone=?").bind(phone).first();
       if(!user || !(await verifyPassword(password,user.password_hash))) return response({error:"invalid_credentials"},401,origin,env);
       const s=await createSession(env.DB,user.id,env);
       return response({ok:true},200,origin,env,{"set-cookie":cookie(s.token,s.maxAge)});
-    } catch { return response({error:"login_failed"},500,origin,env); }
+    } catch(e) {
+      if (e?.error) return response({error:e.error},e.status||500,origin,env);
+      return response({error:"login_failed"},500,origin,env);
+    }
   }
   if(path==="/api/auth/password/change" && method==="POST") {
     const user=await currentUser(request,env);
@@ -441,11 +487,16 @@ async function route(request, env) {
       if(leadership && Number(leadership.other_members||0)>0) return response({error:"leader_transfer_required"},409,origin,env);
       await verifyCode(user.phone,d.code,"account_delete",env);
       const timestamp=new Date().toISOString();
+      const phoneRateLimitKeys=await Promise.all([
+        rateLimitKey(env,"sms:cooldown",user.phone),
+        rateLimitKey(env,"sms:phone",user.phone),
+        rateLimitKey(env,"login:phone",user.phone)
+      ]);
       const statements=[
         env.DB.prepare("UPDATE leader_transfers SET status='expired',responded_at=? WHERE status='pending' AND (from_user_id=? OR to_user_id=?)").bind(timestamp,user.id,user.id),
         env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(user.id),
         env.DB.prepare("DELETE FROM otp_challenges WHERE phone=?").bind(user.phone),
-        env.DB.prepare("DELETE FROM rate_limits WHERE bucket_key IN (?,?,?)").bind("sms:cooldown:"+user.phone,"sms:phone:"+user.phone,"login:phone:"+user.phone),
+        env.DB.prepare("DELETE FROM rate_limits WHERE bucket_key IN (?,?,?,?,?,?)").bind(...phoneRateLimitKeys,"sms:cooldown:"+user.phone,"sms:phone:"+user.phone,"login:phone:"+user.phone),
         env.DB.prepare("UPDATE teams SET leader_user_id=NULL WHERE leader_user_id=? AND id=? AND NOT EXISTS (SELECT 1 FROM users member WHERE member.university_id=teams.university_id AND member.deleted_at='' AND member.id<>?)").bind(user.id,leadership?.id||"",user.id),
         env.DB.prepare(`UPDATE users SET phone='deleted:'||id,password_hash=NULL,name=NULL,high_school=NULL,class_name=NULL,
           university_id=NULL,grade=NULL,province=NULL,city=NULL,bio=NULL,phone_visible_to_team=0,
@@ -640,10 +691,10 @@ async function route(request, env) {
         return response({error:"invalid_credentials"},401,origin,env);
       }
       const ip = request.headers.get("CF-Connecting-IP") || "unknown";
-      const ipKey = await sha256(ip);
-      const usernameKey = await sha256(username.toLowerCase());
-      const ipAllowed = await rateLimit(env.DB, "admin:login:ip:" + ipKey, 20, 900);
-      const usernameAllowed = await rateLimit(env.DB, "admin:login:user:" + usernameKey, 10, 900);
+      const ipKey = await rateLimitKey(env,"admin:login:ip",ip);
+      const usernameKey = await rateLimitKey(env,"admin:login:user",username.toLowerCase());
+      const ipAllowed = await rateLimit(env.DB, ipKey, 20, 900);
+      const usernameAllowed = await rateLimit(env.DB, usernameKey, 10, 900);
       if (!ipAllowed || !usernameAllowed) return response({error:"rate_limited"},429,origin,env);
       const account = await env.DB.prepare("SELECT id,username,password_hash,role,active FROM admin_users WHERE username=? COLLATE NOCASE")
         .bind(username).first();
@@ -665,6 +716,7 @@ async function route(request, env) {
       return response({ok:true,admin:{id:account.id,username:account.username,role:account.role,permissions:ADMIN_PERMISSIONS[account.role]||[]}},
         200,origin,env,{"set-cookie":adminCookie(token,expires-created)});
     } catch (e) {
+      if (e?.error) return response({error:e.error},e.status||500,origin,env);
       console.error("Admin login failed",e?.message||"unknown");
       return response({error:"admin_login_failed"},500,origin,env);
     }
@@ -803,8 +855,13 @@ export default {
     });
   },
   scheduled(_controller,env,ctx) {
-    ctx.waitUntil(expirePendingTransfers(env.DB).catch(error=>{
-      console.error("Scheduled transfer expiry failed",error?.message||"unknown");
-    }));
+    ctx.waitUntil(Promise.all([
+      expirePendingTransfers(env.DB).catch(error=>{
+        console.error("Scheduled transfer expiry failed",error?.message||"unknown");
+      }),
+      cleanupExpiredSecurityData(env.DB).catch(error=>{
+        console.error("Scheduled security-data cleanup failed",error?.message||"unknown");
+      })
+    ]));
   }
 };

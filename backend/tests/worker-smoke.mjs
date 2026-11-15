@@ -1,5 +1,6 @@
-import worker, { derivePassword, PBKDF2_ITERATIONS } from "../src/worker.js";
-const env={APP_ORIGIN:"https://58er.eon21.space"};
+import worker, { createRateLimitKey, derivePassword, PBKDF2_ITERATIONS } from "../src/worker.js";
+const RATE_LIMIT_TEST_SECRET="smoke-rate-limit-secret-0123456789abcdef";
+const env={APP_ORIGIN:"https://58er.eon21.space",RATE_LIMIT_HMAC_SECRET:RATE_LIMIT_TEST_SECRET};
 if(PBKDF2_ITERATIONS!==100000) throw new Error("PBKDF2 iteration count must stay within Workers production limit");
 const salt=new Uint8Array(16).fill(0x5a);
 const derived=await derivePassword("worker-smoke-password",salt);
@@ -8,7 +9,7 @@ const derivedOtherSalt=await derivePassword("worker-smoke-password",new Uint8Arr
 if(derived.length!==32 || derived.some((v,i)=>v!==derivedAgain[i]) || derived.every((v,i)=>v===derivedOtherSalt[i])) throw new Error("PBKDF2 100000 smoke test failed");
 const ok=await worker.fetch(new Request("https://api.58er.eon21.space/api/health"),env);
 const health=await ok.json();
-if(ok.status!==200 || !health.ok || health.build!=="account-deletion-atomicity-20261114" || health.passwordKdf!=="pbkdf2-sha256-100000") throw new Error("health route/build marker failed");
+if(ok.status!==200 || !health.ok || health.build!=="privacy-rate-limit-retention-20261115" || health.passwordKdf!=="pbkdf2-sha256-100000") throw new Error("health route/build marker failed");
 const blocked=await worker.fetch(new Request("https://api.58er.eon21.space/api/auth/login",{method:"POST",headers:{"content-type":"application/json",origin:"https://evil.example"},body:JSON.stringify({phone:"13800000000",password:"test"})}),env);
 if(blocked.status!==403) throw new Error("origin guard failed");
 const preflight=await worker.fetch(new Request("https://api.58er.eon21.space/api/auth/login",{method:"OPTIONS",headers:{origin:"https://58er.eon21.space","access-control-request-method":"POST"}}),env);
@@ -23,6 +24,7 @@ const missingConsentBody=await missingConsent.json();
 if(missingConsent.status!==400 || missingConsentBody.error!=="consent_required") throw new Error("profile save must require explicit privacy consent");
 
 const nowSeconds=Math.floor(Date.now()/1000);
+const lockedCooldownKey=await createRateLimitKey(RATE_LIMIT_TEST_SECRET,"sms:cooldown","13812345678");
 const lockedDb={
   prepare(sql){
     return {bind(...args){
@@ -30,7 +32,7 @@ const lockedDb={
         first:async()=>{
           if(sql.startsWith("SELECT id FROM users")) return null;
           if(sql.startsWith("SELECT window_started_at,hit_count FROM rate_limits")){
-            if(args[0]==="sms:cooldown:13812345678") return {window_started_at:nowSeconds-20,hit_count:1};
+            if(args[0]===lockedCooldownKey) return {window_started_at:nowSeconds-20,hit_count:1};
             return null;
           }
           return null;
@@ -44,7 +46,7 @@ const limited=await worker.fetch(new Request("https://api.58er.eon21.space/api/a
   method:"POST",
   headers:{"content-type":"application/json",origin:"https://58er.eon21.space"},
   body:JSON.stringify({phone:"13812345678",turnstileToken:"unused-test-token",accountConsent:true})
-}),{APP_ORIGIN:"https://58er.eon21.space",DB:lockedDb});
+}),{APP_ORIGIN:"https://58er.eon21.space",DB:lockedDb,RATE_LIMIT_HMAC_SECRET:RATE_LIMIT_TEST_SECRET});
 const limitedBody=await limited.json();
 
 if(limited.status!==429 || limitedBody.error!=="rate_limited" || limitedBody.refreshTurnstile===true || !(limitedBody.retryAfter>0)) throw new Error("SMS cooldown must not consume Turnstile token");
@@ -89,10 +91,14 @@ try{
   const rejected=await worker.fetch(new Request("https://api.58er.eon21.space/api/auth/register/request-code",{
     method:"POST",headers:{"content-type":"application/json",origin:"https://58er.eon21.space","CF-Connecting-IP":"203.0.113.10"},
     body:JSON.stringify({phone:"13812345679",turnstileToken:"mock-valid-token",accountConsent:true})
-  }),{APP_ORIGIN:"https://58er.eon21.space",DB:quotaDb,TURNSTILE_SECRET_KEY:"mock-secret",ALIBABA_ACCESS_KEY_ID:"mock",ALIBABA_ACCESS_KEY_SECRET:"mock"});
+  }),{APP_ORIGIN:"https://58er.eon21.space",DB:quotaDb,RATE_LIMIT_HMAC_SECRET:RATE_LIMIT_TEST_SECRET,TURNSTILE_SECRET_KEY:"mock-secret",ALIBABA_ACCESS_KEY_ID:"mock",ALIBABA_ACCESS_KEY_SECRET:"mock"});
   if(rejected.status!==400) throw new Error("Mock PNVS rejection should return a provider error");
   if([...quotaRows.values()].some(row=>row.hit_count!==0)) throw new Error("SMS quota reservation was not released after PNVS rejection");
+if([...quotaRows.keys()].some(key=>key.includes("13812345679") || key.includes("203.0.113.10"))) throw new Error("rate-limit bucket keys must not contain raw phone numbers or IP addresses");
 }finally{globalThis.fetch=originalFetch}
+
+const missingRateSecret=await worker.fetch(new Request("https://api.58er.eon21.space/api/auth/login",{method:"POST",headers:{"content-type":"application/json",origin:"https://58er.eon21.space"},body:JSON.stringify({phone:"13800000000",password:"not-a-real-password"})}),{APP_ORIGIN:"https://58er.eon21.space",DB:{prepare(){throw new Error("DB must not be touched without rate-limit secret")}}});
+if(missingRateSecret.status!==503 || (await missingRateSecret.json()).error!=="rate_limit_secret_not_configured") throw new Error("authentication must fail closed when rate-limit HMAC secret is missing");
 
 const unauthPasswordChange=await worker.fetch(new Request("https://api.58er.eon21.space/api/auth/password/change",{method:"POST",headers:{"content-type":"application/json",origin:"https://58er.eon21.space"},body:JSON.stringify({})}),{APP_ORIGIN:"https://58er.eon21.space",DB:{prepare(){return {bind(){return {first:async()=>null}}}}}});
 if(unauthPasswordChange.status!==401) throw new Error("password change must require an authenticated session");
@@ -155,7 +161,7 @@ const ownerDb={
 const adminLogin=await worker.fetch(new Request("https://api.58er.eon21.space/api/admin/login",{
   method:"POST",headers:{"content-type":"application/json",origin:"https://58er.eon21.space","CF-Connecting-IP":"203.0.113.20"},
   body:JSON.stringify({username:"rootops",password:adminPassword})
-}),{APP_ORIGIN:"https://58er.eon21.space",DB:ownerDb});
+}),{APP_ORIGIN:"https://58er.eon21.space",DB:ownerDb,RATE_LIMIT_HMAC_SECRET:RATE_LIMIT_TEST_SECRET});
 const adminLoginBody=await adminLogin.json();
 const adminCookie=adminLogin.headers.get("set-cookie")||"";
 if(adminLogin.status!==200 || adminLoginBody.admin?.role!=="owner" || !adminCookie.startsWith("__Host-qd58_admin=") || !adminCookie.includes("HttpOnly") || !adminCookie.includes("SameSite=Strict")) throw new Error("independent admin login and secure cookie failed");

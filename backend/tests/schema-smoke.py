@@ -17,6 +17,8 @@ user_columns = {row[1] for row in db.execute("PRAGMA table_info(users)")}
 assert {"consent_given", "consent_version", "account_consent_at", "account_consent_version"} <= user_columns
 transfer_columns = {row[1] for row in db.execute("PRAGMA table_info(leader_transfers)")}
 assert "expires_at" in transfer_columns
+retention_indexes = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='index'")}
+assert {"idx_otp_expires_at", "idx_otp_consumed_at", "idx_sessions_expires_at", "idx_admin_sessions_expires_at", "idx_rate_limits_window_started_at"} <= retention_indexes
 
 def must_fail(sql, params=()):
     try:

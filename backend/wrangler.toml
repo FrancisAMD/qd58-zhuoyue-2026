@@ -24,6 +24,7 @@ ALIBABA_SIGN_NAME = "恒创联众"
 ALIBABA_TEMPLATE_CODE = "100001"
 
 # Configure as Worker secrets only; never commit secret values:
+# wrangler secret put RATE_LIMIT_HMAC_SECRET
 # wrangler secret put TURNSTILE_SECRET_KEY
 # wrangler secret put ALIBABA_ACCESS_KEY_ID
 # wrangler secret put ALIBABA_ACCESS_KEY_SECRET
