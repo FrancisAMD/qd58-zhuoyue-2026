@@ -380,7 +380,7 @@ async function route(request, env) {
   const url=new URL(request.url), path=url.pathname, method=request.method, origin=request.headers.get("Origin");
   if(method==="OPTIONS") return new Response(null,{status:204,headers:corsHeaders(origin,env)});
   if(origin && origin!==env.APP_ORIGIN) return response({error:"origin_forbidden"},403,origin,env);
-  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"privacy-rate-limit-retention-20261115",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
+  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"admin-auth-audit-20261115",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
   if(path==="/api/auth/register/request-code" && method==="POST") {
     try { const d=await body(request); if(d.accountConsent !== true) return response({error:"consent_required"},400,origin,env); return response(await sendCode(String(d.phone||""),"register",d.turnstileToken,request,env),200,origin,env); }
     catch(e) {
@@ -699,6 +699,16 @@ async function route(request, env) {
       const account = await env.DB.prepare("SELECT id,username,password_hash,role,active FROM admin_users WHERE username=? COLLATE NOCASE")
         .bind(username).first();
       if (!account || Number(account.active) !== 1 || !(await verifyPassword(password, account.password_hash))) {
+        // Record credential rejection without storing the submitted username, IP,
+        // password, or any other caller-controlled identifier in the audit trail.
+        // Rate-limited requests are intentionally not logged here to avoid audit flooding.
+        const reason = !account ? "unknown_account" : Number(account.active) !== 1 ? "inactive_account" : "password_mismatch";
+        try {
+          await writeAudit(env.DB,"system",null,"admin.login.failed","admin_authentication",null,{reason});
+        } catch {
+          // Failed authentication remains a generic 401 even if audit storage is unavailable.
+          console.error("Admin login failure audit write failed");
+        }
         return response({error:"invalid_credentials"},401,origin,env);
       }
       const token = randomHex(32);
