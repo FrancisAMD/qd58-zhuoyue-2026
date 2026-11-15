@@ -72,6 +72,6 @@ Cloudflare Worker + D1 后端。已提交手机号密码认证、Turnstile 服�
 
 - SMS、普通登录和管理员登录的限流桶键使用 RATE_LIMIT_HMAC_SECRET 做 HMAC-SHA256；D1 中不再写入原始手机号、IP 或管理员用户名。
 - 部署前必须设置至少 32 字符的 Worker Secret：npx wrangler secret put RATE_LIMIT_HMAC_SECRET --config backend/wrangler.toml。建议使用 32 随机字节（64 个十六进制字符）；密钥需稳定保存，随意轮换会重置已有的限流桶。
-- 每 15 分钟的 Cron 维护任务分批清理：验证码在消费/过期满 24 小时后清除；已过期用户和管理员会话清除；旧版含原始标识的限流桶在窗口结束满 24 小时后清除；HMAC 限流桶在窗口结束满 48 小时后清除。
+- 每 15 分钟的 Cron 维护任务分批清理：验证码在消费/过期满 24 小时后清除；已过期用户和管理员会话清除；旧版含原始标识的限流桶在窗口起点满 24 小时后清除；HMAC 限流桶在窗口起点满 48 小时后清除。
 - 每条清理语句最多处理 500 条，避免单次维护长时间占用 D1。审计日志不自动清理，须待组织方确定正式保留周期后再实施。
 - 新增迁移：0010_security_data_retention_indexes.sql。远程 D1 未由本次开发执行迁移。

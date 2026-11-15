@@ -60,7 +60,7 @@
 
 - 新增 createRateLimitKey：短信、普通登录和管理员登录的限流桶键统一使用 RATE_LIMIT_HMAC_SECRET 做 HMAC-SHA256，不再把原始手机号、IP 或管理员用户名写入 D1。
 - 未配置至少 32 字符的限流密钥时，短信/登录限流路径 fail-closed，返回 503；部署前需通过 Wrangler Secret 单独配置。
-- 新增 cleanupExpiredSecurityData 并接入每 15 分钟 Cron：验证码挑战消费/过期满 24 小时清理；过期用户和管理员 Session 清理；旧版原始标识限流桶在窗口结束满 24 小时后清理；HMAC 桶在窗口结束满 48 小时后清理。
+- 新增 cleanupExpiredSecurityData 并接入每 15 分钟 Cron：验证码挑战消费/过期满 24 小时清理；过期用户和管理员 Session 清理；旧版原始标识限流桶在窗口起点满 24 小时后清理；HMAC 桶在窗口起点满 48 小时后清理。
 - 每条清理 SQL 使用子查询和 LIMIT 500 分批执行；审计日志不自动清理，等待组织方确认正式保留周期。
 - 新增迁移 0010_security_data_retention_indexes.sql，为 OTP、Session 和限流窗口增加清理索引。
 - 新增限流密钥去标识化、缺少密钥 fail-closed、账号删除时清除手机号限流桶、Cron 清理语句及索引测试。

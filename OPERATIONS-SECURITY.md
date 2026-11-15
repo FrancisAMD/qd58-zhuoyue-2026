@@ -73,6 +73,6 @@
 - 新增 Worker Secret：RATE_LIMIT_HMAC_SECRET，至少 32 字符，建议使用 32 个随机字节生成的 64 位十六进制字符串。设置命令：npx wrangler secret put RATE_LIMIT_HMAC_SECRET --config backend/wrangler.toml。不要提交到 GitHub、聊天或前端变量。
 - 可在本机生成随机值：node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"，再将输出粘贴到 Wrangler 的 Secret 输入提示中。所有环境应分别设置；密钥须妥善备份，随意轮换会使现有限流桶失效。
 - SMS、普通账号登录和管理员登录的限流键现为带作用域前缀的 HMAC-SHA256 摘要，D1 不再保存原始手机号、IP 地址或管理员用户名。若缺少密钥，涉及限流的短信/登录接口 fail-closed 并返回 503。
-- Cron 每 15 分钟执行一次分批清理：已消费或过期满 24 小时的验证码挑战、已过期用户/管理员 Session、旧版原始标识限流桶（窗口结束满 24 小时）及 HMAC 限流桶（窗口结束满 48 小时）。每张表每轮最多清理 500 条，积压会在后续轮次继续清理。
+- Cron 每 15 分钟执行一次分批清理：已消费或过期满 24 小时的验证码挑战、已过期用户/管理员 Session、旧版原始标识限流桶（窗口起点满 24 小时）及 HMAC 限流桶（窗口起点满 48 小时）。每张表每轮最多清理 500 条，积压会在后续轮次继续清理。
 - 审计日志不自动清理；在组织方确定活动数据和审计保留期限之前，不擅自删除审计历史。
 - 新增索引迁移：backend/migrations/0010_security_data_retention_indexes.sql。本次仅提交代码和迁移，未执行远程 D1 迁移或 Worker 部署。
