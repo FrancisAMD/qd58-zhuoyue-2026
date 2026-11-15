@@ -281,10 +281,10 @@ async function sendCode(phone, purpose, token, request, env) {
   // the visitor's one-time Turnstile token.
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
   const limits = await Promise.all([
-    { scope: "sms:cooldown", identity: phone, limit: 1, window: Number(env.OTP_SEND_COOLDOWN_SECONDS || COOLDOWN_SECONDS), limitScope: "cooldown" },
-    { scope: "sms:phone", identity: phone, limit: 5, window: 86400, limitScope: "phone_daily" },
-    { scope: "sms:ip", identity: ip, limit: 20, window: 3600, limitScope: "ip_hourly" }
-  ].map(async item => ({ ...item, key: await rateLimitKey(env, item.scope, item.identity) })));
+    { keyScope: "sms:cooldown", identity: phone, limit: 1, window: Number(env.OTP_SEND_COOLDOWN_SECONDS || COOLDOWN_SECONDS), scope: "cooldown" },
+    { keyScope: "sms:phone", identity: phone, limit: 5, window: 86400, scope: "phone_daily" },
+    { keyScope: "sms:ip", identity: ip, limit: 20, window: 3600, scope: "ip_hourly" }
+  ].map(async item => ({ ...item, key: await rateLimitKey(env, item.keyScope, item.identity) })));
   for (const item of limits) {
     const status = await rateLimitStatus(env.DB, item.key, item.limit, item.window);
     if (!status.allowed) throw err("rate_limited", 429, { retryAfter: status.retryAfter, limitScope: item.scope, refreshTurnstile: false });

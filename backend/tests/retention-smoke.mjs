@@ -17,7 +17,7 @@ await assert.rejects(() => createRateLimitKey("short", "sms:phone", phone), /rat
 
 const calls=[];
 const db={
-  prepare(sql){return {sql,args:[],bind(...args){this.args=args;return this;},async run(){return {meta:{changes:0}}};}},
+  prepare(sql){return {sql,args:[],bind(...args){this.args=args;return this;},async run(){return {meta:{changes:0}};}}},
   async batch(statements){calls.push(...statements.map(({sql,args})=>({sql,args})));return statements.map(()=>({meta:{changes:0}}));}
 };
 const timestamp=2_000_000_000;
