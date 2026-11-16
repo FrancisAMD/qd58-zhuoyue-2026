@@ -84,3 +84,12 @@
 - 前端改为“请求已受理，若手机号符合当前操作条件将发送验证码”的中性提示。
 - 新增 `backend/tests/auth-enumeration-smoke.mjs`，覆盖已注册/未注册手机号在注册和找回场景下的响应一致性、PNVS 仅对合格请求发送、限流键不含原始手机号/IP。
 - 本次不新增 D1 迁移；不执行远程数据库、真实短信、Turnstile 或生产部署。
+
+
+## 本次增量里程碑（2026-11-16）：管理员原生 XLSX 导出
+
+- 新增 `backend/src/xlsx.js`：使用 Worker 原生 Web API 生成最小 OOXML 工作簿，无额外 npm 依赖；单元格统一使用 inline string，公式样式文本不会变成公式。
+- `GET /api/admin/people?format=xlsx` 与 CSV 共用 `people:export` 权限、现有筛选和最多 5000 行上限；字段白名单不包含手机号、个人备注或验证码。
+- 导出审计记录格式、行数和筛选数量；管理后台增加 Excel 下载按钮。
+- 新增 Worker 路由隔离测试和 Python 标准库 ZIP/XML 测试，覆盖 owner 导出、viewer/未登录拒绝、超限拒绝、中文/特殊字符、公式文本和敏感字段不泄露。
+- 未部署、未执行远程 D1 操作、未读取真实用户数据。

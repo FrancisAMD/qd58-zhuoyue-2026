@@ -89,3 +89,12 @@ Cloudflare Worker + D1 后端。已提交手机号密码认证、Turnstile 服�
 ## 注册与找回短信请求的账号枚举防护
 
 `POST /api/auth/register/request-code` 与 `POST /api/auth/password/request-code` 对已注册/未注册号码返回相同的 `{ok:true}` 响应，不返回阿里云 RequestId。Turnstile 与服务端限流通过后才检查号码是否符合对应流程；不符合条件时不发送短信、不创建 OTP challenge，但保留该请求的限流额度。符合条件时才调用 PNVS。前端提示使用中性文案，避免通过状态码、错误文案或 RequestId 暴露账号状态。此设计不替代短信渠道本身的防滥用限额。
+
+
+## 原生 Excel（XLSX）名单导出
+
+- `GET /api/admin/people?format=xlsx`：与 CSV 共用相同的 RBAC、筛选条件和最多 5000 行上限。
+- 导出列与 CSV 一致；不包含手机号、个人备注、验证码或其他非名单字段。
+- XLSX 使用纯 Worker 兼容的 ZIP/XML 生成器，不引入 Node 原生模块或额外运行时依赖；单元格统一写成 inline string，用户可控内容不会被写成 Excel 公式。
+- 每次 CSV/XLSX 导出都写入 `admin.people.exported` 审计，元数据包含格式、行数和筛选条件数量，不包含名单内容。
+- 管理后台提供独立的 CSV 与 XLSX 下载入口。XLSX 由隔离测试验证 ZIP CRC、XML 结构、中文/特殊字符、筛选、权限、5000 行上限及手机号/备注不泄露。

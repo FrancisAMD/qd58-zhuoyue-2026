@@ -21,3 +21,4 @@ jobs:
       - run: npm run check:worker
       - run: npm run test:worker
       - run: python backend/tests/schema-smoke.py
+      - run: python backend/tests/xlsx-export-smoke.py

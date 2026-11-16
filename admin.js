@@ -18,6 +18,7 @@ $("clearFilters").onclick=()=>{setTimeout(()=>{readFilters();page=1;loadPeople()
 $("prevPage").onclick=()=>{if(page>1){page--;loadPeople().catch(x=>showError("peopleMeta",x))}};
 $("nextPage").onclick=()=>{if(page<totalPages){page++;loadPeople().catch(x=>showError("peopleMeta",x))}};
 $("export").onclick=()=>{readFilters();const p=params({format:"csv"});location.href=API+"/admin/people?"+p};
+$("exportXlsx").onclick=()=>{readFilters();const p=params({format:"xlsx"});location.href=API+"/admin/people?"+p};
 $("refreshAudit").onclick=()=>loadAudit().catch(x=>showError("auditRows",x));
 $("createAdmin").onsubmit=async e=>{e.preventDefault();try{await req("/admin/admins",{username:$("newUsername").value.trim(),password:$("newPassword").value,role:$("newRole").value});$("newPassword").value="";$("createAdminMsg").textContent="管理员账号已创建";await loadAdmins()}catch(x){showError("createAdminMsg",x)}};
 $("adminAccounts").onclick=async e=>{const b=e.target.closest("[data-admin-id]");if(!b)return;try{await req("/admin/admins/"+b.dataset.adminId,{active:b.dataset.active==="true"});await loadAdmins()}catch(x){showError("createAdminMsg",x)}};

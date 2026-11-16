@@ -10,7 +10,7 @@
     <div class="admin-toolbar panel"><div><b id="adminIdentity">已登录</b><small id="adminRole"></small></div><button id="adminLogout" class="ghost">退出后台</button></div>
     <div class="admin-stats" id="summary"></div>
     <section id="peoplePanel" class="panel">
-      <div class="admin-heading"><div><p class="eyebrow">PEOPLE DIRECTORY</p><h3>报名名单</h3></div><button id="export" class="btn">导出当前筛选 CSV</button></div>
+      <div class="admin-heading"><div><p class="eyebrow">PEOPLE DIRECTORY</p><h3>报名名单</h3></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="export" class="btn">导出当前筛选 CSV</button><button id="exportXlsx" class="ghost">导出当前筛选 Excel (.xlsx)</button></div></div>
       <form id="filters" class="admin-filters">
         <label>关键词<input id="q" placeholder="姓名、班级、大学或省份"></label><label>省份<input id="province" placeholder="例如：山东省"></label><label>大学<input id="university" placeholder="大学名称"></label><label>年级<input id="grade" placeholder="例如：大一"></label>
         <label>高校类别<select id="category"><option value="">全部类别</option><option value="mainland">中国大陆</option><option value="hmt">港澳台</option><option value="sino_foreign">中外合作办学</option><option value="overseas">海外</option><option value="unclassified">未分类</option></select></label>

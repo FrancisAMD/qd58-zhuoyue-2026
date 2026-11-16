@@ -1,3 +1,4 @@
+import { buildXlsxWorkbook } from "./xlsx.js";
 const encoder = new TextEncoder();
 export const PBKDF2_ITERATIONS = 100000;
 const PBKDF2_KEY_BYTES = 32;
@@ -784,19 +785,26 @@ async function route(request, env) {
     const count = await env.DB.prepare("SELECT COUNT(*) AS total" + base).bind(...filters.bindings).first();
     const total = Number(count?.total||0);
     const format = url.searchParams.get("format") || "";
-    if (format === "csv" && !hasAdminPermission(admin,"people:export")) return response({error:"forbidden"},403,origin,env);
-    if (format === "csv" && total > 5000) return response({error:"export_limit_exceeded",maxRows:5000},413,origin,env);
+    const isExport = format === "csv" || format === "xlsx";
+    if (isExport && !hasAdminPermission(admin,"people:export")) return response({error:"forbidden"},403,origin,env);
+    if (isExport && total > 5000) return response({error:"export_limit_exceeded",maxRows:5000},413,origin,env);
     const select = "SELECT u.id,u.name,u.class_name AS className,u.high_school AS highSchool,uni.canonical_name AS university,uni.category AS universityCategory,u.grade,u.province,u.city,u.created_at AS createdAt,u.updated_at AS updatedAt,u.consent_given AS consentGiven";
     const sql = select + base + " ORDER BY u.created_at DESC LIMIT ? OFFSET ?";
-    const rows = await env.DB.prepare(sql).bind(...filters.bindings,format==="csv"?5000:pageSize,format==="csv"?0:(page-1)*pageSize).all();
+    const rows = await env.DB.prepare(sql).bind(...filters.bindings,isExport?5000:pageSize,isExport?0:(page-1)*pageSize).all();
     const items = rows.results || [];
+    const header = ["用户编号","姓名","高中班级","高中学校","大学","高校类别","年级","省份","城市","资料同意状态","创建时间","更新时间"];
+    const keys = ["id","name","className","highSchool","university","universityCategory","grade","province","city","consentGiven","createdAt","updatedAt"];
     if (format === "csv") {
-      const header = ["用户编号","姓名","高中班级","高中学校","大学","高校类别","年级","省份","城市","资料同意状态","创建时间","更新时间"];
-      const keys = ["id","name","className","highSchool","university","universityCategory","grade","province","city","consentGiven","createdAt","updatedAt"];
       const lines = [header.map(csvCell).join(",")];
       for (const item of items) lines.push(keys.map(key => csvCell(key==="consentGiven"?(item[key]?"已同意":"未同意"):item[key])).join(","));
-      await writeAudit(env.DB,"admin",admin.id,"admin.people.exported","user_collection",null,{rowCount:items.length,filterCount:filters.filterCount});
-      return new Response(String.fromCharCode(65279) + lines.join(String.fromCharCode(13,10)),{status:200,headers:{...corsHeaders(origin,env),"content-type":"text/csv; charset=utf-8","content-disposition":'attachment; filename="zhuoyue-2026-roster.csv"',"cache-control":"no-store"}});
+      await writeAudit(env.DB,"admin",admin.id,"admin.people.exported","user_collection",null,{format:"csv",rowCount:items.length,filterCount:filters.filterCount});
+      return new Response(String.fromCharCode(65279) + lines.join(String.fromCharCode(13,10)),{status:200,headers:{...corsHeaders(origin,env),"content-type":"text/csv; charset=utf-8","content-disposition":'attachment; filename="zhuoyue-2026-roster.csv"',"cache-control":"no-store","x-content-type-options":"nosniff"}});
+    }
+    if (format === "xlsx") {
+      const exportRows = items.map(item => keys.map(key => key === "consentGiven" ? (item[key] ? "已同意" : "未同意") : item[key]));
+      const workbook = buildXlsxWorkbook(header,exportRows);
+      await writeAudit(env.DB,"admin",admin.id,"admin.people.exported","user_collection",null,{format:"xlsx",rowCount:items.length,filterCount:filters.filterCount});
+      return new Response(workbook,{status:200,headers:{...corsHeaders(origin,env),"content-type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","content-disposition":'attachment; filename="zhuoyue-2026-roster.xlsx"',"cache-control":"no-store","x-content-type-options":"nosniff"}});
     }
     await writeAudit(env.DB,"admin",admin.id,"admin.people.listed","user_collection",null,{page,pageSize,filterCount:filters.filterCount});
     return response({items,pagination:{page,pageSize,total,totalPages:Math.ceil(total/pageSize)}},200,origin,env);
