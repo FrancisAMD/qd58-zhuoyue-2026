@@ -273,10 +273,6 @@ function adminPeopleFilters(url) {
 
 async function sendCode(phone, purpose, token, request, env) {
   if (!validPhone(phone)) throw err("invalid_phone");
-  // Keep provider readiness independent of account existence so public callers
-  // cannot infer registration state from a configuration error.
-  if (!env.ALIBABA_ACCESS_KEY_ID || !env.ALIBABA_ACCESS_KEY_SECRET) throw err("sms_not_configured", 503);
-
   // Check existing limits before Siteverify. A blocked request must not consume
   // the visitor's one-time Turnstile token.
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
@@ -289,6 +285,10 @@ async function sendCode(phone, purpose, token, request, env) {
     const status = await rateLimitStatus(env.DB, item.key, item.limit, item.window);
     if (!status.allowed) throw err("rate_limited", 429, { retryAfter: status.retryAfter, limitScope: item.scope, refreshTurnstile: false });
   }
+
+  // Keep provider readiness independent of account existence so public callers
+  // cannot infer registration state from a configuration error.
+  if (!env.ALIBABA_ACCESS_KEY_ID || !env.ALIBABA_ACCESS_KEY_SECRET) throw err("sms_not_configured", 503);
 
   let turnstilePassed = false;
   try {
