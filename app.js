@@ -22,7 +22,7 @@ async function sendCode(v){
     const path=isDelete?"/account/delete/request-code":v==="register"?"/auth/register/request-code":"/auth/password/request-code";
     const payload=isDelete?{turnstileToken:tokens[v]}:{phone:p,turnstileToken:tokens[v],accountConsent:v==="register"?$("accountConsent").checked:undefined};
     await call(path,payload);
-    msg(m,isDelete?"验证码已发送至当前账号绑定手机号。":"验证码已发送，请注意查收。人机验证保持通过状态。");
+    msg(m,isDelete?"验证码已发送至当前账号绑定手机号。":"请求已受理。若手机号符合当前操作条件，验证码会发送；如果未收到，请检查号码或稍后重试。");
     tokens[v]="";consumedTokens[v]=true;cooldown(b,60);cooling=true;
   }catch(e){
     msg(m,errorText(e),true);const details=e.details||{};

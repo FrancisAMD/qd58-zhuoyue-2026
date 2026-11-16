@@ -273,9 +273,9 @@ function adminPeopleFilters(url) {
 
 async function sendCode(phone, purpose, token, request, env) {
   if (!validPhone(phone)) throw err("invalid_phone");
-  const exists = await env.DB.prepare("SELECT id FROM users WHERE phone=? AND deleted_at=''").bind(phone).first();
-  if (purpose === "register" && exists) throw err("phone_already_registered");
-  if ((purpose === "password_reset" || purpose === "account_delete") && !exists) throw err("phone_not_registered");
+  // Keep provider readiness independent of account existence so public callers
+  // cannot infer registration state from a configuration error.
+  if (!env.ALIBABA_ACCESS_KEY_ID || !env.ALIBABA_ACCESS_KEY_SECRET) throw err("sms_not_configured", 503);
 
   // Check existing limits before Siteverify. A blocked request must not consume
   // the visitor's one-time Turnstile token.
@@ -312,6 +312,14 @@ async function sendCode(phone, purpose, token, request, env) {
       reservations.push(reservation);
     }
 
+    // Public registration/reset endpoints deliberately return the same result
+    // for eligible and ineligible numbers. The quota reservation is retained
+    // so callers cannot use this branch as an unlimited phone-enumeration probe.
+    const exists = await env.DB.prepare("SELECT id FROM users WHERE phone=? AND deleted_at=''").bind(phone).first();
+    if (purpose === "register" && exists) return { ok: true };
+    if (purpose === "password_reset" && !exists) return { ok: true };
+    if (purpose === "account_delete" && !exists) throw err("phone_not_registered", 404);
+
     const outId = randomHex(16);
     const params = {
       CountryCode: "86", PhoneNumber: phone,
@@ -323,17 +331,22 @@ async function sendCode(phone, purpose, token, request, env) {
       CodeType: 1, CodeLength: 6, ReturnVerifyCode: false, AutoRetry: 1, OutId: outId
     };
     if (env.ALIBABA_SCHEME_NAME) params.SchemeName = env.ALIBABA_SCHEME_NAME;
-    const sent = await aliyun("SendSmsVerifyCode", params, env);
+    await aliyun("SendSmsVerifyCode", params, env);
     // PNVS accepted the send: keep quota even if recording the challenge fails,
     // because the recipient may already receive a real billable SMS.
     await env.DB.prepare("INSERT INTO otp_challenges(id,phone,code_hash,expires_at,attempts,consumed_at,created_at,purpose,out_id) VALUES(?,?,?, ?,0,NULL,?,?,?)")
       .bind(randomHex(16),phone,"ALIYUN",now()+Number(env.OTP_TTL_SECONDS || OTP_SECONDS),now(),purpose,outId).run();
-    return { ok: true, requestId: sent.RequestId || null };
+    return { ok: true };
   } catch (error) {
     // A PNVS API rejection means no SMS was accepted. Network/timeout failures
     // are ambiguous, so keep their reservations to avoid duplicate billable sends.
     if (error?.message === "sms_provider_error" || error?.message === "sms_not_configured") {
       await releaseRateLimitReservations(env.DB, reservations);
+    }
+    if (purpose !== "account_delete" && error?.error !== "rate_limited" && error?.message !== "sms_not_configured") {
+      // Do not expose whether a phone exists through provider or storage errors.
+      console.error("Public OTP delivery outcome unavailable", { purpose, code: error?.message || "unknown" });
+      return { ok: true };
     }
     if (error && typeof error === "object") error.refreshTurnstile = true;
     throw error;
@@ -380,7 +393,7 @@ async function route(request, env) {
   const url=new URL(request.url), path=url.pathname, method=request.method, origin=request.headers.get("Origin");
   if(method==="OPTIONS") return new Response(null,{status:204,headers:corsHeaders(origin,env)});
   if(origin && origin!==env.APP_ORIGIN) return response({error:"origin_forbidden"},403,origin,env);
-  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"admin-auth-audit-20261115",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
+  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"auth-enumeration-20261116",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
   if(path==="/api/auth/register/request-code" && method==="POST") {
     try { const d=await body(request); if(d.accountConsent !== true) return response({error:"consent_required"},400,origin,env); return response(await sendCode(String(d.phone||""),"register",d.turnstileToken,request,env),200,origin,env); }
     catch(e) {

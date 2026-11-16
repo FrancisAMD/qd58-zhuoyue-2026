@@ -84,3 +84,8 @@ Cloudflare Worker + D1 后端。已提交手机号密码认证、Turnstile 服�
 - 格式错误和已触发限流的请求不写失败审计，避免攻击者通过大量无效请求灌满审计表；IP 与用户名维度限流仍由 HMAC 摘要桶执行。
 - 如果失败审计写入暂时不可用，登录仍返回统一的 `401 invalid_credentials`，不会向客户端泄露账号是否存在。
 - 该审计供具有 `audit:read` 权限的 owner/admin 查看；不构成短信、邮件或即时告警通知。
+
+
+## 注册与找回短信请求的账号枚举防护
+
+`POST /api/auth/register/request-code` 与 `POST /api/auth/password/request-code` 对已注册/未注册号码返回相同的 `{ok:true}` 响应，不返回阿里云 RequestId。Turnstile 与服务端限流通过后才检查号码是否符合对应流程；不符合条件时不发送短信、不创建 OTP challenge，但保留该请求的限流额度。符合条件时才调用 PNVS。前端提示使用中性文案，避免通过状态码、错误文案或 RequestId 暴露账号状态。此设计不替代短信渠道本身的防滥用限额。
