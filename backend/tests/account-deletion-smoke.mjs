@@ -248,7 +248,7 @@ try {
   }), env);
   const sentBody = await sent.json();
   assert.equal(sent.status, 200);
-  assert.equal(sentBody.requestId, "pnvs-send-test");
+  assert.deepEqual(sentBody, { ok: true }, "publicly visible SMS response must not expose provider request IDs");
   assert.equal(JSON.stringify(sentBody).includes("246810"), false);
   const sendCall = providerCalls.find(call => call.action === "SendSmsVerifyCode");
   assert.equal(sendCall?.phone, PHONE, "PNVS must receive the session-bound phone");
