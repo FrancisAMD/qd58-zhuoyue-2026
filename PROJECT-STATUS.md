@@ -93,3 +93,14 @@
 - 导出审计记录格式、行数和筛选数量；管理后台增加 Excel 下载按钮。
 - 新增 Worker 路由隔离测试和 Python 标准库 ZIP/XML 测试，覆盖 owner 导出、viewer/未登录拒绝、超限拒绝、中文/特殊字符、公式文本和敏感字段不泄露。
 - 未部署、未执行远程 D1 操作、未读取真实用户数据。
+
+
+## 本次增量里程碑（2026-11-17）：密码生命周期与 Session 版本绑定
+
+- 新增 0011_password_session_version.sql：users/sessions 增加 auth_version，历史数据默认版本 1。
+- currentUser 校验 Session 与用户凭据版本一致；登录创建 Session 时使用密码摘要和版本条件 INSERT，避免旧密码校验与密码重置并发时创建有效 Session。
+- 密码修改使用旧密码摘要 + 旧 auth_version compare-and-swap；成功后递增版本、保留并升级当前 Session、撤销其他设备 Session，并写入不含个人信息的审计事件。
+- 短信找回密码在 PNVS 验证后以同样的 compare-and-swap 原子更新密码、递增版本、撤销全部 Session 并审计；并发重置只能有一个基于同一旧凭据状态的请求成功。
+- 账号删除增加已验证密码摘要和 auth_version 条件，防止密码变更与删除并发时使用过期密码。
+- 新增 backend/tests/password-lifecycle-smoke.mjs 与 D1 schema 版本列检查；更新 Worker build marker 和前端冲突提示。
+- 本次没有执行远程 D1 迁移、真实短信、Turnstile、备份或生产部署。
