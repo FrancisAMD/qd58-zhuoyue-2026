@@ -14,7 +14,9 @@ assert db.execute("SELECT consent_given,consent_at,consent_version,account_conse
 university_columns = {row[1] for row in db.execute("PRAGMA table_info(universities)")}
 assert {"category", "region_name", "education_level", "project_tags_json", "partner_name"} <= university_columns
 user_columns = {row[1] for row in db.execute("PRAGMA table_info(users)")}
-assert {"consent_given", "consent_version", "account_consent_at", "account_consent_version"} <= user_columns
+assert {"consent_given", "consent_version", "account_consent_at", "account_consent_version", "auth_version"} <= user_columns
+session_columns = {row[1] for row in db.execute("PRAGMA table_info(sessions)")}
+assert "auth_version" in session_columns
 transfer_columns = {row[1] for row in db.execute("PRAGMA table_info(leader_transfers)")}
 assert "expires_at" in transfer_columns
 retention_indexes = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='index'")}
