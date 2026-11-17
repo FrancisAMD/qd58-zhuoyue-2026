@@ -302,8 +302,10 @@ async function sendCode(phone, purpose, token, request, env) {
   if (!turnstilePassed) throw err("turnstile_failed", 403, { refreshTurnstile: true });
 
   // From this point onward Siteverify has redeemed the token. Reserve all
-  // counters, but roll them back if a later reservation or PNVS rejection fails.
+  // counters, but roll them back if a later reservation or definitive PNVS rejection fails.
   const reservations = [];
+  let challengeId = "";
+  let providerAttempted = false;
   try {
     for (const item of limits) {
       const reservation = await reserveRateLimit(env.DB, item);
@@ -324,6 +326,14 @@ async function sendCode(phone, purpose, token, request, env) {
     if (purpose === "account_delete" && !exists) throw err("phone_not_registered", 404);
 
     const outId = randomHex(16);
+    const challengeId = randomHex(16);
+    // Persist the provider correlation ID before sending. If PNVS accepts the
+    // SMS but the subsequent D1 write fails, the user would otherwise receive
+    // a code that the application can never verify.
+    const stored = await env.DB.prepare("INSERT INTO otp_challenges(id,phone,code_hash,expires_at,attempts,consumed_at,created_at,purpose,out_id) VALUES(?,?,?, ?,0,NULL,?,?,?)")
+      .bind(challengeId,phone,"ALIYUN",now()+Number(env.OTP_TTL_SECONDS || OTP_SECONDS),now(),purpose,outId).run();
+    if ((stored.meta?.changes || 0) !== 1) throw new Error("otp_challenge_store_failed");
+
     const params = {
       CountryCode: "86", PhoneNumber: phone,
       SignName: env.ALIBABA_SIGN_NAME || "恒创联众",
@@ -334,16 +344,22 @@ async function sendCode(phone, purpose, token, request, env) {
       CodeType: 1, CodeLength: 6, ReturnVerifyCode: false, AutoRetry: 1, OutId: outId
     };
     if (env.ALIBABA_SCHEME_NAME) params.SchemeName = env.ALIBABA_SCHEME_NAME;
+    providerAttempted = true;
     await aliyun("SendSmsVerifyCode", params, env);
-    // PNVS accepted the send: keep quota even if recording the challenge fails,
-    // because the recipient may already receive a real billable SMS.
-    await env.DB.prepare("INSERT INTO otp_challenges(id,phone,code_hash,expires_at,attempts,consumed_at,created_at,purpose,out_id) VALUES(?,?,?, ?,0,NULL,?,?,?)")
-      .bind(randomHex(16),phone,"ALIYUN",now()+Number(env.OTP_TTL_SECONDS || OTP_SECONDS),now(),purpose,outId).run();
     return { ok: true };
   } catch (error) {
-    // A PNVS API rejection means no SMS was accepted. Network/timeout failures
-    // are ambiguous, so keep their reservations to avoid duplicate billable sends.
-    if (error?.message === "sms_provider_error" || error?.message === "sms_not_configured") {
+    // An explicit PNVS rejection is definitive: remove the unusable challenge
+    // and release the quota reservation. A transport failure is ambiguous;
+    // retain both so a code that was actually delivered can still be checked.
+    const explicitProviderRejection = error?.message === "sms_provider_error";
+    if (challengeId && (!providerAttempted || explicitProviderRejection)) {
+      try {
+        await env.DB.prepare("DELETE FROM otp_challenges WHERE id=? AND consumed_at IS NULL").bind(challengeId).run();
+      } catch (cleanupError) {
+        console.error("Failed to remove unusable PNVS challenge", cleanupError?.message || "unknown");
+      }
+    }
+    if (error?.error !== "rate_limited" && (!providerAttempted || explicitProviderRejection || error?.message === "sms_not_configured")) {
       await releaseRateLimitReservations(env.DB, reservations);
     }
     if (purpose !== "account_delete" && error?.error !== "rate_limited" && error?.message !== "sms_not_configured") {

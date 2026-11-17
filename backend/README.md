@@ -110,3 +110,11 @@ Cloudflare Worker + D1 后端。已提交手机号密码认证、Turnstile 服�
 - 账号删除同时比较已验证的密码摘要与 auth_version，避免密码修改/重置与删除并发时使用过期密码完成删除。
 - backend/tests/password-lifecycle-smoke.mjs 覆盖旧 Session 失效、当前 Session 保留、重置后全端退出、验证码重放、旧密码登录竞态和 compare-and-swap 冲突。
 - 远程 D1 迁移、真实 PNVS、Turnstile 和生产部署未执行。
+
+
+## PNVS 验证码挑战持久化（2026-11-17）
+
+- 发送前先在 D1 写入随机 OutId 关联的挑战记录，再调用 `SendSmsVerifyCode`；若 D1 无法保存挑战，不会调用阿里云，也不会产生短信费用。
+- 请求使用阿里云服务端生成验证码占位符 `##code##`，设置 6 位数字、300 秒有效期、60 秒间隔、覆盖旧码，并显式设置 `ReturnVerifyCode=false`。应用不接收、不生成、不保存明文验证码，仅保存 `ALIYUN` 标记和 OutId。
+- 明确的 PNVS 拒绝会删除挑战并释放本次限流预留；网络超时等结果不确定时保留挑战和额度，因为短信可能已经送达，后续仍可用 `CheckSmsVerifyCode` 核验。
+- 新增 `backend/tests/pnvs-challenge-persistence-smoke.mjs`，检查发送参数、挑战先写入、明确拒绝清理、模糊超时恢复及配额处理。测试使用 mock Turnstile/PNVS，不发送真实短信。

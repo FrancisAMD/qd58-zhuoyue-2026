@@ -104,3 +104,12 @@
 - 账号删除增加已验证密码摘要和 auth_version 条件，防止密码变更与删除并发时使用过期密码。
 - 新增 backend/tests/password-lifecycle-smoke.mjs 与 D1 schema 版本列检查；更新 Worker build marker 和前端冲突提示。
 - 本次没有执行远程 D1 迁移、真实短信、Turnstile、备份或生产部署。
+
+
+## 本次增量里程碑（2026-11-17）：PNVS 挑战先持久化再发送
+
+- 依据阿里云 PNVS `SendSmsVerifyCode` 文档，将 D1 challenge 写入移至短信发送前；OutId 在发送前持久化，避免阿里云已接受短信、后续 D1 写入失败导致用户收到无法核验的验证码。
+- D1 challenge 写入失败时不会调用 PNVS，并释放本次限流预留。
+- PNVS 明确拒绝时删除不可用 challenge 并释放配额；网络/超时等结果不确定时保留 challenge 和配额，允许已经送达的验证码继续核验，并避免重复发送造成额外费用。
+- 增加 PNVS 参数契约测试：6 位数字、300 秒有效期、60 秒间隔、覆盖旧码、`##code##` 服务端生成、`ReturnVerifyCode=false`、OutId 关联；确保应用不接收/存储明文验证码。
+- 测试为 mock 外部服务与隔离 D1，不代表真实 PNVS、Turnstile、D1 或生产环境联调。
