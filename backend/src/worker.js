@@ -326,7 +326,7 @@ async function sendCode(phone, purpose, token, request, env) {
     if (purpose === "account_delete" && !exists) throw err("phone_not_registered", 404);
 
     const outId = randomHex(16);
-    const challengeId = randomHex(16);
+    challengeId = randomHex(16);
     // Persist the provider correlation ID before sending. If PNVS accepts the
     // SMS but the subsequent D1 write fails, the user would otherwise receive
     // a code that the application can never verify.
