@@ -291,7 +291,9 @@ async function sendCode(phone, purpose, token, request, env) {
 
   // Keep provider readiness independent of account existence so public callers
   // cannot infer registration state from a configuration error.
-  if (!env.ALIBABA_ACCESS_KEY_ID || !env.ALIBABA_ACCESS_KEY_SECRET) throw err("sms_not_configured", 503);
+  if (!env.ALIBABA_ACCESS_KEY_ID || !env.ALIBABA_ACCESS_KEY_SECRET || !env.ALIBABA_SIGN_NAME || !env.ALIBABA_TEMPLATE_CODE) {
+    throw err("sms_not_configured", 503);
+  }
 
   let turnstilePassed = false;
   try {
@@ -336,8 +338,8 @@ async function sendCode(phone, purpose, token, request, env) {
 
     const params = {
       CountryCode: "86", PhoneNumber: phone,
-      SignName: env.ALIBABA_SIGN_NAME || "恒创联众",
-      TemplateCode: env.ALIBABA_TEMPLATE_CODE || "100001",
+      SignName: env.ALIBABA_SIGN_NAME,
+      TemplateCode: env.ALIBABA_TEMPLATE_CODE,
       TemplateParam: JSON.stringify({ code: "##code##", min: "5" }),
       ValidTime: Number(env.OTP_TTL_SECONDS || OTP_SECONDS),
       DuplicatePolicy: 1, Interval: Number(env.OTP_SEND_COOLDOWN_SECONDS || COOLDOWN_SECONDS),

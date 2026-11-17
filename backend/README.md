@@ -118,3 +118,8 @@ Cloudflare Worker + D1 后端。已提交手机号密码认证、Turnstile 服�
 - 请求使用阿里云服务端生成验证码占位符 `##code##`，设置 6 位数字、300 秒有效期、60 秒间隔、覆盖旧码，并显式设置 `ReturnVerifyCode=false`。应用不接收、不生成、不保存明文验证码，仅保存 `ALIYUN` 标记和 OutId。
 - 明确的 PNVS 拒绝会删除挑战并释放本次限流预留；网络超时等结果不确定时保留挑战和额度，因为短信可能已经送达，后续仍可用 `CheckSmsVerifyCode` 核验。
 - 新增 `backend/tests/pnvs-challenge-persistence-smoke.mjs`，检查发送参数、挑战先写入、明确拒绝清理、模糊超时恢复及配额处理。测试使用 mock Turnstile/PNVS，不发送真实短信。
+
+
+### PNVS 签名与模板配置必须来自控制台
+
+仓库不再提供示例签名或示例模板 Code 作为默认值。只有在号码认证服务控制台确认已获批、且模板变量与 `code` / `min` 匹配后，才在 `backend/wrangler.toml` 的 `[vars]` 中填写 `ALIBABA_SIGN_NAME` 与 `ALIBABA_TEMPLATE_CODE`。两项任意缺失时 Worker fail-closed，返回 `sms_not_configured`，不会调用 PNVS 或发送短信。AccessKey 仍只通过 Worker Secrets 配置。

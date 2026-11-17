@@ -190,7 +190,22 @@ try {
   assert([...storageFailure.rateLimits.values()].every(x => x.hit_count === 0),
     "a pre-send storage failure releases reserved quotas");
 
-  console.log("PNVS challenge persistence tests: PASS (provider contract, persist-before-send, definitive rejection cleanup, ambiguous timeout recovery and quota accounting).");
+  for (const missingKey of ["ALIBABA_SIGN_NAME", "ALIBABA_TEMPLATE_CODE"]) {
+    const { db, state } = makeDb();
+    activeState = state;
+    const configuration = env(db);
+    configuration[missingKey] = "";
+    const beforeCalls = providerCalls.length;
+    const response = await worker.fetch(request(), configuration);
+    assert.equal(response.status, 503, missingKey + " must fail closed");
+    assert.deepEqual(await response.json(), { error: "sms_not_configured" });
+    assert.equal(providerCalls.length, beforeCalls, missingKey + " must not call PNVS");
+    assert.equal(state.challenges.length, 0);
+    assert.equal(state.rateLimits.size, 0);
+    assert.equal(state.events.length, 0, "missing provider configuration is rejected before Turnstile redemption");
+  }
+
+  console.log("PNVS challenge persistence tests: PASS (provider contract, persist-before-send, definitive rejection cleanup, ambiguous timeout recovery, quota accounting and missing-template fail-closed).");
 } finally {
   globalThis.fetch = originalFetch;
   console.error = originalConsoleError;
