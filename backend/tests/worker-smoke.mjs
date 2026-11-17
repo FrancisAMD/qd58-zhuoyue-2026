@@ -91,7 +91,7 @@ try{
   const rejected=await worker.fetch(new Request("https://api.58er.eon21.space/api/auth/register/request-code",{
     method:"POST",headers:{"content-type":"application/json",origin:"https://58er.eon21.space","CF-Connecting-IP":"203.0.113.10"},
     body:JSON.stringify({phone:"13812345679",turnstileToken:"mock-valid-token",accountConsent:true})
-  }),{APP_ORIGIN:"https://58er.eon21.space",DB:quotaDb,RATE_LIMIT_HMAC_SECRET:RATE_LIMIT_TEST_SECRET,TURNSTILE_SECRET_KEY:"mock-secret",ALIBABA_ACCESS_KEY_ID:"mock",ALIBABA_ACCESS_KEY_SECRET:"mock"});
+  }),{APP_ORIGIN:"https://58er.eon21.space",DB:quotaDb,RATE_LIMIT_HMAC_SECRET:RATE_LIMIT_TEST_SECRET,TURNSTILE_SECRET_KEY:"mock-secret",ALIBABA_ACCESS_KEY_ID:"mock",ALIBABA_ACCESS_KEY_SECRET:"mock",ALIBABA_SIGN_NAME:"mock-sign",ALIBABA_TEMPLATE_CODE:"mock-template"});
   const rejectedBody=await rejected.json();
   if(rejected.status!==200 || rejectedBody.ok!==true) throw new Error("Public OTP provider rejection must use the non-enumerating acknowledgement");
   if([...quotaRows.values()].some(row=>row.hit_count!==0)) throw new Error("SMS quota reservation was not released after PNVS rejection");
