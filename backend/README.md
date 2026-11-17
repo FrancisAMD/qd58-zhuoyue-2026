@@ -98,3 +98,15 @@ Cloudflare Worker + D1 后端。已提交手机号密码认证、Turnstile 服�
 - XLSX 使用纯 Worker 兼容的 ZIP/XML 生成器，不引入 Node 原生模块或额外运行时依赖；单元格统一写成 inline string，用户可控内容不会被写成 Excel 公式。
 - 每次 CSV/XLSX 导出都写入 `admin.people.exported` 审计，元数据包含格式、行数和筛选条件数量，不包含名单内容。
 - 管理后台提供独立的 CSV 与 XLSX 下载入口。XLSX 由隔离测试验证 ZIP CRC、XML 结构、中文/特殊字符、筛选、权限、5000 行上限及手机号/备注不泄露。
+
+
+## 密码生命周期与 Session 凭据版本（2026-11-17）
+
+- 迁移 0011_password_session_version.sql 为 users 与 sessions 增加 auth_version，历史账号和 Session 默认版本为 1。
+- 每个用户 Session 必须满足 sessions.auth_version = users.auth_version；密码重置递增用户版本并撤销全部 Session。密码修改递增版本、撤销其他设备，并只把当前 Session 推进到新版本。
+- 登录创建 Session 使用密码摘要与 auth_version 的条件 INSERT，避免密码重置发生在密码校验之后时，旧密码仍能建立有效 Session。
+- 密码修改和找回密码使用 D1 compare-and-swap（旧密码摘要 + 旧 auth_version），将密码更新、Session 处理和最小化审计放入同一 D1 batch；并发竞争中只有一个请求能成功。
+- 密码修改/重置审计只记录动作和随机用户 ID，不记录手机号、旧/新密码、密码摘要、验证码或请求正文。
+- 账号删除同时比较已验证的密码摘要与 auth_version，避免密码修改/重置与删除并发时使用过期密码完成删除。
+- backend/tests/password-lifecycle-smoke.mjs 覆盖旧 Session 失效、当前 Session 保留、重置后全端退出、验证码重放、旧密码登录竞态和 compare-and-swap 冲突。
+- 远程 D1 迁移、真实 PNVS、Turnstile 和生产部署未执行。
