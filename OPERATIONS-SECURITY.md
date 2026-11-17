@@ -4,17 +4,17 @@
 
 | 角色 | 能力 |
 |---|---|
-| owner | 汇总概览、名单查询/筛选、CSV 导出、审计查询、创建和停用 admin/viewer |
-| admin | 汇总概览、名单查询/筛选、CSV 导出、审计查询 |
+| owner | 汇总概览、名单查询/筛选、CSV/XLSX 导出、审计查询、创建和停用 admin/viewer |
+| admin | 汇总概览、名单查询/筛选、CSV/XLSX 导出、审计查询 |
 | viewer | 仅汇总概览，不读取个人名单或审计明细 |
 
 管理员使用独立的 __Host-qd58_admin Secure / HttpOnly / SameSite=Strict Cookie，与同学登录 Session 完全分离。管理员登录按 IP 与用户名摘要限流；停用账号后，服务端立即拒绝其旧 Session。最后一个 active owner 不能被停用或删除。
 
-管理员名单与 CSV 不返回手机号和个人备注。手机号仍只由同校目录按本人明确授权展示；管理员角色不能绕过此范围。名单查询、CSV 导出、审计查看和管理员账号变更写入 audit_logs。
+管理员名单与 CSV/XLSX 不返回手机号和个人备注。手机号仍只由同校目录按本人明确授权展示；管理员角色不能绕过此范围。名单查询、CSV 导出、审计查看和管理员账号变更写入 audit_logs。
 
 ## 首位 owner 账号引导
 
-1. 先在 Cloudflare D1 测试库应用所有迁移，确认包含 0009_account_deletion_atomicity.sql（以及之前全部迁移）。
+1. 先在 Cloudflare D1 测试库应用所有迁移，确认包含 0001–0011 全部迁移，尤其是 0009_account_deletion_atomicity.sql 与 0011_password_session_version.sql。
 2. 在本地 PowerShell 临时输入密码并生成 SQL（密码不会写入脚本或仓库）：
 
     $secure = Read-Host "输入至少14位管理员密码" -AsSecureString

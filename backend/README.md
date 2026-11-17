@@ -8,7 +8,7 @@ Cloudflare Worker + D1 后端。已提交手机号密码认证、Turnstile 服�
 - POST /api/admin/logout、GET /api/admin/me。
 - GET /api/admin/overview：统计概览；viewer 仅获得汇总数字。
 - GET /api/admin/people：owner/admin 名单查询，支持 q、province、university、grade、category、page、pageSize。
-- GET /api/admin/people?format=csv：最多导出 5000 行，执行公式注入转义；不含手机号和个人备注。
+- GET /api/admin/people?format=csv：最多导出 5000 行，执行公式注入转义；不含手机号和个人备注。\n- GET /api/admin/people?format=xlsx：原生 OOXML 工作簿，沿用相同权限、筛选和上限；所有用户可控单元格均作为文本，不含手机号和个人备注。
 - GET /api/admin/audit：查看管理员审计记录。
 - GET/POST /api/admin/admins：owner 创建 admin/viewer；POST /api/admin/admins/:id 更新角色或停用状态。
 
