@@ -52,8 +52,8 @@ function makeDb({ hash, otherMembers = 0, forceDeleteConflict = false } = {}) {
             const row = state.rateLimits.get(a[0]);
             return row ? { window_started_at: row.window_started_at } : null;
           }
-          if (sql.startsWith("SELECT password_hash FROM users WHERE id=? AND deleted_at=''")) {
-            return state.active && a[0] === USER_ID ? { password_hash: state.passwordHash } : null;
+          if (sql.startsWith("SELECT password_hash,auth_version FROM users WHERE id=? AND deleted_at=''")) {
+            return state.active && a[0] === USER_ID ? { password_hash: state.passwordHash, auth_version: 1 } : null;
           }
           if (sql.startsWith("SELECT t.id,")) return state.leadership;
           if (sql.startsWith("SELECT id,out_id,expires_at,consumed_at,attempts FROM otp_challenges")) {
