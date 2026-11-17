@@ -147,18 +147,20 @@ async function releaseRateLimitReservations(db, reservations) {
   }
 }
 
-async function createSession(db, userId, env) {
+async function createSession(db, userId, env, expected) {
   const token = randomHex(32);
   const digest = await sha256(token);
   const expires = now() + Number(env.SESSION_TTL_SECONDS || SESSION_SECONDS);
-  await db.prepare("INSERT INTO sessions(token_hash,user_id,expires_at,created_at) VALUES(?,?,?,?)").bind(digest,userId,expires,now()).run();
+  const result = await db.prepare("INSERT INTO sessions(token_hash,user_id,expires_at,created_at,auth_version) SELECT ?,id,?,?,auth_version FROM users WHERE id=? AND deleted_at='' AND password_hash=? AND auth_version=?")
+    .bind(digest,expires,now(),userId,expected.passwordHash,expected.authVersion).run();
+  if ((result.meta?.changes || 0) !== 1) throw err("credentials_changed",401);
   return { token, maxAge: expires-now() };
 }
 async function currentUser(request, env) {
   const token = getCookie(request);
   if (!token) return null;
   const digest = await sha256(token);
-  const row = await env.DB.prepare("SELECT u.id,u.phone,u.name,u.high_school,u.class_name,u.university_id,u.grade,u.province,u.city,u.bio,u.phone_visible_to_team,u.consent_given,u.consent_at,u.consent_version,u.account_consent_at,u.account_consent_version FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.deleted_at=''").bind(digest,now()).first();
+  const row = await env.DB.prepare("SELECT u.id,u.phone,u.name,u.high_school,u.class_name,u.university_id,u.grade,u.province,u.city,u.bio,u.phone_visible_to_team,u.consent_given,u.consent_at,u.consent_version,u.account_consent_at,u.account_consent_version FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.deleted_at='' AND s.auth_version=u.auth_version").bind(digest,now()).first();
   return row || null;
 }
 
@@ -378,7 +380,7 @@ async function register(data, env) {
   const id=randomHex(16);
   try { await env.DB.prepare("INSERT INTO users(id,phone,password_hash,consent_at,consent_given,consent_version,account_consent_at,account_consent_version) VALUES(?,?,?,'',0,'',?,?)").bind(id,phone,hash,new Date().toISOString(),PRIVACY_NOTICE_VERSION).run(); }
   catch { throw err("phone_already_registered",409); }
-  return id;
+  return { id, passwordHash: hash, authVersion: 1 };
 }
 async function verifyPassword(password, stored) {
   const [kind,iterations,salt,expected]=String(stored||"").split("$");
@@ -394,7 +396,7 @@ async function route(request, env) {
   const url=new URL(request.url), path=url.pathname, method=request.method, origin=request.headers.get("Origin");
   if(method==="OPTIONS") return new Response(null,{status:204,headers:corsHeaders(origin,env)});
   if(origin && origin!==env.APP_ORIGIN) return response({error:"origin_forbidden"},403,origin,env);
-  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"auth-enumeration-20261116",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
+  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"password-lifecycle-20261117",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
   if(path==="/api/auth/register/request-code" && method==="POST") {
     try { const d=await body(request); if(d.accountConsent !== true) return response({error:"consent_required"},400,origin,env); return response(await sendCode(String(d.phone||""),"register",d.turnstileToken,request,env),200,origin,env); }
     catch(e) {
@@ -427,7 +429,7 @@ async function route(request, env) {
     }
   }
   if(path==="/api/auth/register" && method==="POST") {
-    try { const d=await body(request); const userId=await register(d,env); const s=await createSession(env.DB,userId,env); return response({ok:true},201,origin,env,{"set-cookie":cookie(s.token,s.maxAge)}); }
+    try { const d=await body(request); const registered=await register(d,env); const s=await createSession(env.DB,registered.id,env,registered); return response({ok:true},201,origin,env,{"set-cookie":cookie(s.token,s.maxAge)}); }
     catch(e) { return response({error:e.error||e.message||"registration_failed"},e.status||400,origin,env); }
   }
   if(path==="/api/auth/login" && method==="POST") {
@@ -438,9 +440,9 @@ async function route(request, env) {
       const ipKey = await rateLimitKey(env,"login:ip",ip);
       const phoneKey = await rateLimitKey(env,"login:phone",phone);
       if(!(await rateLimit(env.DB,ipKey,30,900)) || !(await rateLimit(env.DB,phoneKey,10,900))) return response({error:"rate_limited"},429,origin,env);
-      const user=await env.DB.prepare("SELECT id,password_hash FROM users WHERE phone=?").bind(phone).first();
+      const user=await env.DB.prepare("SELECT id,password_hash,auth_version FROM users WHERE phone=? AND deleted_at=''").bind(phone).first();
       if(!user || !(await verifyPassword(password,user.password_hash))) return response({error:"invalid_credentials"},401,origin,env);
-      const s=await createSession(env.DB,user.id,env);
+      const s=await createSession(env.DB,user.id,env,{passwordHash:user.password_hash,authVersion:Number(user.auth_version)});
       return response({ok:true},200,origin,env,{"set-cookie":cookie(s.token,s.maxAge)});
     } catch(e) {
       if (e?.error) return response({error:e.error},e.status||500,origin,env);
@@ -456,17 +458,27 @@ async function route(request, env) {
       const newPassword=String(d.newPassword||"");
       if(newPassword.length<10 || newPassword.length>128) return response({error:"weak_password"},400,origin,env);
       if(currentPassword===newPassword) return response({error:"same_password"},400,origin,env);
-      const account=await env.DB.prepare("SELECT password_hash FROM users WHERE id=?").bind(user.id).first();
+      const account=await env.DB.prepare("SELECT password_hash,auth_version FROM users WHERE id=? AND deleted_at=''").bind(user.id).first();
       if(!account || !(await verifyPassword(currentPassword,account.password_hash))) return response({error:"current_password_invalid"},401,origin,env);
       const salt=crypto.getRandomValues(new Uint8Array(16));
       const derived=await derivePassword(newPassword,salt);
       const hash="pbkdf2-sha256$"+PBKDF2_ITERATIONS+"$"+b64(salt)+"$"+b64(derived);
       const sessionDigest=await sha256(getCookie(request));
-      await env.DB.batch([
-        env.DB.prepare("UPDATE users SET password_hash=?,updated_at=? WHERE id=?").bind(hash,new Date().toISOString(),user.id),
-        env.DB.prepare("DELETE FROM sessions WHERE user_id=? AND token_hash<>?").bind(user.id,sessionDigest)
+      const timestamp=new Date().toISOString();
+      const auditId=randomHex(16);
+      const results=await env.DB.batch([
+        env.DB.prepare("UPDATE users SET password_hash=?,auth_version=auth_version+1,updated_at=? WHERE id=? AND deleted_at='' AND password_hash=? AND auth_version=?")
+          .bind(hash,timestamp,user.id,account.password_hash,Number(account.auth_version)),
+        env.DB.prepare("UPDATE sessions SET auth_version=(SELECT auth_version FROM users WHERE id=? AND password_hash=? AND deleted_at='') WHERE user_id=? AND token_hash=? AND EXISTS(SELECT 1 FROM users WHERE id=? AND password_hash=? AND deleted_at='')")
+          .bind(user.id,hash,user.id,sessionDigest,user.id,hash),
+        env.DB.prepare("DELETE FROM sessions WHERE user_id=? AND token_hash<>? AND EXISTS(SELECT 1 FROM users WHERE id=? AND password_hash=? AND deleted_at='')")
+          .bind(user.id,sessionDigest,user.id,hash),
+        env.DB.prepare("INSERT INTO audit_logs(id,actor_type,actor_id,action,target_type,target_id,metadata_json) SELECT ?,'user',?,'user.password.changed','user',?,'{}' WHERE EXISTS(SELECT 1 FROM users WHERE id=? AND password_hash=? AND deleted_at='')")
+          .bind(auditId,user.id,user.id,user.id,hash)
       ]);
-      return response({ok:true,sessionsRevoked:true},200,origin,env);
+      if((results[0]?.meta?.changes||0)!==1) return response({error:"password_change_conflict"},409,origin,env);
+      const currentSessionRetained=(results[1]?.meta?.changes||0)===1;
+      return response({ok:true,sessionsRevoked:true},200,origin,env,currentSessionRetained?{}:{"set-cookie":cookie("",0)});
     } catch(e) {
       return response({error:e.error||"password_change_failed"},e.status||500,origin,env);
     }
@@ -475,14 +487,28 @@ async function route(request, env) {
     try {
       const d=await body(request),phone=String(d.phone||""),password=String(d.newPassword||"");
       if(password.length<10 || password.length>128) return response({error:"weak_password"},400,origin,env);
+      if(!validPhone(phone)) return response({error:"invalid_code"},400,origin,env);
+      const account=await env.DB.prepare("SELECT id,password_hash,auth_version FROM users WHERE phone=? AND deleted_at=''").bind(phone).first();
+      if(!account) return response({error:"invalid_code"},400,origin,env);
       const salt=crypto.getRandomValues(new Uint8Array(16));
       const derived=await derivePassword(password,salt);
-      // Avoid consuming the reset code if password derivation fails.
+      // Derive before redeeming the provider code; the D1 compare-and-swap below
+      // prevents two separately issued reset challenges from overwriting each other.
       await verifyCode(phone,d.code,"password_reset",env);
       const hash="pbkdf2-sha256$"+PBKDF2_ITERATIONS+"$"+b64(salt)+"$"+b64(derived);
-      await env.DB.prepare("UPDATE users SET password_hash=?,updated_at=? WHERE phone=?").bind(hash,new Date().toISOString(),phone).run();
-      await env.DB.prepare("DELETE FROM sessions WHERE user_id=(SELECT id FROM users WHERE phone=?)").bind(phone).run();
-      return response({ok:true},200,origin,env,{"set-cookie":cookie("",0)});
+      const timestamp=new Date().toISOString();
+      const auditId=randomHex(16);
+      const nextVersion=Number(account.auth_version)+1;
+      const results=await env.DB.batch([
+        env.DB.prepare("UPDATE users SET password_hash=?,auth_version=auth_version+1,updated_at=? WHERE id=? AND phone=? AND deleted_at='' AND password_hash=? AND auth_version=?")
+          .bind(hash,timestamp,account.id,phone,account.password_hash,Number(account.auth_version)),
+        env.DB.prepare("DELETE FROM sessions WHERE user_id=? AND EXISTS(SELECT 1 FROM users WHERE id=? AND password_hash=? AND auth_version=? AND deleted_at='')")
+          .bind(account.id,account.id,hash,nextVersion),
+        env.DB.prepare("INSERT INTO audit_logs(id,actor_type,actor_id,action,target_type,target_id,metadata_json) SELECT ?,'user',?,'user.password.reset','user',?,'{}' WHERE EXISTS(SELECT 1 FROM users WHERE id=? AND password_hash=? AND auth_version=? AND deleted_at='')")
+          .bind(auditId,account.id,account.id,account.id,hash,nextVersion)
+      ]);
+      if((results[0]?.meta?.changes||0)!==1) return response({error:"password_reset_conflict"},409,origin,env);
+      return response({ok:true,sessionsRevoked:true},200,origin,env,{"set-cookie":cookie("",0)});
     } catch(e) { return response({error:e.error||e.message||"password_reset_failed"},e.status||400,origin,env); }
   }
   if(path==="/api/account/delete" && method==="POST") {
@@ -493,7 +519,7 @@ async function route(request, env) {
       if(d.confirmText!=="DELETE") return response({error:"account_delete_confirm_required"},400,origin,env);
       const password=String(d.password||"");
       if(!password || password.length>128) return response({error:"current_password_invalid"},401,origin,env);
-      const account=await env.DB.prepare("SELECT password_hash FROM users WHERE id=? AND deleted_at=''").bind(user.id).first();
+      const account=await env.DB.prepare("SELECT password_hash,auth_version FROM users WHERE id=? AND deleted_at=''").bind(user.id).first();
       if(!account || !(await verifyPassword(password,account.password_hash))) return response({error:"current_password_invalid"},401,origin,env);
       const leadership=await env.DB.prepare(`SELECT t.id,
         (SELECT COUNT(*) FROM users member WHERE member.university_id=t.university_id AND member.deleted_at='' AND member.id<>?) AS other_members
@@ -515,9 +541,9 @@ async function route(request, env) {
         env.DB.prepare(`UPDATE users SET phone='deleted:'||id,password_hash=NULL,name=NULL,high_school=NULL,class_name=NULL,
           university_id=NULL,grade=NULL,province=NULL,city=NULL,bio=NULL,phone_visible_to_team=0,
           consent_at='',consent_given=0,consent_version='',account_consent_at='',account_consent_version='',
-          deleted_at=?,updated_at=? WHERE id=? AND deleted_at=''
+          deleted_at=?,updated_at=? WHERE id=? AND deleted_at='' AND password_hash=? AND auth_version=?
           AND NOT EXISTS(SELECT 1 FROM teams WHERE leader_user_id=users.id)
-          AND NOT EXISTS(SELECT 1 FROM leader_transfers WHERE status='pending' AND (from_user_id=users.id OR to_user_id=users.id))`).bind(timestamp,timestamp,user.id),
+          AND NOT EXISTS(SELECT 1 FROM leader_transfers WHERE status='pending' AND (from_user_id=users.id OR to_user_id=users.id))`).bind(timestamp,timestamp,user.id,account.password_hash,Number(account.auth_version)),
         env.DB.prepare("INSERT INTO audit_logs(id,actor_type,actor_id,action,target_type,target_id,metadata_json) VALUES(?,'system',NULL,'account.deleted','user',?,?)")
           .bind(randomHex(16),user.id,JSON.stringify({method:"password_and_sms_anonymization"}))
       ];
