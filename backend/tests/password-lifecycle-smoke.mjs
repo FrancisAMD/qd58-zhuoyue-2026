@@ -33,6 +33,11 @@ function makeDb({user,sessions=[],challenge=null}){
 function req(path,data,token=""){const h={"content-type":"application/json",origin:ORIGIN,"CF-Connecting-IP":"203.0.113.45"};if(token)h.cookie="__Host-qd58_session="+token;return new Request(API+path,{method:"POST",headers:h,body:JSON.stringify(data)});}
 const env=DB=>({APP_ORIGIN:ORIGIN,DB,RATE_LIMIT_HMAC_SECRET:RATE_SECRET,ALIBABA_ACCESS_KEY_ID:"test-key",ALIBABA_ACCESS_KEY_SECRET:"test-secret"});
 const session=(u,token)=>({token_hash:token,user_id:u.id,expires_at:Math.floor(Date.now()/1000)+3600,created_at:1,auth_version:u.auth_version});
+async function countDerivations(run){
+ const subtle=crypto.subtle,original=subtle.deriveBits;let count=0;
+ subtle.deriveBits=async function(...args){count++;return original.apply(this,args);};
+ try{return {value:await run(),count};}finally{subtle.deriveBits=original;}
+}
 const originalFetch=globalThis.fetch;
 globalThis.fetch=async(input,init={})=>{const u=new URL(typeof input==="string"?input:input.url);if(u.hostname==="dypnsapi.aliyuncs.com"&&init.headers?.["x-acs-action"]==="CheckSmsVerifyCode")return new Response(JSON.stringify({Success:true,Code:"OK",Model:{VerifyResult:"PASS"},RequestId:"mock-only"}),{status:200});throw new Error("Unexpected outbound request: "+u.hostname);};
 try{
@@ -61,6 +66,15 @@ try{
  assert.equal((await worker.fetch(req("/api/auth/login",{phone:resetUser.phone,password:OLD}),re)).status,401);
  assert.equal((await worker.fetch(req("/api/auth/login",{phone:resetUser.phone,password:NEW}),re)).status,200);
  assert.equal([...resetDb.state.sessions.values()][0].auth_version,2);
+
+ const unknownLoginDb=makeDb({user:null});
+ const unknownLogin=await countDerivations(()=>worker.fetch(req("/api/auth/login",{phone:"13500135000",password:OLD}),env(unknownLoginDb.db)));
+ assert.equal(unknownLogin.value.status,401);assert.equal(unknownLogin.count,1,"unknown user login must still perform one PBKDF2 derivation");
+ const wrongPasswordUser={id:"pw-user-wrong",phone:"13400134000",password_hash:oldHash,auth_version:1,deleted_at:""},wrongPasswordDb=makeDb({user:wrongPasswordUser});
+ const wrongPasswordLogin=await countDerivations(()=>worker.fetch(req("/api/auth/login",{phone:wrongPasswordUser.phone,password:"Wrong-Password-2026!"}),env(wrongPasswordDb.db)));
+ assert.equal(wrongPasswordLogin.value.status,401);assert.equal(wrongPasswordLogin.count,1,"known user with wrong password must perform one PBKDF2 derivation");
+ const oversizedLogin=await worker.fetch(req("/api/auth/login",{phone:wrongPasswordUser.phone,password:"x".repeat(129)}),env(wrongPasswordDb.db));
+ assert.equal(oversizedLogin.status,400,"oversized login passwords must be rejected before expensive derivation");
 
  const stale={id:"pw-user-3",phone:"13700137000",password_hash:await hash(OLD,13),auth_version:1,deleted_at:""},staleDb=makeDb({user:stale});
  staleDb.state.afterRead=async()=>{staleDb.state.user.password_hash=await hash(NEW,14);staleDb.state.user.auth_version=2;};

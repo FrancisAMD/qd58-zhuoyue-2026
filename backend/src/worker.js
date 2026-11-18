@@ -2,6 +2,10 @@ import { buildXlsxWorkbook } from "./xlsx.js";
 const encoder = new TextEncoder();
 export const PBKDF2_ITERATIONS = 100000;
 const PBKDF2_KEY_BYTES = 32;
+// Unknown, disabled, or malformed accounts still pay one PBKDF2 verification cost.
+// The all-zero expected digest can never be accepted as a valid stored credential.
+const DUMMY_PASSWORD_SALT = new Uint8Array(16);
+const DUMMY_PASSWORD_EXPECTED = new Uint8Array(PBKDF2_KEY_BYTES);
 const COOKIE = "__Host-qd58_session";
 const ADMIN_COOKIE = "__Host-qd58_admin";
 const SESSION_SECONDS = 7 * 24 * 60 * 60;
@@ -414,20 +418,34 @@ async function register(data, env) {
   return { id, passwordHash: hash, authVersion: 1 };
 }
 async function verifyPassword(password, stored) {
-  const [kind,iterations,salt,expected]=String(stored||"").split("$");
-  if(kind!=="pbkdf2-sha256" || Number(iterations)!==PBKDF2_ITERATIONS || !salt || !expected) return false;
-  const derived=await derivePassword(password,unb64(salt));
-  const a=unb64(expected),b=derived;
-  if (a.length !== b.length) return false;
-  let difference = 0;
-  for (let i=0;i<a.length;i++) difference |= a[i] ^ b[i];
-  return difference === 0;
+  const parts=String(stored||"").split("$");
+  let salt=DUMMY_PASSWORD_SALT;
+  let expected=DUMMY_PASSWORD_EXPECTED;
+  let usableHash=false;
+  if(parts.length===4 && parts[0]==="pbkdf2-sha256" && Number(parts[1])===PBKDF2_ITERATIONS) {
+    try {
+      const candidateSalt=unb64(parts[2]);
+      const candidateExpected=unb64(parts[3]);
+      if(candidateSalt.length===16 && candidateExpected.length===PBKDF2_KEY_BYTES) {
+        salt=candidateSalt;
+        expected=candidateExpected;
+        usableHash=true;
+      }
+    } catch {
+      // Malformed stored credentials use the same dummy verification path.
+    }
+  }
+  // Always perform exactly one PBKDF2 derivation, including when no account exists.
+  const derived=await derivePassword(String(password??""),salt);
+  let difference=0;
+  for(let i=0;i<PBKDF2_KEY_BYTES;i++) difference|=expected[i]^derived[i];
+  return usableHash && difference===0;
 }
 async function route(request, env) {
   const url=new URL(request.url), path=url.pathname, method=request.method, origin=request.headers.get("Origin");
   if(method==="OPTIONS") return new Response(null,{status:204,headers:corsHeaders(origin,env)});
   if(origin && origin!==env.APP_ORIGIN) return response({error:"origin_forbidden"},403,origin,env);
-  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"password-lifecycle-20261117",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
+  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"auth-timing-20261118",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
   if(path==="/api/auth/register/request-code" && method==="POST") {
     try { const d=await body(request); if(d.accountConsent !== true) return response({error:"consent_required"},400,origin,env); return response(await sendCode(String(d.phone||""),"register",d.turnstileToken,request,env),200,origin,env); }
     catch(e) {
@@ -466,13 +484,14 @@ async function route(request, env) {
   if(path==="/api/auth/login" && method==="POST") {
     try {
       const d=await body(request),phone=String(d.phone||""),password=String(d.password||"");
-      if(!validPhone(phone) || !password) return response({error:"invalid_credentials"},400,origin,env);
+      if(!validPhone(phone) || !password || password.length>128) return response({error:"invalid_credentials"},400,origin,env);
       const ip=request.headers.get("CF-Connecting-IP")||"unknown";
       const ipKey = await rateLimitKey(env,"login:ip",ip);
       const phoneKey = await rateLimitKey(env,"login:phone",phone);
       if(!(await rateLimit(env.DB,ipKey,30,900)) || !(await rateLimit(env.DB,phoneKey,10,900))) return response({error:"rate_limited"},429,origin,env);
       const user=await env.DB.prepare("SELECT id,password_hash,auth_version FROM users WHERE phone=? AND deleted_at=''").bind(phone).first();
-      if(!user || !(await verifyPassword(password,user.password_hash))) return response({error:"invalid_credentials"},401,origin,env);
+      const passwordMatches=await verifyPassword(password,user?.password_hash);
+      if(!user || !passwordMatches) return response({error:"invalid_credentials"},401,origin,env);
       const s=await createSession(env.DB,user.id,env,{passwordHash:user.password_hash,authVersion:Number(user.auth_version)});
       return response({ok:true},200,origin,env,{"set-cookie":cookie(s.token,s.maxAge)});
     } catch(e) {
@@ -487,6 +506,7 @@ async function route(request, env) {
       const d=await body(request);
       const currentPassword=String(d.currentPassword||"");
       const newPassword=String(d.newPassword||"");
+      if(currentPassword.length<1 || currentPassword.length>128) return response({error:"current_password_invalid"},401,origin,env);
       if(newPassword.length<10 || newPassword.length>128) return response({error:"weak_password"},400,origin,env);
       if(currentPassword===newPassword) return response({error:"same_password"},400,origin,env);
       const account=await env.DB.prepare("SELECT password_hash,auth_version FROM users WHERE id=? AND deleted_at=''").bind(user.id).first();
@@ -769,7 +789,8 @@ async function route(request, env) {
       if (!ipAllowed || !usernameAllowed) return response({error:"rate_limited"},429,origin,env);
       const account = await env.DB.prepare("SELECT id,username,password_hash,role,active FROM admin_users WHERE username=? COLLATE NOCASE")
         .bind(username).first();
-      if (!account || Number(account.active) !== 1 || !(await verifyPassword(password, account.password_hash))) {
+      const passwordMatches = await verifyPassword(password, account?.password_hash);
+      if (!account || Number(account.active) !== 1 || !passwordMatches) {
         // Record credential rejection without storing the submitted username, IP,
         // password, or any other caller-controlled identifier in the audit trail.
         // Rate-limited requests are intentionally not logged here to avoid audit flooding.
