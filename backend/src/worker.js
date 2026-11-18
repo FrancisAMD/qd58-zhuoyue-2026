@@ -130,10 +130,23 @@ async function rateLimitStatus(db, key, limit, windowSeconds) {
 // Store the exact window start so a failed request only releases its own
 // reservation and never decrements a newer window.
 async function reserveRateLimit(db, item) {
-  if (!(await rateLimit(db, item.key, item.limit, item.window))) return null;
-  const row = await db.prepare("SELECT window_started_at FROM rate_limits WHERE bucket_key=?").bind(item.key).first();
-  if (!row) throw new Error("rate_limit_reservation_missing");
-  return { key: item.key, windowStartedAt: Number(row.window_started_at) };
+  // Bind the reservation to the exact window returned by the same atomic
+  // UPSERT. A separate SELECT can observe a later window created by another
+  // request and cause rollback to decrement that other request's quota.
+  const t = now();
+  const row = await db.prepare(`INSERT INTO rate_limits(bucket_key,window_started_at,hit_count) VALUES(?,?,1)
+    ON CONFLICT(bucket_key) DO UPDATE SET
+      hit_count=CASE WHEN window_started_at <= ? THEN 1 ELSE hit_count+1 END,
+      window_started_at=CASE WHEN window_started_at <= ? THEN excluded.window_started_at ELSE window_started_at END
+    WHERE window_started_at <= ? OR hit_count < ?
+    RETURNING window_started_at`)
+    .bind(item.key, t, t-item.window, t-item.window, t-item.window, item.limit).first();
+  if (!row) return null;
+  const windowStartedAt = Number(row.window_started_at);
+  if (!Number.isSafeInteger(windowStartedAt) || windowStartedAt <= 0) {
+    throw new Error("rate_limit_reservation_invalid");
+  }
+  return { key: item.key, windowStartedAt };
 }
 async function releaseRateLimitReservations(db, reservations) {
   if (!reservations.length) return;

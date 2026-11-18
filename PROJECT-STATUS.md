@@ -120,3 +120,11 @@
 - 删除仓库中的示例签名“恒创联众”和模板 Code“100001”默认值；它们来自接口文档示例，不能推定为本账号已获批配置。
 - Worker 现在要求 AccessKey ID/Secret、已批准签名和模板 Code 同时存在才会进入 Turnstile 后续发送流程；签名或模板缺失时 fail-closed，不发短信、不消耗 Turnstile token、不预留限流额度。
 - 新增测试覆盖缺少签名或模板时返回统一服务配置错误且不调用 PNVS。生产环境需由账号持有人从 PNVS 控制台填写实际审批值。
+
+
+## 本次增量里程碑（2026-11-18）：短信限流预留原子绑定窗口
+
+- 修复短信配额预留的并发窗口竞态：原实现先执行 UPSERT，再单独 SELECT window_started_at；如果另一请求恰好在两条语句之间滚动到新窗口，失败回滚可能误减新窗口中另一请求的计数。
+- reserveRateLimit 改为单条 SQLite UPSERT ... RETURNING window_started_at，返回值与本次原子更新绑定；回滚仍按 bucket_key + window_started_at 精确匹配。
+- 扩展 PNVS 挑战持久化测试，模拟配额预留提交后、Worker 收到结果前另一请求滚动冷却窗口；验证明确拒绝的回滚不会扣减新窗口计数。
+- 不新增 D1 迁移；不执行远程 D1、真实短信、Turnstile 或生产部署。

@@ -5,15 +5,43 @@ const ORIGIN = "https://58er.eon21.space";
 const API = "https://api.58er.eon21.space";
 const SECRET = "pnvs-persistence-test-secret-0123456789abcdef";
 
-function makeDb({ failChallengeInsert = false } = {}) {
-  const state = { rateLimits: new Map(), challenges: [], events: [], failChallengeInsert };
+function makeDb({ failChallengeInsert = false, simulateWindowRolloverAfterReservation = false } = {}) {
+  const state = { rateLimits: new Map(), challenges: [], events: [], failChallengeInsert, simulateWindowRolloverAfterReservation, rolloverSimulated: false };
+  function maybeRollCooldownWindow(key, startedAt, resetBefore) {
+    if (!state.simulateWindowRolloverAfterReservation || state.rolloverSimulated || !key.includes(":sms:cooldown:")) return;
+    const windowLength = Number(startedAt) - Number(resetBefore);
+    state.rateLimits.set(key, {
+      window_started_at: Number(startedAt) + windowLength + 1,
+      hit_count: 1
+    });
+    state.events.push("race:cooldown-window-rolled");
+    state.rolloverSimulated = true;
+  }
   const db = {
     prepare(sql) {
       return {
         sql, args: [],
         bind(...args) { this.args = args; return this; },
         async first() {
-          const [key] = this.args;
+          const a = this.args;
+          if (sql.startsWith("INSERT INTO rate_limits(") && sql.includes("RETURNING window_started_at")) {
+            const [key, startedAt, resetBefore, , , limit] = a;
+            const old = state.rateLimits.get(key);
+            let windowStartedAt;
+            if (!old || old.window_started_at <= resetBefore) {
+              state.rateLimits.set(key, { window_started_at: startedAt, hit_count: 1 });
+              windowStartedAt = startedAt;
+            } else if (old.hit_count < limit) {
+              old.hit_count += 1;
+              windowStartedAt = old.window_started_at;
+            } else {
+              return null;
+            }
+            const returned = { window_started_at: windowStartedAt };
+            maybeRollCooldownWindow(key, startedAt, resetBefore);
+            return returned;
+          }
+          const [key] = a;
           if (sql.startsWith("SELECT window_started_at,hit_count FROM rate_limits")) {
             return state.rateLimits.get(key) || null;
           }
@@ -31,10 +59,12 @@ function makeDb({ failChallengeInsert = false } = {}) {
             const old = state.rateLimits.get(key);
             if (!old || old.window_started_at <= resetBefore) {
               state.rateLimits.set(key, { window_started_at: startedAt, hit_count: 1 });
+              maybeRollCooldownWindow(key, startedAt, resetBefore);
               return { meta: { changes: 1 } };
             }
             if (old.hit_count < limit) {
               old.hit_count += 1;
+              maybeRollCooldownWindow(key, startedAt, resetBefore);
               return { meta: { changes: 1 } };
             }
             return { meta: { changes: 0 } };
@@ -174,6 +204,18 @@ try {
   assert.equal(rejected.challenges.length, 0, "a definitively rejected send must not leave a verifiable challenge");
   assert([...rejected.rateLimits.values()].every(x => x.hit_count === 0),
     "a definitive rejection releases quota reservations");
+
+  const rolloverRejected = await runScenario("definitive rejection during a concurrent cooldown-window rollover", {
+    simulateWindowRolloverAfterReservation: true
+  });
+  assert(rolloverRejected.events.includes("race:cooldown-window-rolled"),
+    "the test must simulate another request advancing the cooldown bucket after the reservation statement commits");
+  const cooldownBucket = [...rolloverRejected.rateLimits.entries()].find(([key]) => key.includes(":sms:cooldown:"));
+  assert.equal(cooldownBucket?.[1].hit_count, 1,
+    "releasing an old-window reservation must not decrement a concurrent request's hit in the newer window");
+  const otherBuckets = [...rolloverRejected.rateLimits.entries()].filter(([key]) => !key.includes(":sms:cooldown:"));
+  assert(otherBuckets.every(([, row]) => row.hit_count === 0),
+    "reservations still belonging to the original window are released after a definitive rejection");
 
   providerMode = "ambiguous";
   const ambiguous = await runScenario("ambiguous transport failure");
