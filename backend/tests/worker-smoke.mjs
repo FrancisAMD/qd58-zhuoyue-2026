@@ -60,6 +60,12 @@ const quotaDb={
         first:async()=>{
           if(sql.startsWith("SELECT id FROM users")) return null;
           if(sql.startsWith("SELECT window_started_at,hit_count FROM rate_limits") || sql.startsWith("SELECT window_started_at FROM rate_limits")) return quotaRows.get(args[0])||null;
+          if(sql.startsWith("INSERT INTO rate_limits") && sql.includes("RETURNING window_started_at")){
+            const key=args[0],t=args[1],resetAt=args[2],limit=args[5],old=quotaRows.get(key);
+            if(!old || old.window_started_at<=resetAt){quotaRows.set(key,{window_started_at:t,hit_count:1});return {window_started_at:t}}
+            if(old.hit_count<limit){old.hit_count++;return {window_started_at:old.window_started_at}}
+            return null;
+          }
           return null;
         },
         run:async()=>{

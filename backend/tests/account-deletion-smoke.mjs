@@ -48,6 +48,19 @@ function makeDb({ hash, otherMembers = 0, forceDeleteConflict = false } = {}) {
             return state.active && a[0] === state.phone ? { id: USER_ID } : null;
           }
           if (sql.startsWith("SELECT window_started_at,hit_count FROM rate_limits")) return state.rateLimits.get(a[0]) || null;
+          if (sql.startsWith("INSERT INTO rate_limits(") && sql.includes("RETURNING window_started_at")) {
+            const [key, startedAt, resetBefore, , , limit] = a;
+            const old = state.rateLimits.get(key);
+            if (!old || old.window_started_at <= resetBefore) {
+              state.rateLimits.set(key, { window_started_at: startedAt, hit_count: 1 });
+              return { window_started_at: startedAt };
+            }
+            if (old.hit_count < limit) {
+              old.hit_count += 1;
+              return { window_started_at: old.window_started_at };
+            }
+            return null;
+          }
           if (sql.startsWith("SELECT window_started_at FROM rate_limits")) {
             const row = state.rateLimits.get(a[0]);
             return row ? { window_started_at: row.window_started_at } : null;

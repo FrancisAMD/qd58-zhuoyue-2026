@@ -123,3 +123,11 @@ Cloudflare Worker + D1 后端。已提交手机号密码认证、Turnstile 服�
 ### PNVS 签名与模板配置必须来自控制台
 
 仓库不再提供示例签名或示例模板 Code 作为默认值。只有在号码认证服务控制台确认已获批、且模板变量与 `code` / `min` 匹配后，才在 `backend/wrangler.toml` 的 `[vars]` 中填写 `ALIBABA_SIGN_NAME` 与 `ALIBABA_TEMPLATE_CODE`。两项任意缺失时 Worker fail-closed，返回 `sms_not_configured`，不会调用 PNVS 或发送短信。AccessKey 仍只通过 Worker Secrets 配置。
+
+
+## 短信限流预留的并发窗口安全（2026-11-18）
+
+- 短信发送的冷却、手机号日限额和 IP 小时限额均通过单条 UPSERT 原子预留；预留语句使用 SQLite `RETURNING window_started_at` 返回本次实际更新的窗口起点。
+- 不再通过第二条 SELECT 获取预留窗口，避免并发请求在两条语句之间推进窗口后，失败回滚误减新窗口中的其他请求计数。
+- PNVS 明确拒绝或发送前 D1 失败时，仍只按原始窗口起点释放本次预留；PNVS 结果不确定时保留挑战与额度。
+- `pnvs-challenge-persistence-smoke.mjs` 增加窗口切换竞态模拟。无需数据库迁移；此测试不代替真实 D1/PNVS 联调。
