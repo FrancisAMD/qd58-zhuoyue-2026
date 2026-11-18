@@ -1,6 +1,6 @@
 # 项目状态
 
-最后更新：2026-11-17
+最后更新：2026-11-18
 
 ## 已提交
 - Cloudflare Pages/Worker 域名与 D1 配置。
@@ -128,3 +128,11 @@
 - reserveRateLimit 改为单条 SQLite UPSERT ... RETURNING window_started_at，返回值与本次原子更新绑定；回滚仍按 bucket_key + window_started_at 精确匹配。
 - 扩展 PNVS 挑战持久化测试，模拟配额预留提交后、Worker 收到结果前另一请求滚动冷却窗口；验证明确拒绝的回滚不会扣减新窗口计数。
 - 不新增 D1 迁移；不执行远程 D1、真实短信、Turnstile 或生产部署。
+
+
+## 本次增量里程碑（2026-11-18）：登录密码验证时间侧信道缓解
+
+- 普通用户和管理员登录在账号不存在、管理员停用或密码摘要损坏时执行固定成本 dummy PBKDF2；存在账号的错误密码路径同样执行一次 PBKDF2，减少响应耗时导致的账号枚举。
+- 用户登录密码长度限制为 128 个字符；密码修改当前密码也增加长度上限，降低异常超长输入的 KDF 资源消耗。
+- password-lifecycle-smoke.mjs 与 admin-auth-audit-smoke.mjs 通过包装 Web Crypto deriveBits，检查未知用户、错误密码、未知管理员、停用管理员均执行一次派生，限流请求不执行派生。
+- 不新增 D1 迁移；本地完整项目 checkout 不可用，最终测试以 GitHub Actions 为准。未执行真实 D1、Turnstile、PNVS、备份或生产部署。
