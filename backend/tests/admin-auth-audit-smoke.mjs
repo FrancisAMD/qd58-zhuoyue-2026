@@ -42,6 +42,11 @@ class AuditDB {
     };
   }
 }
+async function countDerivations(run){
+  const subtle=crypto.subtle,original=subtle.deriveBits;let count=0;
+  subtle.deriveBits=async function(...args){count++;return original.apply(this,args);};
+  try{return {value:await run(),count};}finally{subtle.deriveBits=original;}
+}
 async function attempt({db,username="not-a-real-admin",password="Wrong-Password",ip="203.0.113.50"}) {
   return worker.fetch(new Request(ORIGIN+"/api/admin/login",{
     method:"POST",
@@ -63,22 +68,30 @@ function assertAudit(db,reason,{username,password,ip}) {
 const goodHash=await passwordHash(ADMIN_PASSWORD);
 
 const unknownDb=new AuditDB(null);
-const unknown=await attempt({db:unknownDb,username:"missing-admin",password:"bad-password",ip:"203.0.113.51"});
+const unknownRun=await countDerivations(()=>attempt({db:unknownDb,username:"missing-admin",password:"bad-password",ip:"203.0.113.51"}));
+const unknown=unknownRun.value;
+if(unknownRun.count!==1) throw new Error("unknown admin login must perform one dummy PBKDF2 derivation");
 if(unknown.status!==401 || (await unknown.json()).error!=="invalid_credentials") throw new Error("unknown account must return generic 401");
 assertAudit(unknownDb,"unknown_account",{username:"missing-admin",password:"bad-password",ip:"203.0.113.51"});
 
 const inactiveDb=new AuditDB({id:"admin-inactive",username:"disabled",password_hash:goodHash,role:"admin",active:0});
-const inactive=await attempt({db:inactiveDb,username:"disabled",password:"any-password",ip:"203.0.113.52"});
+const inactiveRun=await countDerivations(()=>attempt({db:inactiveDb,username:"disabled",password:"any-password",ip:"203.0.113.52"}));
+const inactive=inactiveRun.value;
+if(inactiveRun.count!==1) throw new Error("inactive admin login must perform one PBKDF2 derivation");
 if(inactive.status!==401 || (await inactive.json()).error!=="invalid_credentials") throw new Error("inactive account must return generic 401");
 assertAudit(inactiveDb,"inactive_account",{username:"disabled",password:"any-password",ip:"203.0.113.52"});
 
 const mismatchDb=new AuditDB({id:"admin-active",username:"active",password_hash:goodHash,role:"admin",active:1});
-const mismatch=await attempt({db:mismatchDb,username:"active",password:"wrong-password",ip:"203.0.113.53"});
+const mismatchRun=await countDerivations(()=>attempt({db:mismatchDb,username:"active",password:"wrong-password",ip:"203.0.113.53"}));
+const mismatch=mismatchRun.value;
+if(mismatchRun.count!==1) throw new Error("known admin with wrong password must perform one PBKDF2 derivation");
 if(mismatch.status!==401 || (await mismatch.json()).error!=="invalid_credentials") throw new Error("wrong password must return generic 401");
 assertAudit(mismatchDb,"password_mismatch",{username:"active",password:"wrong-password",ip:"203.0.113.53"});
 
 const limitedDb=new AuditDB(null,{rateLimitAllowed:false});
-const limited=await attempt({db:limitedDb,username:"blocked-admin",password:"wrong-password",ip:"203.0.113.54"});
+const limitedRun=await countDerivations(()=>attempt({db:limitedDb,username:"blocked-admin",password:"wrong-password",ip:"203.0.113.54"}));
+const limited=limitedRun.value;
+if(limitedRun.count!==0) throw new Error("rate-limited admin requests must not spend PBKDF2 work");
 if(limited.status!==429 || (await limited.json()).error!=="rate_limited" || limitedDb.auditRows.length!==0) {
   throw new Error("rate-limited attempts must not create unbounded audit rows");
 }
