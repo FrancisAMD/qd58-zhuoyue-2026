@@ -1,5 +1,20 @@
 const API="https://api.58er.eon21.space/api",SITEKEY="0x4AAAAAAF8tZfD0j4LHU8uN",$=id=>document.getElementById(id);let widgets={},tokens={},consumedTokens={},view="members",directory=null,categoryLocked=false;const phoneOK=p=>/^1[3-9]\d{9}$/.test(p);
-async function call(path,data){const r=await fetch(API+path,{method:data?"POST":"GET",credentials:"include",headers:data?{"Content-Type":"application/json"}:{},body:data?JSON.stringify(data):undefined});let d={};try{d=await r.json()}catch{}if(!r.ok){const e=Error(d.error||"request_failed");e.details=d;e.status=r.status;throw e}return d}
+async function call(path,data,options={}){
+  const timeoutMs=Number(options.timeoutMs)||0;
+  const controller=timeoutMs>0?new AbortController():null;
+  const timer=controller?setTimeout(()=>controller.abort(),timeoutMs):null;
+  try{
+    const r=await fetch(API+path,{method:data?"POST":"GET",credentials:"include",headers:data?{"Content-Type":"application/json"}:{},body:data?JSON.stringify(data):undefined,signal:controller?controller.signal:undefined,cache:"no-store"});
+    let d={};try{d=await r.json()}catch{}
+    if(!r.ok){const e=Error(d.error||"request_failed");e.details=d;e.status=r.status;throw e}
+    return d;
+  }catch(error){
+    if(controller&&controller.signal.aborted){const timeout=Error("request_timeout");timeout.status=408;throw timeout}
+    throw error;
+  }finally{
+    if(timer!==null)clearTimeout(timer);
+  }
+}
 function msg(id,s,bad=false){$(id).textContent=s;$(id).classList.toggle("bad",bad)}
 function auth(v="login"){$("modal").classList.add("show");["login","register","reset","changePassword","deleteAccount"].forEach(x=>$(x+"Form").hidden=x!==v);$("authTabs").hidden=v==="reset"||v==="changePassword"||v==="deleteAccount";document.querySelectorAll("[data-auth]").forEach(b=>b.classList.toggle("active",b.dataset.auth===v));if(v==="register"||v==="reset"||v==="deleteAccount")captcha(v)}
 function captcha(v){if(!window.turnstile||widgets[v]!==undefined)return;const target={register:"regCaptcha",reset:"resetCaptcha",deleteAccount:"deleteCaptcha"}[v];const action={register:"register",reset:"password_reset",deleteAccount:"account_delete"}[v];widgets[v]=turnstile.render("#"+target,{sitekey:SITEKEY,theme:"auto",action,callback:t=>{tokens[v]=t;consumedTokens[v]=false;},"expired-callback":()=>{tokens[v]="";consumedTokens[v]=false;},"error-callback":()=>{tokens[v]="";consumedTokens[v]=false;}})}function resetCaptcha(v){if(window.turnstile&&widgets[v]!==undefined)turnstile.reset(widgets[v]);tokens[v]="";consumedTokens[v]=false}
@@ -87,7 +102,7 @@ function showAppStage(profile={}){
 }
 async function load(){
   try{
-    const d=await call("/profile");
+    const d=await call("/profile",undefined,{timeoutMs:12000});
     const p=d.profile||{};
     for(const k of ["name","className","highSchool","university","grade","province","city","bio"])$("profile").elements[k].value=p[k]||"";
     $("profile").elements.phoneVisible.checked=!!p.phoneVisible;$("consent").checked=!!p.consentGiven;
@@ -110,12 +125,12 @@ async function load(){
     }else{
       console.warn(e);
       document.body.classList.remove("session-checking");
-      $("bootMessage").textContent="暂时无法确认登录状态，请检查网络后重新尝试。";
+      $("bootMessage").textContent=e.message==="request_timeout"?"服务器在 12 秒内没有响应，请检查 API 服务或网络后重试。":"暂时无法确认登录状态，请检查网络后重新尝试。";
       $("retrySession").hidden=false;
     }
   }
 }
-$("retrySession").onclick=()=>location.reload();
+$("retrySession").onclick=async()=>{$("retrySession").hidden=true;$("bootMessage").textContent="正在重新确认登录状态…";await load()};
 async function loadDirectory(){
   $("directoryMsg").textContent="";
   $("directoryCount").textContent="正在加载同学资料…";
@@ -150,4 +165,4 @@ $("deleteAccountForm").onsubmit=async e=>{e.preventDefault();if($("deleteConfirm
 $("changePasswordForm").onsubmit=async e=>{e.preventDefault();const currentPassword=$("currentPassword").value,newPassword=$("newPassword").value;if(newPassword!==$("confirmNewPassword").value)return msg("changePassMsg","两次新密码不一致",true);if(newPassword.length<10)return msg("changePassMsg","新密码至少需要 10 位",true);try{await call("/auth/password/change",{currentPassword,newPassword});msg("changePassMsg","密码修改成功，其他设备已退出登录");$("changePasswordForm").reset();document.querySelectorAll("#changePasswordForm .password-toggle").forEach(b=>{const input=$(b.dataset.togglePassword);input.type="password";b.textContent="显示"});setTimeout(()=>$("modal").classList.remove("show"),1200)}catch(x){msg("changePassMsg",errorText(x),true);if(x.message==="unauthorized")setTimeout(()=>auth("login"),900)}};
 $("logout").onclick=async()=>{try{await fetch(API+"/auth/logout",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:"{}"})}finally{location.reload()}};
 $("profile").onsubmit=async e=>{e.preventDefault();syncUniversityFields();const f=new FormData(e.target),d=Object.fromEntries(f.entries());d.phoneVisible=f.has("phoneVisible");d.consent=$("consent").checked;if(!$("consent").checked)return msg("profileMsg","请先确认信息使用说明",true);try{const r=await fetch(API+"/profile",{method:"PUT",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)});let result={};try{result=await r.json()}catch{}if(!r.ok)throw Error(result.error||"profile_save_failed");categoryLocked=true;$("universityBack").hidden=true;$("universityBackBottom").hidden=true;await load();msg("profileMsg","资料保存成功");$("goDirectory").hidden=false;showDirectoryStage()}catch(error){const errors={consent_required:"请先阅读隐私说明并勾选同意",profile_incomplete:"请完整填写必填资料",education_level_required:"请选择本科或专科办学层次",university_region_required:"请选择或填写高校所在地区",cooperation_details_required:"请选择办学层次并填写境外合作院校",university_change_requires_support:"已登记高校暂不能自行更换，请联系组织者",university_metadata_conflict:"这所高校的地区或办学层次与已有资料不一致，请核对学校名称和类别"};msg("profileMsg",errors[error.message]||"保存失败，请检查资料后重试",true)}};
-document.querySelectorAll("[data-toggle-password]").forEach(b=>b.onclick=()=>{const input=$(b.dataset.togglePassword);const visible=input.type==="password";input.type=visible?"text":"password";b.textContent=visible?"隐藏":"显示"});document.querySelectorAll("[data-view]").forEach(x=>x.onclick=()=>{document.querySelectorAll("[data-view]").forEach(b=>b.classList.toggle("active",b===x));view=x.dataset.view;render()});$("search").oninput=render;window.addEventListener("DOMContentLoaded",load);
+document.querySelectorAll("[data-toggle-password]").forEach(b=>b.onclick=()=>{const input=$(b.dataset.togglePassword);const visible=input.type==="password";input.type=visible?"text":"password";b.textContent=visible?"隐藏":"显示"});document.querySelectorAll("[data-view]").forEach(x=>x.onclick=()=>{document.querySelectorAll("[data-view]").forEach(b=>b.classList.toggle("active",b===x));view=x.dataset.view;render()});$("search").oninput=render;if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",load,{once:true});else load();
