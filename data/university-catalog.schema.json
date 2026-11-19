@@ -90,6 +90,7 @@
         "name_zh",
         "name_en",
         "is_main_campus",
+        "is_branch_campus",
         "location"
       ],
       "properties": {
@@ -114,6 +115,12 @@
         },
         "location": {
           "$ref": "#/$defs/location"
+        },
+        "is_branch_campus": {
+          "type": [
+            "boolean",
+            "null"
+          ]
         }
       },
       "anyOf": [
@@ -197,6 +204,7 @@
         "project_tags",
         "double_first_class_disciplines",
         "location",
+        "has_branch_campus",
         "campus_structure",
         "campus_info_status",
         "campuses",
@@ -391,6 +399,12 @@
         "merged_into": {
           "type": [
             "string",
+            "null"
+          ]
+        },
+        "has_branch_campus": {
+          "type": [
+            "boolean",
             "null"
           ]
         }
