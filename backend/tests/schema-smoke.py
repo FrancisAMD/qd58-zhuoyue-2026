@@ -19,8 +19,10 @@ session_columns = {row[1] for row in db.execute("PRAGMA table_info(sessions)")}
 assert "auth_version" in session_columns
 transfer_columns = {row[1] for row in db.execute("PRAGMA table_info(leader_transfers)")}
 assert "expires_at" in transfer_columns
+otp_columns = {row[1] for row in db.execute("PRAGMA table_info(otp_challenges)")}
+assert "superseded_at" in otp_columns
 retention_indexes = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='index'")}
-assert {"idx_otp_expires_at", "idx_otp_consumed_at", "idx_sessions_expires_at", "idx_admin_sessions_expires_at", "idx_rate_limits_window_started_at"} <= retention_indexes
+assert {"idx_otp_expires_at", "idx_otp_consumed_at", "idx_sessions_expires_at", "idx_admin_sessions_expires_at", "idx_rate_limits_window_started_at", "idx_otp_active_phone_purpose"} <= retention_indexes
 
 def must_fail(sql, params=()):
     try:

@@ -5,8 +5,8 @@ const ORIGIN = "https://58er.eon21.space";
 const API = "https://api.58er.eon21.space";
 const SECRET = "pnvs-persistence-test-secret-0123456789abcdef";
 
-function makeDb({ failChallengeInsert = false, simulateWindowRolloverAfterReservation = false } = {}) {
-  const state = { rateLimits: new Map(), challenges: [], events: [], failChallengeInsert, simulateWindowRolloverAfterReservation, rolloverSimulated: false };
+function makeDb({ failChallengeInsert = false, simulateWindowRolloverAfterReservation = false, existingChallenges = [] } = {}) {
+  const state = { rateLimits: new Map(), challenges: existingChallenges.map(x => ({ supersededAt: null, consumedAt: null, ...x })), events: [], failChallengeInsert, simulateWindowRolloverAfterReservation, rolloverSimulated: false };
   function maybeRollCooldownWindow(key, startedAt, resetBefore) {
     if (!state.simulateWindowRolloverAfterReservation || state.rolloverSimulated || !key.includes(":sms:cooldown:")) return;
     const windowLength = Number(startedAt) - Number(resetBefore);
@@ -69,11 +69,23 @@ function makeDb({ failChallengeInsert = false, simulateWindowRolloverAfterReserv
             }
             return { meta: { changes: 0 } };
           }
+          if (sql.startsWith("UPDATE otp_challenges SET superseded_at=?")) {
+            const [supersededAt, phone, purpose] = a;
+            let changes = 0;
+            for (const row of state.challenges) {
+              if (row.phone === phone && row.purpose === purpose && row.consumedAt == null && row.supersededAt == null) {
+                row.supersededAt = supersededAt;
+                changes++;
+              }
+            }
+            state.events.push("d1:challenge-supersede");
+            return { meta: { changes } };
+          }
           if (sql.startsWith("INSERT INTO otp_challenges")) {
             state.events.push("d1:challenge-insert");
             if (state.failChallengeInsert) throw new Error("simulated_d1_write_failure");
             const [id, phone, codeHash, expiresAt, createdAt, purpose, outId] = a;
-            state.challenges.push({ id, phone, codeHash, expiresAt, createdAt, purpose, outId });
+            state.challenges.push({ id, phone, codeHash, expiresAt, createdAt, purpose, outId, supersededAt: null, consumedAt: null });
             return { meta: { changes: 1 } };
           }
           if (sql.startsWith("DELETE FROM otp_challenges WHERE id=?")) {
@@ -91,9 +103,15 @@ function makeDb({ failChallengeInsert = false, simulateWindowRolloverAfterReserv
       };
     },
     async batch(statements) {
+      const snapshot = structuredClone(state.challenges);
       const results = [];
-      for (const statement of statements) results.push(await statement.run());
-      return results;
+      try {
+        for (const statement of statements) results.push(await statement.run());
+        return results;
+      } catch (error) {
+        state.challenges = snapshot;
+        throw error;
+      }
     }
   };
   return { db, state };
@@ -199,11 +217,32 @@ try {
   assert(success.rateLimits.size === 3 && [...success.rateLimits.values()].every(x => x.hit_count === 1),
     "accepted SMS keeps all quota reservations");
 
+  const previousChallenge = {
+    id: "previous-challenge", phone: "13800138000", codeHash: "ALIYUN",
+    expiresAt: Math.floor(Date.now()/1000)+300, createdAt: Math.floor(Date.now()/1000)-30,
+    purpose: "register", outId: "previous-out-id"
+  };
+  const resent = await runScenario("resend supersedes the previous code", { existingChallenges: [previousChallenge] });
+  const supersededPrevious = resent.challenges.find(x => x.id === "previous-challenge");
+  assert.ok(supersededPrevious && supersededPrevious.supersededAt != null,
+    "a successful resend must atomically invalidate the previous challenge");
+  assert.equal(resent.challenges.filter(x => x.supersededAt == null && x.consumedAt == null).length, 1,
+    "only the newest persisted challenge remains active");
+
   providerMode = "reject";
   const rejected = await runScenario("definitive provider rejection");
   assert.equal(rejected.challenges.length, 0, "a definitively rejected send must not leave a verifiable challenge");
   assert([...rejected.rateLimits.values()].every(x => x.hit_count === 0),
     "a definitive rejection releases quota reservations");
+
+  const rejectedResend = await runScenario("rejected resend does not reactivate an older code", {
+    existingChallenges: [previousChallenge]
+  });
+  const rejectedOld = rejectedResend.challenges.find(x => x.id === "previous-challenge");
+  assert.ok(rejectedOld && rejectedOld.supersededAt != null,
+    "a definitive rejection must not reactivate the previous challenge");
+  assert.equal(rejectedResend.challenges.filter(x => x.supersededAt == null && x.consumedAt == null).length, 0,
+    "a rejected replacement leaves no active challenge until the user requests another code");
 
   const rolloverRejected = await runScenario("definitive rejection during a concurrent cooldown-window rollover", {
     simulateWindowRolloverAfterReservation: true
@@ -226,8 +265,13 @@ try {
 
   providerMode = "success";
   const before = providerCalls.length;
-  const storageFailure = await runScenario("D1 challenge storage failure", { failChallengeInsert: true });
-  assert.equal(storageFailure.challenges.length, 0);
+  const storageFailure = await runScenario("D1 challenge storage failure", {
+    failChallengeInsert: true,
+    existingChallenges: [previousChallenge]
+  });
+  assert.equal(storageFailure.challenges.length, 1);
+  assert.equal(storageFailure.challenges[0].supersededAt, null,
+    "the D1 batch must roll back supersession when the replacement challenge cannot be stored");
   assert.equal(providerCalls.length, before, "PNVS must not be called when the challenge cannot be persisted");
   assert([...storageFailure.rateLimits.values()].every(x => x.hit_count === 0),
     "a pre-send storage failure releases reserved quotas");

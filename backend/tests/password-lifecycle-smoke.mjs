@@ -13,7 +13,8 @@ function makeDb({user,sessions=[],challenge=null}){
   if(sql.startsWith("SELECT u.id,u.phone,u.name")){const s=state.sessions.get(a[0]);if(!s||s.expires_at<=a[1]||!state.user||state.user.deleted_at!==""||s.user_id!==state.user.id||s.auth_version!==state.user.auth_version)return null;return {id:state.user.id,phone:state.user.phone,name:"Test Student",high_school:"青岛五十八中",class_name:"高三(1)班",university_id:null,grade:null,province:null,city:null,bio:null,phone_visible_to_team:0,consent_given:1,consent_at:"",consent_version:"",account_consent_at:"",account_consent_version:""};}
   if(sql.startsWith("SELECT password_hash,auth_version FROM users WHERE id=? AND deleted_at=''")){if(!state.user||state.user.id!==a[0]||state.user.deleted_at!=="")return null;const row={password_hash:state.user.password_hash,auth_version:state.user.auth_version};if(state.afterRead){const h=state.afterRead;state.afterRead=null;await h();}return row;}
   if(sql.startsWith("SELECT id,password_hash,auth_version FROM users WHERE phone=? AND deleted_at=''")){if(!state.user||state.user.phone!==a[0]||state.user.deleted_at!=="")return null;const row={id:state.user.id,password_hash:state.user.password_hash,auth_version:state.user.auth_version};if(state.afterRead){const h=state.afterRead;state.afterRead=null;await h();}return row;}
-  if(sql.startsWith("SELECT id,out_id,expires_at,consumed_at,attempts FROM otp_challenges")){if(!state.challenge||state.challenge.phone!==a[0]||state.challenge.purpose!==a[1])return null;return copy(state.challenge);}
+  if(sql.startsWith("SELECT id FROM otp_challenges WHERE phone=? AND purpose=?")){if(!state.challenge||state.challenge.phone!==a[0]||state.challenge.purpose!==a[1]||state.challenge.consumed_at!=null||state.challenge.superseded_at!=null)return null;return {id:state.challenge.id};}
+  if(sql.includes("UPDATE otp_challenges")&&sql.includes("RETURNING out_id,expires_at")){const [id,phone,purpose,timestamp,maxAttempts]=a,c=state.challenge;if(!c||c.id!==id||c.phone!==phone||c.purpose!==purpose||c.consumed_at!=null||c.superseded_at!=null||c.expires_at<=timestamp||c.attempts>=maxAttempts)return null;c.attempts++;return {out_id:c.out_id,expires_at:c.expires_at};}
   return null;
  },async run(){
   const a=this.args;
@@ -54,7 +55,7 @@ try{
  const oldProfile=await worker.fetch(new Request(API+"/api/profile",{headers:{origin:ORIGIN,cookie:"__Host-qd58_session="+otherToken}}),e);assert.equal(oldProfile.status,401);
 
  const resetUser={id:"pw-user-2",phone:"13900139000",password_hash:await hash(OLD,12),auth_version:1,deleted_at:""};
- const challenge={id:"otp-1",phone:resetUser.phone,out_id:"pnvs-1",expires_at:Math.floor(Date.now()/1000)+300,consumed_at:null,attempts:0,purpose:"password_reset"};
+ const challenge={id:"otp-1",phone:resetUser.phone,out_id:"pnvs-1",expires_at:Math.floor(Date.now()/1000)+300,consumed_at:null,superseded_at:null,attempts:0,purpose:"password_reset"};
  const resetToken="c".repeat(64),resetDb=makeDb({user:resetUser,sessions:[session(resetUser,await digest(resetToken))],challenge}),re=env(resetDb.db);
  const reset=await worker.fetch(req("/api/auth/password/reset",{phone:resetUser.phone,code:"246810",newPassword:NEW}),re);
  assert.equal(reset.status,200);assert.deepEqual(await reset.json(),{ok:true,sessionsRevoked:true});
