@@ -102,7 +102,9 @@ function assertInvalid(catalog, expectedMessage) {
 
 assert.equal(normalizeUniversityName(" 青岛-大学 "), "青岛大学");
 assert.equal(validateCatalog(base).valid, true, "empty template should be valid");
-assert.equal(validateCatalog({ ...base, universities: [mainland, hmt, overseas] }).valid, true, "one valid record per category should pass");
+const validCategories = validateCatalog({ ...base, universities: [mainland, hmt, overseas] });
+if (!validCategories.valid) console.error(validCategories.errors);
+assert.equal(validCategories.valid, true, "one valid record per category should pass");
 
 assertInvalid({ ...base, universities: [mainland, { ...mainland, official_school_code: null }] }, "重复 ID");
 assertInvalid({ ...base, universities: [mainland, { ...mainland, id: "mainland:CN-10002", official_school_code: null, name_zh: "示例-大学" }] }, "重复规范化名称");
