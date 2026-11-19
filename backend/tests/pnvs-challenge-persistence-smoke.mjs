@@ -223,7 +223,8 @@ try {
     purpose: "register", outId: "previous-out-id"
   };
   const resent = await runScenario("resend supersedes the previous code", { existingChallenges: [previousChallenge] });
-  assert.notEqual(resent.challenges.find(x => x.id === "previous-challenge")?.supersededAt, null,
+  const supersededPrevious = resent.challenges.find(x => x.id === "previous-challenge");
+  assert.ok(supersededPrevious && supersededPrevious.supersededAt != null,
     "a successful resend must atomically invalidate the previous challenge");
   assert.equal(resent.challenges.filter(x => x.supersededAt == null && x.consumedAt == null).length, 1,
     "only the newest persisted challenge remains active");
@@ -233,6 +234,15 @@ try {
   assert.equal(rejected.challenges.length, 0, "a definitively rejected send must not leave a verifiable challenge");
   assert([...rejected.rateLimits.values()].every(x => x.hit_count === 0),
     "a definitive rejection releases quota reservations");
+
+  const rejectedResend = await runScenario("rejected resend does not reactivate an older code", {
+    existingChallenges: [previousChallenge]
+  });
+  const rejectedOld = rejectedResend.challenges.find(x => x.id === "previous-challenge");
+  assert.ok(rejectedOld && rejectedOld.supersededAt != null,
+    "a definitive rejection must not reactivate the previous challenge");
+  assert.equal(rejectedResend.challenges.filter(x => x.supersededAt == null && x.consumedAt == null).length, 0,
+    "a rejected replacement leaves no active challenge until the user requests another code");
 
   const rolloverRejected = await runScenario("definitive rejection during a concurrent cooldown-window rollover", {
     simulateWindowRolloverAfterReservation: true
