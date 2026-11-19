@@ -69,9 +69,19 @@ function makeDb({ hash, otherMembers = 0, forceDeleteConflict = false } = {}) {
             return state.active && a[0] === USER_ID ? { password_hash: state.passwordHash, auth_version: 1 } : null;
           }
           if (sql.startsWith("SELECT t.id,")) return state.leadership;
-          if (sql.startsWith("SELECT id,out_id,expires_at,consumed_at,attempts FROM otp_challenges")) {
-            if (!state.challenge || state.challenge.phone !== a[0] || state.challenge.purpose !== a[1]) return null;
-            return { ...state.challenge };
+          if (sql.startsWith("SELECT id FROM otp_challenges WHERE phone=? AND purpose=?")) {
+            if (!state.challenge || state.challenge.phone !== a[0] || state.challenge.purpose !== a[1] ||
+                state.challenge.consumed_at != null || state.challenge.superseded_at != null) return null;
+            return { id: state.challenge.id };
+          }
+          if (sql.includes("UPDATE otp_challenges") && sql.includes("RETURNING out_id,expires_at")) {
+            const [id, phone, purpose, timestamp, maxAttempts] = a;
+            const c = state.challenge;
+            if (!c || c.id !== id || c.phone !== phone || c.purpose !== purpose ||
+                c.consumed_at != null || c.superseded_at != null ||
+                c.expires_at <= timestamp || c.attempts >= maxAttempts) return null;
+            c.attempts += 1;
+            return { out_id: c.out_id, expires_at: c.expires_at };
           }
           return null;
         },
@@ -90,10 +100,19 @@ function makeDb({ hash, otherMembers = 0, forceDeleteConflict = false } = {}) {
             }
             return { meta: { changes: 0 } };
           }
+          if (sql.startsWith("UPDATE otp_challenges SET superseded_at=?")) {
+            const [supersededAt, phone, purpose] = a;
+            if (state.challenge && state.challenge.phone === phone && state.challenge.purpose === purpose &&
+                state.challenge.consumed_at == null && state.challenge.superseded_at == null) {
+              state.challenge.superseded_at = supersededAt;
+              return { meta: { changes: 1 } };
+            }
+            return { meta: { changes: 0 } };
+          }
           if (sql.startsWith("INSERT INTO otp_challenges")) {
             state.challenge = {
               id: a[0], phone: a[1], code_hash: a[2], expires_at: a[3],
-              attempts: 0, consumed_at: null, created_at: a[4],
+              attempts: 0, consumed_at: null, superseded_at: null, created_at: a[4],
               purpose: a[5], out_id: a[6]
             };
             return { meta: { changes: 1 } };
@@ -104,8 +123,13 @@ function makeDb({ hash, otherMembers = 0, forceDeleteConflict = false } = {}) {
             return { meta: { changes: 1 } };
           }
           if (sql.startsWith("UPDATE otp_challenges SET consumed_at=?")) {
-            if (!state.challenge || state.challenge.consumed_at) return { meta: { changes: 0 } };
-            state.challenge.consumed_at = a[0];
+            const [consumedAt, id, phone, purpose, timestamp] = a;
+            const c = state.challenge;
+            if (!c || c.id !== id || c.phone !== phone || c.purpose !== purpose ||
+                c.consumed_at != null || c.superseded_at != null || c.expires_at <= timestamp) {
+              return { meta: { changes: 0 } };
+            }
+            c.consumed_at = consumedAt;
             state.challengeConsumed = true;
             return { meta: { changes: 1 } };
           }
@@ -153,7 +177,9 @@ function makeDb({ hash, otherMembers = 0, forceDeleteConflict = false } = {}) {
       };
     },
     async batch(statements) {
-      state.batchCount += 1;
+      if (statements.some(statement => statement.sql.startsWith("UPDATE users SET phone='deleted:'||id"))) {
+        state.batchCount += 1;
+      }
       const snapshot = {
         active: state.active, tombstone: state.tombstone, phone: state.phone,
         passwordHash: state.passwordHash,
