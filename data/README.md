@@ -44,6 +44,7 @@
     "city_name_zh": "青岛市"
   },
   "campus_structure": "multiple",
+  "has_branch_campus": null,
   "campus_info_status": "partial",
   "campuses": [
     {
@@ -51,6 +52,7 @@
       "name_zh": "主校区名称",
       "name_en": null,
       "is_main_campus": true,
+      "is_branch_campus": false,
       "location": {
         "country_code": "CN",
         "country_name_zh": "中国",
@@ -98,8 +100,11 @@
 - 海外：`country_code` 使用 ISO 3166-1 alpha-2；省/州和城市字段必须为 `null`，严格只到国家层级。
 - 不要把“校区多”误写成“分校”。`campus_structure` 描述校区数量；独立法人或独立招生高校应另建记录。
 
-### 校区完整度
+### 校区完整度与分校
 
+- `campus_structure` 记录单校区/多校区/未知；`has_branch_campus` 单独记录是否存在正式分校：`true`、`false` 或 `null`（未核实）。多校区不等于有分校。
+- 每个校区用 `is_branch_campus` 标记；主校区不能同时标记为分校。
+- 只有校区清单完整核验后，才能把 `has_branch_campus` 设为 `false`；若为 `true`，至少要有一条校区记录标记为分校。
 - `complete`：已核实校区列表，至少一个校区，且恰好一个主校区。
 - `partial`：只掌握部分校区；不得声称完整。
 - `not_collected`：尚未采集校区，`campuses` 必须为空。
