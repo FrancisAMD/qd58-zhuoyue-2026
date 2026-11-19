@@ -130,7 +130,7 @@ function checkUniversity(university, index, errors, seen) {
   }
   checkKeys(university, UNIVERSITY_KEYS, path, errors);
 
-  if (!/^[a-z0-9][a-z0-9._:-]{2,119}$/.test(String(university.id ?? ""))) errors.push(path + ".id: 格式无效");
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{2,119}$/.test(String(university.id ?? ""))) errors.push(path + ".id: 格式无效");
   if (seen.ids.has(university.id)) errors.push(path + ".id: 重复 ID " + university.id);
   seen.ids.add(university.id);
 
