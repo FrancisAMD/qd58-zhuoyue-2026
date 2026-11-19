@@ -9,9 +9,9 @@ const SCHOOL_TYPES = new Set(["comprehensive", "science_engineering", "normal", 
 const PROJECT_TAGS = new Set(["project_985_legacy", "project_211_legacy", "double_first_class_round1", "double_first_class_round2"]);
 const SOURCE_TYPES = new Set(["government", "education_authority", "institution", "other"]);
 const ROOT_KEYS = new Set(["$schema", "schema_version", "dataset_version", "generated_at", "universities"]);
-const UNIVERSITY_KEYS = new Set(["id", "official_school_code", "name_zh", "name_en", "aliases", "category", "degree_levels", "ownership", "school_type_tags", "project_tags", "double_first_class_disciplines", "location", "campus_structure", "campus_info_status", "campuses", "source_records", "verification", "status", "merged_into"]);
+const UNIVERSITY_KEYS = new Set(["id", "official_school_code", "name_zh", "name_en", "aliases", "category", "degree_levels", "ownership", "school_type_tags", "project_tags", "double_first_class_disciplines", "location", "campus_structure", "has_branch_campus", "campus_info_status", "campuses", "source_records", "verification", "status", "merged_into"]);
 const LOCATION_KEYS = new Set(["country_code", "country_name_zh", "country_name_en", "province_code", "province_name_zh", "city_name_zh"]);
-const CAMPUS_KEYS = new Set(["id", "name_zh", "name_en", "is_main_campus", "location"]);
+const CAMPUS_KEYS = new Set(["id", "name_zh", "name_en", "is_main_campus", "is_branch_campus", "location"]);
 const SOURCE_KEYS = new Set(["source_type", "publisher", "title", "url", "accessed_at", "supports_fields"]);
 const VERIFICATION_KEYS = new Set(["status", "verified_at", "verified_fields", "notes"]);
 
@@ -119,6 +119,8 @@ function checkCampus(campus, category, path, errors) {
   if (!/^[a-z0-9][a-z0-9._:-]{1,79}$/.test(String(campus.id ?? ""))) errors.push(path + ".id: 格式无效");
   if (!(nonEmptyString(campus.name_zh) || nonEmptyString(campus.name_en))) errors.push(path + ": name_zh 和 name_en 至少填写一个");
   if (typeof campus.is_main_campus !== "boolean") errors.push(path + ".is_main_campus: 必须是布尔值");
+  if (!(typeof campus.is_branch_campus === "boolean" || campus.is_branch_campus === null)) errors.push(path + ".is_branch_campus: 必须是布尔值或 null");
+  if (campus.is_main_campus === true && campus.is_branch_campus === true) errors.push(path + ": 主校区不能同时标记为分校");
   checkLocation(campus.location, category, path + ".location", errors);
 }
 
@@ -166,6 +168,7 @@ function checkUniversity(university, index, errors, seen) {
   checkLocation(university.location, category, path + ".location", errors);
 
   if (!["single", "multiple", "unknown"].includes(university.campus_structure)) errors.push(path + ".campus_structure: 不支持的值");
+  if (!(typeof university.has_branch_campus === "boolean" || university.has_branch_campus === null)) errors.push(path + ".has_branch_campus: 必须是布尔值或 null");
   if (!["complete", "partial", "not_collected", "unknown"].includes(university.campus_info_status)) errors.push(path + ".campus_info_status: 不支持的值");
   if (!Array.isArray(university.campuses)) {
     errors.push(path + ".campuses: 必须是数组");
@@ -181,6 +184,10 @@ function checkUniversity(university, index, errors, seen) {
       }
     });
     if (university.campus_info_status === "not_collected" && university.campuses.length > 0) errors.push(path + ".campuses: not_collected 时必须为空数组");
+    if (university.campus_info_status === "complete" && university.campuses.some(campus => !isObject(campus) || typeof campus.is_branch_campus !== "boolean")) errors.push(path + ".campuses: complete 时每个校区都必须核实是否为分校");
+    if (university.has_branch_campus === false && university.campus_info_status !== "complete") errors.push(path + ".has_branch_campus: 只有完整核实校区清单后才能确认没有分校");
+    if (university.has_branch_campus === true && !university.campuses.some(campus => isObject(campus) && campus.is_branch_campus === true)) errors.push(path + ".has_branch_campus: 标记有分校时至少需要一条分校记录");
+    if (university.has_branch_campus === false && university.campuses.some(campus => isObject(campus) && campus.is_branch_campus === true)) errors.push(path + ".has_branch_campus: 与分校记录冲突");
     if (university.campus_info_status === "complete") {
       if (university.campuses.length === 0) errors.push(path + ".campuses: complete 时至少需要一个校区");
       if (mainCount !== 1) errors.push(path + ".campuses: complete 时必须且只能有一个主校区");
