@@ -349,9 +349,16 @@ async function sendCode(phone, purpose, token, request, env) {
     // Persist the provider correlation ID before sending. If PNVS accepts the
     // SMS but the subsequent D1 write fails, the user would otherwise receive
     // a code that the application can never verify.
-    const stored = await env.DB.prepare("INSERT INTO otp_challenges(id,phone,code_hash,expires_at,attempts,consumed_at,created_at,purpose,out_id) VALUES(?,?,?, ?,0,NULL,?,?,?)")
-      .bind(challengeId,phone,"ALIYUN",now()+Number(env.OTP_TTL_SECONDS || OTP_SECONDS),now(),purpose,outId).run();
-    if ((stored.meta?.changes || 0) !== 1) throw new Error("otp_challenge_store_failed");
+    // Supersede older challenges and persist the new provider correlation ID
+    // atomically. A resend intentionally invalidates the previous code even if
+    // the provider later definitively rejects this delivery attempt.
+    const stored = await env.DB.batch([
+      env.DB.prepare("UPDATE otp_challenges SET superseded_at=? WHERE phone=? AND purpose=? AND consumed_at IS NULL AND superseded_at IS NULL")
+        .bind(now(),phone,purpose),
+      env.DB.prepare("INSERT INTO otp_challenges(id,phone,code_hash,expires_at,attempts,consumed_at,created_at,purpose,out_id) VALUES(?,?,?, ?,0,NULL,?,?,?)")
+        .bind(challengeId,phone,"ALIYUN",now()+Number(env.OTP_TTL_SECONDS || OTP_SECONDS),now(),purpose,outId)
+    ]);
+    if ((stored[1]?.meta?.changes || 0) !== 1) throw new Error("otp_challenge_store_failed");
 
     const params = {
       CountryCode: "86", PhoneNumber: phone,
@@ -393,13 +400,35 @@ async function sendCode(phone, purpose, token, request, env) {
 
 async function verifyCode(phone, code, purpose, env) {
   if (!validPhone(phone) || !/^\d{4,8}$/.test(String(code || ""))) throw err("invalid_code");
-  const challenge = await env.DB.prepare("SELECT id,out_id,expires_at,consumed_at,attempts FROM otp_challenges WHERE phone=? AND purpose=? ORDER BY created_at DESC LIMIT 1").bind(phone,purpose).first();
-  if (!challenge || challenge.consumed_at || challenge.expires_at < now() || challenge.attempts >= 5) throw err("invalid_code");
-  const attempt = await env.DB.prepare("UPDATE otp_challenges SET attempts=attempts+1 WHERE id=? AND consumed_at IS NULL AND attempts<5").bind(challenge.id).run();
-  if ((attempt.meta?.changes || 0) !== 1) throw err("invalid_code");
-  const checked = await aliyun("CheckSmsVerifyCode", { CountryCode:"86", PhoneNumber:phone, VerifyCode:String(code), OutId:challenge.out_id, SchemeName:env.ALIBABA_SCHEME_NAME || undefined }, env);
+  const challenge = await env.DB.prepare("SELECT id FROM otp_challenges WHERE phone=? AND purpose=? AND consumed_at IS NULL AND superseded_at IS NULL ORDER BY created_at DESC LIMIT 1").bind(phone,purpose).first();
+  if (!challenge) throw err("invalid_code");
+
+  // Reserve one verification attempt atomically. The expiry, purpose, phone,
+  // supersession and attempt ceiling are checked by the same D1 write.
+  const configuredMaxAttempts = Number(env.OTP_MAX_ATTEMPTS || 5);
+  const maxAttempts = Number.isInteger(configuredMaxAttempts)
+    ? Math.min(10, Math.max(1, configuredMaxAttempts))
+    : 5;
+  const attempt = await env.DB.prepare(`UPDATE otp_challenges
+    SET attempts=attempts+1
+    WHERE id=? AND phone=? AND purpose=? AND consumed_at IS NULL
+      AND superseded_at IS NULL AND expires_at>? AND attempts<?
+    RETURNING out_id,expires_at`).bind(challenge.id,phone,purpose,now(),maxAttempts).first();
+  if (!attempt?.out_id) throw err("invalid_code");
+
+  const checked = await aliyun("CheckSmsVerifyCode", {
+    CountryCode:"86", PhoneNumber:phone, VerifyCode:String(code),
+    OutId:attempt.out_id, SchemeName:env.ALIBABA_SCHEME_NAME || undefined
+  }, env);
   if (checked.Model?.VerifyResult !== "PASS") throw err("invalid_code");
-  const consumed = await env.DB.prepare("UPDATE otp_challenges SET consumed_at=? WHERE id=? AND consumed_at IS NULL").bind(now(),challenge.id).run();
+
+  // PNVS verification is an external round trip: the challenge may expire,
+  // be superseded by a resend, or be consumed by another request meanwhile.
+  // Recheck all one-time conditions at the final atomic consume point.
+  const consumedAt = now();
+  const consumed = await env.DB.prepare(`UPDATE otp_challenges SET consumed_at=?
+    WHERE id=? AND phone=? AND purpose=? AND consumed_at IS NULL
+      AND superseded_at IS NULL AND expires_at>?`).bind(consumedAt,challenge.id,phone,purpose,consumedAt).run();
   if ((consumed.meta?.changes || 0) !== 1) throw err("invalid_code");
 }
 async function register(data, env) {
@@ -445,7 +474,7 @@ async function route(request, env) {
   const url=new URL(request.url), path=url.pathname, method=request.method, origin=request.headers.get("Origin");
   if(method==="OPTIONS") return new Response(null,{status:204,headers:corsHeaders(origin,env)});
   if(origin && origin!==env.APP_ORIGIN) return response({error:"origin_forbidden"},403,origin,env);
-  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"auth-timing-20261118",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
+  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"otp-lifecycle-20261119",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
   if(path==="/api/auth/register/request-code" && method==="POST") {
     try { const d=await body(request); if(d.accountConsent !== true) return response({error:"consent_required"},400,origin,env); return response(await sendCode(String(d.phone||""),"register",d.turnstileToken,request,env),200,origin,env); }
     catch(e) {
