@@ -196,7 +196,7 @@ try {
     const responses = await Promise.all([callReset(db), callReset(db)]);
     barrier = null;
     const statuses = responses.map(r => r.status).sort((a,b) => a-b);
-    assert.deepEqual(statuses, [400, 200]);
+    assert.deepEqual(statuses, [200, 400]);
     assert.equal(state.challenge.attempts, 2);
     assert.notEqual(state.challenge.consumed_at, null);
     assert.equal(state.user.auth_version, 2);
