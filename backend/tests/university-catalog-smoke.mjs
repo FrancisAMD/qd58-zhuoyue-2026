@@ -24,12 +24,14 @@ const mainland = {
   double_first_class_disciplines: [],
   location: mainlandLocation,
   campus_structure: "single",
+  has_branch_campus: false,
   campus_info_status: "complete",
   campuses: [{
     id: "main",
     name_zh: "主校区",
     name_en: null,
     is_main_campus: true,
+    is_branch_campus: false,
     location: mainlandLocation
   }],
   source_records: [],
@@ -60,6 +62,7 @@ const hmt = {
     city_name_zh: null
   },
   campus_structure: "unknown",
+  has_branch_campus: null,
   campus_info_status: "not_collected",
   campuses: []
 };
@@ -81,6 +84,7 @@ const overseas = {
     city_name_zh: null
   },
   campus_structure: "unknown",
+  has_branch_campus: null,
   campus_info_status: "unknown",
   campuses: []
 };
@@ -105,6 +109,21 @@ assert.equal(validateCatalog(base).valid, true, "empty template should be valid"
 const validCategories = validateCatalog({ ...base, universities: [mainland, hmt, overseas] });
 if (!validCategories.valid) console.error(validCategories.errors);
 assert.equal(validCategories.valid, true, "one valid record per category should pass");
+const branched = {
+  ...mainland,
+  id: "mainland:CN-10003",
+  official_school_code: "10003",
+  name_zh: "示例分校大学",
+  campus_structure: "multiple",
+  has_branch_campus: true,
+  campuses: [
+    { ...mainland.campuses[0], id: "main", is_main_campus: true, is_branch_campus: false },
+    { ...mainland.campuses[0], id: "branch", name_zh: "分校区", is_main_campus: false, is_branch_campus: true }
+  ]
+};
+assert.equal(validateCatalog({ ...base, universities: [branched] }).valid, true, "explicit branch campus should pass");
+assertInvalid({ ...base, universities: [{ ...mainland, has_branch_campus: false, campus_info_status: "partial" }] }, "只有完整核实校区清单后才能确认没有分校");
+
 
 assertInvalid({ ...base, universities: [mainland, { ...mainland, official_school_code: null }] }, "重复 ID");
 assertInvalid({ ...base, universities: [mainland, { ...mainland, id: "mainland:CN-10002", official_school_code: null, name_zh: "示例-大学" }] }, "重复规范化名称");
