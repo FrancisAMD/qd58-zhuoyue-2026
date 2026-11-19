@@ -20,6 +20,8 @@ jobs:
       - run: npm ci
       - run: npm run check:worker
       - run: npm run test:worker
+      - run: npm run test:catalog
+      - run: npm run validate:universities -- data/university-catalog.template.json
       - run: python scripts/check-frontend-html.py
       - run: python backend/tests/schema-smoke.py
       - run: python backend/tests/xlsx-export-smoke.py
