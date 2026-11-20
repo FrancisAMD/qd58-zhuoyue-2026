@@ -7,12 +7,54 @@ db.execute("PRAGMA foreign_keys = ON")
 for migration in migrations:
     if migration.name == "0005_explicit_consent.sql":
         db.execute("INSERT INTO users(id,phone,consent_at) VALUES(?,?,?)", ("legacy-consent","13800000099","2026-11-11T00:00:00Z"))
+    if migration.name == "0013_university_catalog_relational.sql":
+        # Prove the additive catalog migration preserves legacy IDs and memberships.
+        db.execute(
+            "INSERT INTO universities(id,canonical_name,normalized_name,category,region_name,education_level,partner_name) VALUES(?,?,?,?,?,?,?)",
+            ("legacy-sino-foreign", "示例中外合作大学", "sino_foreign:示例中外合作大学", "sino_foreign", "上海", "undergraduate", "Partner University"),
+        )
+        db.execute(
+            "INSERT INTO users(id,phone,consent_at,university_id) VALUES(?,?,?,?)",
+            ("legacy-catalog-user", "13800000009", "2026-11-20T00:00:00Z", "legacy-sino-foreign"),
+        )
+        db.execute(
+            "INSERT INTO teams(id,university_id,leader_user_id) VALUES(?,?,?)",
+            ("legacy-catalog-team", "legacy-sino-foreign", "legacy-catalog-user"),
+        )
     db.executescript(migration.read_text(encoding="utf-8"))
 
 assert db.execute("SELECT consent_given,consent_at,consent_version,account_consent_at,account_consent_version FROM users WHERE id=?", ("legacy-consent",)).fetchone() == (0, "", "", "", "")
 
 university_columns = {row[1] for row in db.execute("PRAGMA table_info(universities)")}
 assert {"category", "region_name", "education_level", "project_tags_json", "partner_name"} <= university_columns
+catalog_columns = {
+    "catalog_id", "catalog_normalized_name", "official_school_code", "name_en",
+    "country_code", "country_name_zh", "country_name_en", "province_code",
+    "province_name_zh", "city_name_zh", "degree_levels_json", "ownership",
+    "campus_structure", "has_branch_campus", "campus_info_status",
+    "verification_status", "verified_at", "verified_fields_json",
+    "verification_notes", "catalog_status", "merged_into",
+    "catalog_dataset_version", "catalog_updated_at", "catalog_source_count"
+}
+assert catalog_columns <= university_columns
+catalog_tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+assert {"university_aliases", "university_tags", "university_campuses", "university_sources", "university_catalog_imports"} <= catalog_tables
+catalog_indexes = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='index'")}
+assert {
+    "idx_universities_catalog_id", "idx_universities_catalog_normalized_name",
+    "idx_universities_catalog_school_code", "idx_universities_catalog_category_status",
+    "idx_university_aliases_normalized", "idx_university_tags_lookup",
+    "idx_university_one_main_campus", "idx_university_campuses_name",
+    "idx_university_sources_accessed", "idx_university_catalog_imports_imported"
+} <= catalog_indexes
+
+# Legacy universities and their user/team foreign keys are not rewritten by 0013.
+legacy = db.execute(
+    "SELECT category,partner_name,catalog_id,verification_status,catalog_status FROM universities WHERE id='legacy-sino-foreign'"
+).fetchone()
+assert legacy == ("sino_foreign", "Partner University", None, "draft", "active")
+assert db.execute("SELECT university_id FROM users WHERE id='legacy-catalog-user'").fetchone()[0] == "legacy-sino-foreign"
+assert db.execute("SELECT leader_user_id FROM teams WHERE id='legacy-catalog-team'").fetchone()[0] == "legacy-catalog-user"
 user_columns = {row[1] for row in db.execute("PRAGMA table_info(users)")}
 assert {"consent_given", "consent_version", "account_consent_at", "account_consent_version", "auth_version"} <= user_columns
 session_columns = {row[1] for row in db.execute("PRAGMA table_info(sessions)")}
@@ -113,4 +155,123 @@ must_fail("UPDATE users SET name='restore' WHERE id='u-solo'")
 must_fail("INSERT INTO teams(id,university_id,leader_user_id) VALUES(?,?,?)", ("bad-deleted-leader","uni5","u-solo"))
 assert db.execute("SELECT leader_user_id FROM teams WHERE id='t-solo'").fetchone()[0] is None
 
-print("D1 schema tests: PASS (all migrations, consent defaults, team/transfer invariants, admin owner protection and account anonymization guards).")
+# University catalog relational schema constraints and foreign-key behavior.
+db.execute(
+    """INSERT INTO universities(
+        id,canonical_name,normalized_name,category,catalog_id,catalog_normalized_name,
+        official_school_code,name_en,country_code,country_name_zh,country_name_en,
+        province_code,province_name_zh,city_name_zh,degree_levels_json,ownership,
+        campus_structure,has_branch_campus,campus_info_status,verification_status,
+        verified_at,verified_fields_json,verification_notes,catalog_status,
+        catalog_dataset_version,catalog_updated_at,catalog_source_count
+    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+    (
+        "mainland:CN-10001", "示例大学", "catalog:mainland:CN-10001", "mainland",
+        "mainland:CN-10001", "mainland:CN:示例大学", "10001", "Example University",
+        "CN", "中国", "China", "CN-37", "山东省", "青岛市", '["undergraduate"]',
+        "public", "multiple", 1, "complete", "verified",
+        "2026-11-20T00:00:00Z", '["name_zh","category","degree_levels","location"]',
+        "测试核验记录", "active", "2026-11-20", "2026-11-20T00:00:00Z", 1
+    ),
+)
+assert db.execute("SELECT catalog_id,catalog_normalized_name,category FROM universities WHERE id='mainland:CN-10001'").fetchone() == (
+    "mainland:CN-10001", "mainland:CN:示例大学", "mainland"
+)
+must_fail(
+    """INSERT INTO universities(id,canonical_name,normalized_name,category,catalog_id,catalog_normalized_name)
+       VALUES(?,?,?,?,?,?)""",
+    ("mainland:CN-10002", "另一所大学", "catalog:mainland:CN-10002", "mainland", "mainland:CN-10001", "mainland:CN:另一所大学"),
+)
+must_fail(
+    """INSERT INTO universities(id,canonical_name,normalized_name,category,catalog_id,catalog_normalized_name)
+       VALUES(?,?,?,?,?,?)""",
+    ("bad-catalog-category", "非法分类", "catalog:bad", "sino_foreign", "mainland:CN-10003", "mainland:CN:非法分类"),
+)
+must_fail(
+    "UPDATE universities SET degree_levels_json='not-json' WHERE id='mainland:CN-10001'"
+)
+must_fail(
+    "UPDATE universities SET catalog_status='merged',merged_into=NULL WHERE id='mainland:CN-10001'"
+)
+
+db.execute(
+    "INSERT INTO university_aliases(university_id,alias,normalized_alias) VALUES(?,?,?)",
+    ("mainland:CN-10001", "示例大", "示例大"),
+)
+must_fail(
+    "INSERT INTO university_aliases(university_id,alias,normalized_alias) VALUES(?,?,?)",
+    ("mainland:CN-10001", "示例大学简称", "示例大"),
+)
+db.execute(
+    "INSERT INTO university_tags(university_id,tag_group,tag_code) VALUES(?,?,?)",
+    ("mainland:CN-10001", "project", "project_985_legacy"),
+)
+must_fail(
+    "INSERT INTO university_tags(university_id,tag_group,tag_code) VALUES(?,?,?)",
+    ("mainland:CN-10001", "invalid-group", "tag"),
+)
+
+db.execute(
+    """INSERT INTO university_campuses(
+        university_id,campus_key,name_zh,is_main_campus,is_branch_campus,
+        country_code,country_name_zh,province_code,province_name_zh,city_name_zh
+    ) VALUES(?,?,?,?,?,?,?,?,?,?)""",
+    ("mainland:CN-10001", "main", "主校区", 1, 0, "CN", "中国", "CN-37", "山东省", "青岛市"),
+)
+db.execute(
+    """INSERT INTO university_campuses(
+        university_id,campus_key,name_zh,is_main_campus,is_branch_campus,
+        country_code,country_name_zh,province_code,province_name_zh,city_name_zh
+    ) VALUES(?,?,?,?,?,?,?,?,?,?)""",
+    ("mainland:CN-10001", "branch", "分校区", 0, 1, "CN", "中国", "CN-37", "山东省", "青岛市"),
+)
+must_fail(
+    """INSERT INTO university_campuses(
+        university_id,campus_key,name_zh,is_main_campus,is_branch_campus,country_code,country_name_zh
+    ) VALUES(?,?,?,?,?,?,?)""",
+    ("mainland:CN-10001", "second-main", "另一个主校区", 1, 0, "CN", "中国"),
+)
+must_fail(
+    """INSERT INTO university_campuses(
+        university_id,campus_key,name_zh,is_main_campus,is_branch_campus,country_code,country_name_zh
+    ) VALUES(?,?,?,?,?,?,?)""",
+    ("mainland:CN-10001", "bad-main", "错误主校区", 1, 1, "CN", "中国"),
+)
+
+db.execute(
+    """INSERT INTO university_sources(
+        university_id,source_type,publisher,title,url,accessed_at,supports_fields_json
+    ) VALUES(?,?,?,?,?,?,?)""",
+    ("mainland:CN-10001", "education_authority", "示例教育主管部门", "高校名单",
+     "https://example.edu.cn/list", "2026-11-20", '["name_zh","location"]'),
+)
+must_fail(
+    """INSERT INTO university_sources(
+        university_id,source_type,publisher,title,url,accessed_at,supports_fields_json
+    ) VALUES(?,?,?,?,?,?,?)""",
+    ("mainland:CN-10001", "education_authority", "示例教育主管部门", "错误来源",
+     "http://example.edu.cn/list", "2026-11-20", "[]"),
+)
+must_fail(
+    """INSERT INTO university_sources(
+        university_id,source_type,publisher,title,url,accessed_at,supports_fields_json
+    ) VALUES(?,?,?,?,?,?,?)""",
+    ("mainland:CN-10001", "education_authority", "示例教育主管部门", "错误 JSON",
+     "https://example.edu.cn/other", "2026-11-20", "not-json"),
+)
+
+db.execute(
+    """INSERT INTO university_catalog_imports(
+        dataset_version,checksum_sha256,imported_at,record_count,inserted_count,status
+    ) VALUES(?,?,?,?,?,?)""",
+    ("2026-11-20", "a" * 64, "2026-11-20T00:00:00Z", 1, 1, "applied"),
+)
+must_fail(
+    """INSERT INTO university_catalog_imports(
+        dataset_version,checksum_sha256,imported_at,record_count,status
+    ) VALUES(?,?,?,?,?)""",
+    ("2026-11-21", "bad-checksum", "2026-11-21T00:00:00Z", 0, "applied"),
+)
+assert db.execute("PRAGMA foreign_key_check").fetchall() == []
+
+print("D1 schema tests: PASS (all migrations, legacy compatibility, catalog constraints, team/transfer invariants, RBAC and account anonymization).")

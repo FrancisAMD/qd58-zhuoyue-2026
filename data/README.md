@@ -137,6 +137,29 @@ npm run test:catalog
 
 校验器检查 JSON 结构、枚举、分类与地域约束、重复 ID/学校代码/规范化名称、校区完整度和来源核验要求。校验通过只代表格式和内部规则通过，不代表官方事实已被独立审查。
 
+## D1 关系型结构（迁移 0013）
+
+迁移 \`0013_university_catalog_relational.sql\` 是**只增不改的兼容迁移**，不重建 \`universities\`，不修改现有 \`universities.id\`，也不更新 \`users.university_id\` 或 \`teams.university_id\`。
+
+| JSON 字段 | D1 存储 |
+| --- | --- |
+| \`id\` | \`universities.catalog_id\`（稳定目录 ID） |
+| 规范化名称 | \`universities.catalog_normalized_name\`（包含分类和国家代码，与旧 \`normalized_name\` 分离） |
+| \`official_school_code\`、中英文名 | \`universities\` 主表 |
+| \`location\` | \`universities\` 的国家、省、市字段 |
+| \`degree_levels\` | \`universities.degree_levels_json\`，同时写入 \`university_tags\` |
+| \`ownership\`、校区完整度、分校状态 | \`universities\` 主表 |
+| \`school_type_tags\`、\`project_tags\`、双一流学科 | \`university_tags\`，分别使用 \`school_type\`、\`project\`、\`double_first_class_discipline\` 分组 |
+| \`aliases\` | \`university_aliases\` |
+| \`campuses\` | \`university_campuses\` |
+| \`source_records\` | \`university_sources\` |
+| \`verification\`、\`status\`、合并目标 | \`universities\` 主表 |
+| 导入批次 | \`university_catalog_imports\` |
+
+旧 \`normalized_name\` 的唯一规则早于国际高校目录，不能承担“同名学校按国家区分”的新语义；目录查询应使用 \`catalog_normalized_name\`。\`catalog_id IS NOT NULL\` 是目录正式记录的识别条件。旧的 \`sino_foreign\` 和 \`unclassified\` 行会保留原样，待后续显式对账，不在迁移时自动合并。
+
+本迁移只扩展结构，不导入高校名单、不改变现有队伍、不触碰生产 D1。生产应用前仍需先备份并确认 0012 已按序应用；迁移执行状态以目标 D1 的 \`d1_migrations\` 为准。
+
 ## 导入原则（后续里程碑）
 
 1. 先在本地运行校验器，失败时禁止导入。
