@@ -181,8 +181,7 @@
         "supports_fields": {
           "type": "array",
           "items": {
-            "type": "string",
-            "minLength": 1
+            "$ref": "#/$defs/catalogField"
           },
           "uniqueItems": true
         }
@@ -379,8 +378,7 @@
             "verified_fields": {
               "type": "array",
               "items": {
-                "type": "string",
-                "minLength": 1
+                "$ref": "#/$defs/catalogField"
               },
               "uniqueItems": true
             },
@@ -536,6 +534,26 @@
             }
           }
         }
+      ]
+    },
+    "catalogField": {
+      "type": "string",
+      "enum": [
+        "official_school_code",
+        "name_zh",
+        "name_en",
+        "aliases",
+        "category",
+        "degree_levels",
+        "ownership",
+        "school_type_tags",
+        "project_tags",
+        "double_first_class_disciplines",
+        "location",
+        "campus_structure",
+        "has_branch_campus",
+        "campus_info_status",
+        "campuses"
       ]
     }
   }
