@@ -14,6 +14,7 @@ const LOCATION_KEYS = new Set(["country_code", "country_name_zh", "country_name_
 const CAMPUS_KEYS = new Set(["id", "name_zh", "name_en", "is_main_campus", "is_branch_campus", "location"]);
 const SOURCE_KEYS = new Set(["source_type", "publisher", "title", "url", "accessed_at", "supports_fields"]);
 const VERIFICATION_KEYS = new Set(["status", "verified_at", "verified_fields", "notes"]);
+const EVIDENCE_FIELDS = new Set(["official_school_code", "name_zh", "name_en", "aliases", "category", "degree_levels", "ownership", "school_type_tags", "project_tags", "double_first_class_disciplines", "location", "campus_structure", "has_branch_campus", "campus_info_status", "campuses"]);
 
 export function normalizeUniversityName(value) {
   return String(value ?? "").normalize("NFKC").toLocaleLowerCase("und").replace(/[\s\p{P}\p{S}]+/gu, "");
@@ -103,11 +104,12 @@ function checkSource(source, path, errors) {
   try {
     const url = new URL(source.url);
     if (url.protocol !== "https:") errors.push(path + ".url: 来源链接必须使用 HTTPS");
+    if (url.username || url.password) errors.push(path + ".url: 来源链接不能包含用户名或密码");
   } catch {
     errors.push(path + ".url: 必须是有效的 HTTPS URL");
   }
   if (!validDate(source.accessed_at)) errors.push(path + ".accessed_at: 必须是有效的 YYYY-MM-DD 日期");
-  checkStringArray(source.supports_fields, path + ".supports_fields", errors, null, 1);
+  checkStringArray(source.supports_fields, path + ".supports_fields", errors, EVIDENCE_FIELDS, 1);
 }
 
 function checkCampus(campus, category, path, errors) {
@@ -154,6 +156,11 @@ function checkUniversity(university, index, errors, seen) {
 
   if (!CATEGORIES.has(university.category)) errors.push(path + ".category: 只能是 mainland、hmt 或 overseas");
   const category = CATEGORIES.has(university.category) ? university.category : "invalid";
+  const id = String(university.id ?? "");
+  const countryCode = university.location?.country_code;
+  if (category === "mainland" && !id.startsWith("mainland:")) errors.push(path + ".id: mainland 高校必须以 mainland: 开头");
+  if (category === "hmt" && !id.startsWith("hmt:" + countryCode + ":")) errors.push(path + ".id: hmt 高校 ID 必须与 HK/MO/TW 地区代码一致");
+  if (category === "overseas" && !id.startsWith("overseas:" + countryCode + ":")) errors.push(path + ".id: overseas 高校 ID 必须与国家代码一致");
   const degrees = checkStringArray(university.degree_levels, path + ".degree_levels", errors, DEGREE_LEVELS, 1);
   if (category === "mainland" && !degrees.includes("undergraduate")) errors.push(path + ".degree_levels: 内地目录只收本科高校，必须包含 undergraduate");
   if (!OWNERSHIP.has(university.ownership)) errors.push(path + ".ownership: 不支持的值");
@@ -212,15 +219,33 @@ function checkUniversity(university, index, errors, seen) {
     checkKeys(verification, VERIFICATION_KEYS, path + ".verification", errors);
     if (!["draft", "needs_review", "verified"].includes(verification.status)) errors.push(path + ".verification.status: 不支持的值");
     if (!(verification.verified_at === null || validDateTime(verification.verified_at))) errors.push(path + ".verification.verified_at: 必须是有效日期时间或 null");
-    checkStringArray(verification.verified_fields, path + ".verification.verified_fields", errors);
+    const verifiedFields = checkStringArray(verification.verified_fields, path + ".verification.verified_fields", errors, EVIDENCE_FIELDS);
     if (typeof verification.notes !== "string") errors.push(path + ".verification.notes: 必须是字符串");
     if (verification.status === "verified") {
       if (!validDateTime(verification.verified_at)) errors.push(path + ".verification: verified 必须填写 verified_at");
       if (!Array.isArray(verification.verified_fields) || verification.verified_fields.length === 0) errors.push(path + ".verification: verified 必须列出 verified_fields");
-      const hasPrimarySource = Array.isArray(university.source_records) && university.source_records.some(source =>
-        isObject(source) && ["government", "education_authority", "institution"].includes(source.source_type)
-      );
-      if (!hasPrimarySource) errors.push(path + ".verification: verified 必须有政府、教育主管部门或高校官方来源");
+      const officialSources = Array.isArray(university.source_records)
+        ? university.source_records.filter(source => isObject(source) && ["government", "education_authority", "institution"].includes(source.source_type))
+        : [];
+      if (officialSources.length === 0) errors.push(path + ".verification: verified 必须有政府、教育主管部门或高校官方来源");
+      const officialCoverage = new Set(officialSources.flatMap(source => Array.isArray(source.supports_fields) ? source.supports_fields : []));
+      for (const field of verifiedFields) {
+        if (!officialCoverage.has(field)) errors.push(path + ".verification: 官方来源未覆盖 verified_fields 中的 " + field);
+      }
+      const requiredVerifiedFields = [
+        nonEmptyString(university.name_zh) ? "name_zh" : "name_en",
+        "category",
+        "degree_levels",
+        "location"
+      ];
+      if (nonEmptyString(university.official_school_code)) requiredVerifiedFields.push("official_school_code");
+      if (Array.isArray(university.project_tags) && university.project_tags.length > 0) requiredVerifiedFields.push("project_tags");
+      if (Array.isArray(university.double_first_class_disciplines) && university.double_first_class_disciplines.length > 0) requiredVerifiedFields.push("double_first_class_disciplines");
+      if (university.campus_info_status === "complete") requiredVerifiedFields.push("campuses", "campus_structure", "has_branch_campus");
+      for (const field of requiredVerifiedFields) {
+        if (!verifiedFields.includes(field)) errors.push(path + ".verification: verified 缺少必需核验字段 " + field);
+        if (!officialCoverage.has(field)) errors.push(path + ".verification: 官方来源未覆盖必需字段 " + field);
+      }
     }
   }
 
