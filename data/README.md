@@ -119,6 +119,13 @@
 - 不允许 AI 补造 URL、学校代码、校区名称、985/211/双一流资格或学科名单。无法确认就留空、标记待核验。
 - `status=merged` 时必须填写 `merged_into`，表示合并到的记录 ID；其他状态下设为 `null`。
 
+## 证据字段与 verified 状态
+
+source_records[].supports_fields 只能引用目录中的事实字段：official_school_code、name_zh、name_en、aliases、category、degree_levels、ownership、school_type_tags、project_tags、double_first_class_disciplines、location、campus_structure、has_branch_campus、campus_info_status、campuses。
+
+verification.status=verified 不再只检查“存在一个官方来源”：每个 verified_fields 都必须被至少一条政府、教育主管部门或高校官方来源明确覆盖；并且必须核验名称、分类、学历层次和地域。若填了学校代码、项目标签、双一流学科或声明校区清单完整，也必须有相应字段级来源支持。来源 URL 必须为 HTTPS，且不得嵌入用户名或密码。
+
+高校 ID 前缀必须与分类及地区一致：内地 mainland:，港澳台 hmt:HK|MO|TW:，海外 overseas:<ISO 国家代码>:。这有助于目录导入和排查数据错配；正式导入仍以稳定 ID 为准，不按名称重建主键。
 ## 生成与校验
 
 复制模板为 `data/university-catalog.json`，更新 `dataset_version`，再逐条填入高校记录。校验命令：
