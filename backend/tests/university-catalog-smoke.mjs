@@ -109,6 +109,25 @@ assert.equal(validateCatalog(base).valid, true, "empty template should be valid"
 const validCategories = validateCatalog({ ...base, universities: [mainland, hmt, overseas] });
 if (!validCategories.valid) console.error(validCategories.errors);
 assert.equal(validCategories.valid, true, "one valid record per category should pass");
+const verifiedMainland = {
+  ...mainland,
+  source_records: [{
+    source_type: "education_authority",
+    publisher: "示例教育主管部门",
+    title: "示例高校名录",
+    url: "https://example.edu.cn/universities",
+    accessed_at: "2026-11-20",
+    supports_fields: ["official_school_code", "name_zh", "category", "degree_levels", "location", "campuses", "campus_structure", "has_branch_campus"]
+  }],
+  verification: {
+    status: "verified",
+    verified_at: "2026-11-20T00:00:00Z",
+    verified_fields: ["official_school_code", "name_zh", "category", "degree_levels", "location", "campuses", "campus_structure", "has_branch_campus"],
+    notes: "仅用于校验器测试"
+  }
+};
+assert.equal(validateCatalog({ ...base, universities: [verifiedMainland] }).valid, true,
+  "verified records must pass when official sources cover every verified and required field");
 const branched = {
   ...mainland,
   id: "mainland:CN-10003",
@@ -134,5 +153,12 @@ assertInvalid({ ...base, universities: [{ ...mainland, verification: { status: "
 assertInvalid({ ...base, universities: [{ ...mainland, campus_structure: "multiple" }] }, "multiple 且 complete 时至少需要两个校区");
 assertInvalid({ ...base, universities: [{ ...mainland, status: "merged", merged_into: "mainland:CN-missing" }] }, "目标记录不存在");
 assertInvalid({ ...base, universities: [{ ...mainland, unexpected_sensitive_field: "should not be here" }] }, "未定义字段");
+
+assertInvalid({ ...base, universities: [{ ...mainland, id: "hmt:HK:wrong-prefix", category: "hmt", location: { ...mainlandLocation, country_code: "HK", province_code: null, province_name_zh: null, city_name_zh: null } }] }, "hmt 高校 ID 必须与 HK/MO/TW 地区代码一致");
+assertInvalid({ ...base, universities: [{ ...mainland, source_records: [{ source_type: "institution", publisher: "学校官网", title: "学校简介", url: "https://example.edu.cn", accessed_at: "2026-11-20", supports_fields: ["not_a_catalog_field"] }] }] }, "不支持的值 not_a_catalog_field");
+assertInvalid({ ...base, universities: [{ ...mainland, source_records: [{ source_type: "institution", publisher: "学校官网", title: "学校简介", url: "https://user:secret@example.edu.cn", accessed_at: "2026-11-20", supports_fields: ["name_zh"] }] }] }, "来源链接不能包含用户名或密码");
+assertInvalid({ ...base, universities: [{ ...verifiedMainland, source_records: [{ ...verifiedMainland.source_records[0], supports_fields: ["name_zh", "category"] }] }] }, "官方来源未覆盖");
+assertInvalid({ ...base, universities: [{ ...verifiedMainland, verification: { ...verifiedMainland.verification, verified_fields: ["name_zh", "category"] } }] }, "verified 缺少必需核验字段");
+assertInvalid({ ...base, universities: [mainland, { ...mainland, id: "mainland:CN-10002", name_zh: "另一所示例大学" }] }, "重复学校代码");
 
 console.log("university-catalog-smoke: all assertions passed");
