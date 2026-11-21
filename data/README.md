@@ -176,7 +176,7 @@ npm run test:catalog
 
 ### 生成不含个人信息的现有高校快照
 
-只有在目标 D1 已按顺序应用 `0013_university_catalog_relational.sql` 后，才执行 `university-catalog-snapshot.sql` 中的两个只读 SELECT。它们只读取 `universities` 与 `university_catalog_imports`，不读取 users、teams、手机号、Session、验证码或审计详情。将两组结果整理到 `data/university-catalog-existing.snapshot.json`，结构参考 `university-catalog-existing.snapshot.template.json`。
+只有在目标 D1 已按顺序应用 `0013_university_catalog_relational.sql` 后，才执行 `university-catalog-snapshot.sql` 中的两个只读 SELECT。它们只读取 `universities` 与 `university_catalog_imports`，不读取 users、teams、手机号、Session、验证码或审计详情。将第一组结果映射到 `universities`，第二组结果映射到 `imports`（包含 `dataset_version`、`checksum_sha256`、`record_count`、`status`），整理到 `data/university-catalog-existing.snapshot.json`，结构参考 `university-catalog-existing.snapshot.template.json`。
 
 快照行只允许包含：`id`、`catalog_id`、`catalog_normalized_name`、`official_school_code`、`category`、`canonical_name`、`normalized_name`、`country_code`。规划器会拒绝多余字段，防止把个人信息误带入快照。
 
