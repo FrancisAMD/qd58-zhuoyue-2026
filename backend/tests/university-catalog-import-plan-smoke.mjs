@@ -60,6 +60,7 @@ function plan(records, existing = [], imports = [], sourceText = null) {
 }
 
 const emptyPlan = plan([baseRecord]);
+console.log('planner debug', JSON.stringify({ catalog: catalog([baseRecord]), result: emptyPlan }));
 assert.equal(emptyPlan.counts.insert, 1);
 assert.equal(emptyPlan.items[0].target_university_id, baseRecord.id);
 assert.equal(emptyPlan.writes_performed, false);
