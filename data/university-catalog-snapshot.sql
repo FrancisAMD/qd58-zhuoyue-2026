@@ -13,6 +13,6 @@ SELECT
 FROM universities
 ORDER BY id;
 
-SELECT dataset_version, checksum_sha256, status
+SELECT dataset_version, checksum_sha256, record_count, status
 FROM university_catalog_imports
 ORDER BY dataset_version;
