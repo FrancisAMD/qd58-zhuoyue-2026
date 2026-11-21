@@ -30,8 +30,11 @@ function validateSnapshot(snapshot) {
     if (!SNAPSHOT_KEYS.has(key)) errors.push("$." + key + ": 不允许的快照字段（快照不得包含用户或个人资料）");
   }
   if (snapshot.schema_version !== "1.0.0") errors.push("$.schema_version: 必须为 1.0.0");
+  if (!(snapshot.exported_at === null || typeof snapshot.exported_at === "string")) errors.push("$.exported_at: 必须是字符串或 null");
   if (!Array.isArray(snapshot.universities)) errors.push("$.universities: 必须是数组");
   if (!Array.isArray(snapshot.imports)) errors.push("$.imports: 必须是数组");
+
+  const seen = { ids: new Set(), catalogIds: new Set(), codes: new Set(), names: new Set() };
   if (Array.isArray(snapshot.universities)) {
     snapshot.universities.forEach((row, index) => {
       const path = "$.universities[" + index + "]";
@@ -43,14 +46,28 @@ function validateSnapshot(snapshot) {
         if (!ROW_KEYS.has(key)) errors.push(path + "." + key + ": 不允许的快照字段（禁止导出个人信息）");
       }
       if (typeof row.id !== "string" || !row.id.trim()) errors.push(path + ".id: 必须是非空字符串");
+      else if (seen.ids.has(row.id)) errors.push(path + ".id: 快照中存在重复 D1 主键");
+      else seen.ids.add(row.id);
       if (typeof row.category !== "string" || !row.category.trim()) errors.push(path + ".category: 必须是非空字符串");
       for (const key of ["catalog_id", "catalog_normalized_name", "official_school_code", "normalized_name", "country_code"]) {
         if (!(row[key] === null || typeof row[key] === "string")) errors.push(path + "." + key + ": 必须是字符串或 null");
       }
       if (typeof row.canonical_name !== "string") errors.push(path + ".canonical_name: 必须是字符串");
+      for (const [field, set] of [
+        ["catalog_id", seen.catalogIds],
+        ["official_school_code", seen.codes],
+        ["catalog_normalized_name", seen.names]
+      ]) {
+        const value = row[field];
+        if (typeof value === "string" && value.length) {
+          if (set.has(value)) errors.push(path + "." + field + ": 快照中存在重复唯一值");
+          else set.add(value);
+        }
+      }
     });
   }
   if (Array.isArray(snapshot.imports)) {
+    const versions = new Set();
     snapshot.imports.forEach((item, index) => {
       const path = "$.imports[" + index + "]";
       if (!isObject(item)) {
@@ -60,8 +77,12 @@ function validateSnapshot(snapshot) {
       for (const key of Object.keys(item)) {
         if (!IMPORT_KEYS.has(key)) errors.push(path + "." + key + ": 不允许的导入批次字段");
       }
-      if (typeof item.dataset_version !== "string" || !/^\\d{4}-\\d{2}-\\d{2}$/.test(item.dataset_version)) {
+      if (typeof item.dataset_version !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(item.dataset_version)) {
         errors.push(path + ".dataset_version: 日期格式无效");
+      } else if (versions.has(item.dataset_version)) {
+        errors.push(path + ".dataset_version: 快照中存在重复版本");
+      } else {
+        versions.add(item.dataset_version);
       }
       if (typeof item.checksum_sha256 !== "string" || !/^[0-9a-f]{64}$/.test(item.checksum_sha256)) {
         errors.push(path + ".checksum_sha256: 必须是 SHA-256 十六进制摘要");
@@ -73,14 +94,8 @@ function validateSnapshot(snapshot) {
 }
 
 function buildIndexes(rows) {
-  const indexes = {
-    id: new Map(),
-    catalogId: new Map(),
-    code: new Map(),
-    catalogName: new Map()
-  };
+  const indexes = { catalogId: new Map(), code: new Map(), catalogName: new Map() };
   for (const row of rows) {
-    addIndex(indexes.id, row.id, row);
     addIndex(indexes.catalogId, row.catalog_id, row);
     addIndex(indexes.code, row.official_school_code, row);
     addIndex(indexes.catalogName, row.catalog_normalized_name, row);
@@ -99,11 +114,11 @@ function emptyCounts() {
 export function planCatalogImport(catalog, snapshot, sourceText = JSON.stringify(catalog)) {
   const catalogResult = validateCatalog(catalog);
   if (!catalogResult.valid) {
-    throw new Error("高校目录校验失败：\\n" + catalogResult.errors.join("\\n"));
+    throw new Error("高校目录校验失败：\n" + catalogResult.errors.join("\n"));
   }
   const snapshotErrors = validateSnapshot(snapshot);
   if (snapshotErrors.length) {
-    throw new Error("现有高校快照无效：\\n" + snapshotErrors.join("\\n"));
+    throw new Error("现有高校快照无效：\n" + snapshotErrors.join("\n"));
   }
 
   const checksum = createHash("sha256").update(sourceText, "utf8").digest("hex");
@@ -209,8 +224,7 @@ export function planCatalogImport(catalog, snapshot, sourceText = JSON.stringify
       });
     }
 
-    // A merged row's foreign key must point to the resolved D1 universities.id,
-    // not blindly to a catalog ID that may have been linked to a legacy row.
+    // Resolve merged_into against the actual D1 row IDs, not assumed catalog IDs.
     const itemByCatalogId = new Map(items.map(item => [item.catalog_id, item]));
     for (const university of catalog.universities) {
       if (university.status !== "merged") continue;
@@ -273,7 +287,7 @@ function runCli() {
     const catalog = JSON.parse(catalogText);
     const snapshot = JSON.parse(snapshotText);
     const plan = planCatalogImport(catalog, snapshot, catalogText);
-    const output = JSON.stringify(plan, null, 2) + "\\n";
+    const output = JSON.stringify(plan, null, 2) + "\n";
     if (args["--out"]) {
       writeFileSync(resolve(args["--out"]), output, { encoding: "utf8", flag: "wx" });
       console.log("Dry-run 计划已写入 " + resolve(args["--out"]));
