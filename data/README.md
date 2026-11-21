@@ -195,9 +195,11 @@ npm run plan:universities -- --catalog data/university-catalog.json --existing d
 2. 精确目录 ID 命中时计划为 `update`，保留原有 `universities.id`。
 3. 仅通过唯一学校代码或目录规范化名称命中旧行时计划为 `link_existing`，保留原有主键及 users/teams 外键。
 4. 仅凭旧 `canonical_name` 同名命中时一律 `manual_review`，不自动合并，也不贸然插入重复学校。
-5. 不同匹配依据指向不同旧行、分类冲突、批次版本复用但 checksum 不同，均标记 `conflict`。
-6. 已应用的相同 dataset_version + checksum 会计划为 `skip`。
-7. 不计划删除记录；不修改用户、队伍或成员外键；目录中暂时缺席的高校不会被推断为应删除。
-8. 对 `merged_into`，计划器会把目录 ID 解析为实际 D1 主键；目标无法解析时转人工审核。
+5. 不同匹配依据指向不同旧行、分类冲突、国家/地区代码冲突、批次版本复用但 checksum 不同，均标记 `conflict`。
+6. 仅凭学校代码命中、且旧记录缺少国家/地区代码时，转为 `manual_review`；不能假定学校代码在不同国家之间全局唯一。
+7. 已应用的相同 dataset_version + checksum 只有在快照中每条目录 ID 都存在、且分类、国家代码、规范化名称和学校代码仍与目录一致时才计划为 `skip`；缺行或身份字段变化均标记 `conflict`。
+8. 新增记录的计划主键采用稳定目录 ID（`universities.id = catalog.id`）；链接旧记录时始终保留其原有 D1 主键及用户/队伍外键。
+9. 不计划删除记录；不修改用户、队伍或成员外键；目录中暂时缺席的高校不会被推断为应删除。
+10. 对 `merged_into`，计划器会把目录 ID 解析为实际 D1 主键；目标无法解析时转人工审核。
 
 规划器的“可进入人工审核”不等于生产导入授权。真正的 D1 写入器、测试库导入、事务批次与回滚演练仍是独立后续里程碑。

@@ -48,11 +48,18 @@ function validateSnapshot(snapshot) {
       if (typeof row.id !== "string" || !row.id.trim()) errors.push(path + ".id: 必须是非空字符串");
       else if (seen.ids.has(row.id)) errors.push(path + ".id: 快照中存在重复 D1 主键");
       else seen.ids.add(row.id);
-      if (typeof row.category !== "string" || !row.category.trim()) errors.push(path + ".category: 必须是非空字符串");
+      if (!["unclassified", "mainland", "hmt", "sino_foreign", "overseas"].includes(row.category)) {
+        errors.push(path + ".category: 不属于现有 D1 高校分类");
+      }
       for (const key of ["catalog_id", "catalog_normalized_name", "official_school_code", "normalized_name", "country_code"]) {
         if (!(row[key] === null || typeof row[key] === "string")) errors.push(path + "." + key + ": 必须是字符串或 null");
       }
-      if (typeof row.canonical_name !== "string") errors.push(path + ".canonical_name: 必须是字符串");
+      if (row.country_code !== null && !/^[A-Z]{2}$/.test(row.country_code)) {
+        errors.push(path + ".country_code: 必须是大写 ISO alpha-2 代码或 null");
+      }
+      if (typeof row.canonical_name !== "string" || !row.canonical_name.trim()) {
+        errors.push(path + ".canonical_name: 必须是非空字符串");
+      }
       for (const [field, set] of [
         ["catalog_id", seen.catalogIds],
         ["official_school_code", seen.codes],
@@ -133,6 +140,21 @@ export function planCatalogImport(catalog, snapshot, sourceText = JSON.stringify
     batchConflict = "dataset_version 已存在，但文件 SHA-256 不同；必须提升 dataset_version，不能覆盖历史批次";
   } else if (priorImports.length === 1 && priorImports[0].status === "applied" && priorImports[0].record_count !== catalog.universities.length) {
     batchConflict = "已应用批次的 record_count 与当前目录数量不一致；需人工核对快照完整性";
+  } else if (priorImports.length === 1 && priorImports[0].status === "applied") {
+    const missingOrChanged = catalog.universities.find(university => {
+      const rows = indexes.catalogId.get(university.id) || [];
+      if (rows.length !== 1) return true;
+      const existing = rows[0];
+      const expectedName = university.category + ":" + university.location.country_code + ":" +
+        normalizeUniversityName(university.name_zh || university.name_en);
+      return existing.category !== university.category ||
+        existing.catalog_normalized_name !== expectedName ||
+        existing.official_school_code !== university.official_school_code ||
+        existing.country_code !== university.location.country_code;
+    });
+    if (missingOrChanged) {
+      batchConflict = "已应用批次与当前 D1 快照不一致（目录记录缺失或身份字段变化）；必须人工核对，不能直接跳过";
+    }
   }
 
   if (batchConflict) {
@@ -185,6 +207,17 @@ export function planCatalogImport(catalog, snapshot, sourceText = JSON.stringify
         if (candidate.category !== university.category) {
           action = "conflict";
           reason = "匹配记录的高校分类不同；禁止自动合并或改写旧分类";
+        } else if (candidate.country_code && candidate.country_code !== university.location.country_code) {
+          action = "conflict";
+          reason = "匹配记录的国家/地区代码不同；禁止跨国家或地区自动关联";
+        } else if (
+          matchedBy.includes("official_school_code") &&
+          !matchedBy.includes("catalog_id") &&
+          !matchedBy.includes("catalog_normalized_name") &&
+          candidate.country_code === null
+        ) {
+          action = "manual_review";
+          reason = "学校代码命中，但旧记录缺少国家/地区代码；无法排除跨国家代码重复，需人工核验";
         } else if (candidate.catalog_id && candidate.catalog_id !== university.id) {
           action = "conflict";
           reason = "现有记录已经绑定另一个 catalog_id";

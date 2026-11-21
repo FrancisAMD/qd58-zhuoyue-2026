@@ -84,6 +84,48 @@ const codeLink = plan([baseRecord], [row({
 assert.equal(codeLink.counts.link_existing, 1);
 assert.equal(codeLink.items[0].target_university_id, "legacy-by-code");
 
+const codeOnlyWithoutCountry = plan([baseRecord], [row({
+  id: "legacy-code-without-country",
+  official_school_code: baseRecord.official_school_code,
+  country_code: null
+})]);
+assert.equal(codeOnlyWithoutCountry.counts.manual_review, 1);
+assert.match(codeOnlyWithoutCountry.items[0].reason, /缺少国家\/地区代码/);
+
+const exactIdCountryMismatch = plan([baseRecord], [row({
+  id: "catalog-id-wrong-country",
+  catalog_id: baseRecord.id,
+  category: "mainland",
+  official_school_code: baseRecord.official_school_code,
+  catalog_normalized_name: "mainland:CN:示例大学",
+  canonical_name: "示例大学",
+  country_code: "US"
+})]);
+assert.equal(exactIdCountryMismatch.counts.conflict, 1);
+assert.match(exactIdCountryMismatch.items[0].reason, /国家\/地区代码不同/);
+
+const overseasRecord = {
+  ...baseRecord,
+  id: "overseas:US:sample-university",
+  category: "overseas",
+  location: {
+    country_code: "US",
+    country_name_zh: "美国",
+    country_name_en: "United States",
+    province_code: null,
+    province_name_zh: null,
+    city_name_zh: null
+  }
+};
+const crossCountryCodeMatch = plan([overseasRecord], [row({
+  id: "same-code-other-country",
+  category: "overseas",
+  official_school_code: overseasRecord.official_school_code,
+  country_code: "JP"
+})]);
+assert.equal(crossCountryCodeMatch.counts.conflict, 1);
+assert.match(crossCountryCodeMatch.items[0].reason, /国家\/地区代码不同/);
+
 const normalizedLink = plan([baseRecord], [row({
   id: "legacy-by-catalog-name",
   catalog_normalized_name: "mainland:CN:示例大学"
@@ -115,7 +157,16 @@ const mismatchReplay = planCatalogImport(input, snapshot([], [{
 assert.equal(mismatchReplay.counts.conflict, 1);
 assert.match(mismatchReplay.items[0].reason, /必须提升 dataset_version/);
 
-const appliedReplay = planCatalogImport(input, snapshot([], [{
+const appliedSnapshotRow = row({
+  id: "applied-university-id",
+  catalog_id: baseRecord.id,
+  catalog_normalized_name: "mainland:CN:示例大学",
+  official_school_code: baseRecord.official_school_code,
+  category: "mainland",
+  canonical_name: "示例大学",
+  country_code: "CN"
+});
+const appliedReplay = planCatalogImport(input, snapshot([appliedSnapshotRow], [{
   dataset_version: input.dataset_version,
   checksum_sha256: exactChecksum,
   record_count: 1,
@@ -123,6 +174,27 @@ const appliedReplay = planCatalogImport(input, snapshot([], [{
 }]), raw);
 assert.equal(appliedReplay.counts.skip, 1);
 assert.equal(appliedReplay.items[0].match_by, "import_batch");
+
+const appliedMissingRow = planCatalogImport(input, snapshot([], [{
+  dataset_version: input.dataset_version,
+  checksum_sha256: exactChecksum,
+  record_count: 1,
+  status: "applied"
+}]), raw);
+assert.equal(appliedMissingRow.counts.conflict, 1);
+assert.match(appliedMissingRow.items[0].reason, /快照不一致/);
+
+const appliedChangedIdentity = planCatalogImport(input, snapshot([{
+  ...appliedSnapshotRow,
+  country_code: "US"
+}], [{
+  dataset_version: input.dataset_version,
+  checksum_sha256: exactChecksum,
+  record_count: 1,
+  status: "applied"
+}]), raw);
+assert.equal(appliedChangedIdentity.counts.conflict, 1);
+assert.match(appliedChangedIdentity.items[0].reason, /快照不一致/);
 
 const appliedCountMismatch = planCatalogImport(input, snapshot([], [{
   dataset_version: input.dataset_version,
