@@ -7,10 +7,11 @@
     "workerd@1.20261110.1": true
   },
   "scripts": {
-    "check:worker": "node --check app.js && node --check admin.js && node --check backend/src/worker.js && node --check scripts/create-admin.mjs && node --check backend/tests/account-deletion-smoke.mjs && node --check backend/tests/retention-smoke.mjs && node --check backend/tests/admin-auth-audit-smoke.mjs && node --check backend/tests/auth-enumeration-smoke.mjs && node --check backend/src/xlsx.js && node --check backend/tests/admin-xlsx-export-smoke.mjs && node --check backend/tests/password-lifecycle-smoke.mjs && node --check backend/tests/pnvs-challenge-persistence-smoke.mjs && node --check backend/tests/otp-verification-smoke.mjs && node --check scripts/validate-university-catalog.mjs && node --check backend/tests/university-catalog-smoke.mjs",
+    "check:worker": "node --check app.js && node --check admin.js && node --check backend/src/worker.js && node --check scripts/create-admin.mjs && node --check backend/tests/account-deletion-smoke.mjs && node --check backend/tests/retention-smoke.mjs && node --check backend/tests/admin-auth-audit-smoke.mjs && node --check backend/tests/auth-enumeration-smoke.mjs && node --check backend/src/xlsx.js && node --check backend/tests/admin-xlsx-export-smoke.mjs && node --check backend/tests/password-lifecycle-smoke.mjs && node --check backend/tests/pnvs-challenge-persistence-smoke.mjs && node --check backend/tests/otp-verification-smoke.mjs && node --check scripts/validate-university-catalog.mjs && node --check backend/tests/university-catalog-smoke.mjs && node --check scripts/plan-university-catalog-import.mjs && node --check backend/tests/university-catalog-import-plan-smoke.mjs",
     "test:worker": "node backend/tests/worker-smoke.mjs && node backend/tests/transfer-expiry-smoke.mjs && node backend/tests/account-deletion-smoke.mjs && node backend/tests/retention-smoke.mjs && node backend/tests/admin-auth-audit-smoke.mjs && node backend/tests/auth-enumeration-smoke.mjs && node backend/tests/admin-xlsx-export-smoke.mjs && node backend/tests/password-lifecycle-smoke.mjs && node backend/tests/pnvs-challenge-persistence-smoke.mjs && node backend/tests/otp-verification-smoke.mjs",
     "validate:universities": "node scripts/validate-university-catalog.mjs",
-    "test:catalog": "node backend/tests/university-catalog-smoke.mjs"
+    "test:catalog": "node backend/tests/university-catalog-smoke.mjs && node backend/tests/university-catalog-import-plan-smoke.mjs",
+    "plan:universities": "node scripts/plan-university-catalog-import.mjs"
   },
   "type": "module"
 }
