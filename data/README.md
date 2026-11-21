@@ -169,3 +169,35 @@ npm run test:catalog
 5. 先导入测试 D1 并检查注册搜索、同校分组和现有用户的 `university_id` 映射，再考虑生产 D1。
 6. 目录导入不应自动修改现有用户的大学归属，也不应创建或合并用户队伍。
 
+
+## 只读导入计划（dry-run）
+
+迁移 0013 只建立关系型结构，不会自动把 JSON 写入 D1。下一步先使用 dry-run 规划器对账；当前没有任何 D1 写入器。
+
+### 生成不含个人信息的现有高校快照
+
+只有在目标 D1 已按顺序应用 `0013_university_catalog_relational.sql` 后，才执行 `university-catalog-snapshot.sql` 中的两个只读 SELECT。它们只读取 `universities` 与 `university_catalog_imports`，不读取 users、teams、手机号、Session、验证码或审计详情。将两组结果整理到 `data/university-catalog-existing.snapshot.json`，结构参考 `university-catalog-existing.snapshot.template.json`。
+
+快照行只允许包含：`id`、`catalog_id`、`catalog_normalized_name`、`official_school_code`、`category`、`canonical_name`、`normalized_name`、`country_code`。规划器会拒绝多余字段，防止把个人信息误带入快照。
+
+### 生成计划
+
+```powershell
+npm run validate:universities -- data/university-catalog.json
+npm run plan:universities -- --catalog data/university-catalog.json --existing data/university-catalog-existing.snapshot.json --out data/university-catalog-import-plan.json
+```
+
+输出文件使用独占创建模式，不覆盖已有计划。若出现 `manual_review` 或 `conflict`，命令返回非零状态，必须先人工处理。当前规划器只输出 JSON 计划，不连接 D1、不生成可执行 SQL、不执行插入/更新/删除。
+
+### 匹配与保护规则
+
+1. 依次按稳定 `catalog_id`、唯一学校代码、国家感知规范化名称查找。
+2. 精确目录 ID 命中时计划为 `update`，保留原有 `universities.id`。
+3. 仅通过唯一学校代码或目录规范化名称命中旧行时计划为 `link_existing`，保留原有主键及 users/teams 外键。
+4. 仅凭旧 `canonical_name` 同名命中时一律 `manual_review`，不自动合并，也不贸然插入重复学校。
+5. 不同匹配依据指向不同旧行、分类冲突、批次版本复用但 checksum 不同，均标记 `conflict`。
+6. 已应用的相同 dataset_version + checksum 会计划为 `skip`。
+7. 不计划删除记录；不修改用户、队伍或成员外键；目录中暂时缺席的高校不会被推断为应删除。
+8. 对 `merged_into`，计划器会把目录 ID 解析为实际 D1 主键；目标无法解析时转人工审核。
+
+规划器的“可进入人工审核”不等于生产导入授权。真正的 D1 写入器、测试库导入、事务批次与回滚演练仍是独立后续里程碑。
