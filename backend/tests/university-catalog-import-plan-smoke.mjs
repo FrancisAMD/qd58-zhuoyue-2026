@@ -118,6 +118,7 @@ assert.match(mismatchReplay.items[0].reason, /必须提升 dataset_version/);
 const appliedReplay = planCatalogImport(input, snapshot([], [{
   dataset_version: input.dataset_version,
   checksum_sha256: exactChecksum,
+  record_count: 1,
   status: "applied"
 }]), raw);
 assert.equal(appliedReplay.counts.skip, 1);
