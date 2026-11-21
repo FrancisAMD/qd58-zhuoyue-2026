@@ -9,7 +9,7 @@ const ROW_KEYS = new Set([
   "id", "catalog_id", "catalog_normalized_name", "official_school_code",
   "category", "canonical_name", "normalized_name", "country_code"
 ]);
-const IMPORT_KEYS = new Set(["dataset_version", "checksum_sha256", "status"]);
+const IMPORT_KEYS = new Set(["dataset_version", "checksum_sha256", "record_count", "status"]);
 const ACTIONS = ["insert", "update", "link_existing", "skip", "manual_review", "conflict"];
 
 function isObject(value) {
@@ -87,6 +87,7 @@ function validateSnapshot(snapshot) {
       if (typeof item.checksum_sha256 !== "string" || !/^[0-9a-f]{64}$/.test(item.checksum_sha256)) {
         errors.push(path + ".checksum_sha256: 必须是 SHA-256 十六进制摘要");
       }
+      if (!Number.isInteger(item.record_count) || item.record_count < 0) errors.push(path + ".record_count: 必须是非负整数");
       if (!["validated", "applied", "failed"].includes(item.status)) errors.push(path + ".status: 状态无效");
     });
   }
@@ -130,6 +131,8 @@ export function planCatalogImport(catalog, snapshot, sourceText = JSON.stringify
     batchConflict = "现有快照包含重复 dataset_version 导入记录";
   } else if (priorImports.length === 1 && priorImports[0].checksum_sha256 !== checksum) {
     batchConflict = "dataset_version 已存在，但文件 SHA-256 不同；必须提升 dataset_version，不能覆盖历史批次";
+  } else if (priorImports.length === 1 && priorImports[0].status === "applied" && priorImports[0].record_count !== catalog.universities.length) {
+    batchConflict = "已应用批次的 record_count 与当前目录数量不一致；需人工核对快照完整性";
   }
 
   if (batchConflict) {
@@ -161,7 +164,7 @@ export function planCatalogImport(catalog, snapshot, sourceText = JSON.stringify
       const candidates = uniqueRows([
         ...(indexes.catalogId.get(university.id) || []),
         ...(university.official_school_code ? indexes.code.get(university.official_school_code) || [] : []),
-        indexes.catalogName.get(catalogName) || []
+        ...(indexes.catalogName.get(catalogName) || [])
       ]);
       const matchedBy = [];
       if ((indexes.catalogId.get(university.id) || []).length) matchedBy.push("catalog_id");
@@ -185,6 +188,12 @@ export function planCatalogImport(catalog, snapshot, sourceText = JSON.stringify
         } else if (candidate.catalog_id && candidate.catalog_id !== university.id) {
           action = "conflict";
           reason = "现有记录已经绑定另一个 catalog_id";
+        } else if (candidate.catalog_normalized_name && candidate.catalog_normalized_name !== catalogName) {
+          action = "conflict";
+          reason = "匹配记录的国家感知规范化名称与目录数据不一致";
+        } else if (candidate.official_school_code && university.official_school_code && candidate.official_school_code !== university.official_school_code) {
+          action = "conflict";
+          reason = "匹配记录的学校代码与目录数据不一致";
         } else if (matchedBy.length === 0) {
           action = "conflict";
           reason = "无法确定匹配依据";
