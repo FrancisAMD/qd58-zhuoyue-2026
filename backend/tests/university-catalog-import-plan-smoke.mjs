@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { planCatalogImport } from "../../scripts/plan-university-catalog-import.mjs";
 
 const baseRecord = {
@@ -102,27 +103,17 @@ const legacyNameReview = plan([baseRecord], [
 assert.equal(legacyNameReview.counts.manual_review, 1);
 assert.equal(legacyNameReview.items[0].target_university_id, "legacy-name-only");
 
-const checksum = "a".repeat(64);
-const replay = plan([baseRecord], [], [{
-  dataset_version: "2026-11-21",
-  checksum_sha256: replayChecksum(),
-  status: "applied"
-}]);
-function replayChecksum() {
-  const input = catalog([baseRecord]);
-  return (awaitlessHash(input));
-}
-function awaitlessHash(input) {
-  // Keep the fixture deterministic without depending on the implementation's internals.
-  return "placeholder";
-}
-assert.equal(replay.counts.conflict, 1, "a mismatched batch checksum must block the plan");
-assert.ok(checksum.length === 64);
-
 const input = catalog([baseRecord]);
 const raw = JSON.stringify(input);
-const { createHash } = await import("node:crypto");
 const exactChecksum = createHash("sha256").update(raw, "utf8").digest("hex");
+const mismatchReplay = planCatalogImport(input, snapshot([], [{
+  dataset_version: input.dataset_version,
+  checksum_sha256: "b".repeat(64),
+  status: "applied"
+}]), raw);
+assert.equal(mismatchReplay.counts.conflict, 1);
+assert.match(mismatchReplay.items[0].reason, /必须提升 dataset_version/);
+
 const appliedReplay = planCatalogImport(input, snapshot([], [{
   dataset_version: input.dataset_version,
   checksum_sha256: exactChecksum,
@@ -131,16 +122,26 @@ const appliedReplay = planCatalogImport(input, snapshot([], [{
 assert.equal(appliedReplay.counts.skip, 1);
 assert.equal(appliedReplay.items[0].match_by, "import_batch");
 
-const badSnapshot = snapshot([{
-  ...row(),
-  phone: "must-not-be-exported"
-}]);
+const badSnapshot = snapshot([{ ...row(), phone: "must-not-be-exported" }]);
 assert.throws(() => planCatalogImport(input, badSnapshot, raw), /禁止导出个人信息/);
+
+const duplicateSnapshot = snapshot([
+  row({ id: "duplicate-a", official_school_code: "10001" }),
+  row({ id: "duplicate-b", official_school_code: "10001" })
+]);
+assert.throws(() => planCatalogImport(input, duplicateSnapshot, raw), /重复唯一值/);
 
 const invalidCatalog = catalog([{ ...baseRecord, id: "bad-id" }]);
 assert.throws(() => planCatalogImport(invalidCatalog, snapshot(), JSON.stringify(invalidCatalog)), /高校目录校验失败/);
 
-const mergedSource = { ...baseRecord, id: "mainland:CN-10002", official_school_code: "10002", name_zh: "待合并大学", status: "merged", merged_into: baseRecord.id };
+const mergedSource = {
+  ...baseRecord,
+  id: "mainland:CN-10002",
+  official_school_code: "10002",
+  name_zh: "待合并大学",
+  status: "merged",
+  merged_into: baseRecord.id
+};
 const mergedPlan = plan([baseRecord, mergedSource], [row({
   id: "existing-target",
   catalog_id: baseRecord.id,
