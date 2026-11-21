@@ -176,3 +176,13 @@
 - 扩展 \`backend/tests/schema-smoke.py\`：按顺序执行全部迁移，在 0013 前插入旧中外合作高校、用户和队伍，验证迁移后原 ID/FK 不变；并测试目录唯一性、JSON 校验、标签、别名、校区、来源、导入批次和外键约束。
 - 本次仅修改开发分支和 PR #6；未执行远程 D1 迁移、导入真实高校、读取用户数据或部署 Worker/Pages。生产 D1 是否已应用 0012/0013 仍需在用户终端核验。
 - 下一步：在同一 PR 中实现只读 dry-run 导入计划生成器，先输出新增/匹配/冲突报告，不写 D1；之后再设计受控批量导入和高校查询 API。
+
+## 本次增量里程碑（2026-11-21）：高校目录只读导入计划器
+
+- 新增 `scripts/plan-university-catalog-import.mjs`：先调用现有目录校验器，再读取严格白名单的高校快照，按 catalog_id、学校代码和国家感知规范化名称生成 insert/update/link_existing/skip/manual_review/conflict 计划。
+- 旧记录仅同名时进入 manual_review；匹配依据指向不同记录、分类不一致或 dataset_version 复用但 checksum 改变时进入 conflict，不自动合并。
+- 对已标记 merged 的记录，将 merged_into 解析为实际 D1 universities.id；目标无法安全解析时要求人工审核。
+- 新增只读快照 SQL 与 JSON 模板；快照仅含高校目录字段和导入批次元数据，严格拒绝 phone 等未白名单字段。
+- 规划器只输出 JSON，不连接 D1、不生成可执行 SQL、不执行 INSERT/UPDATE/DELETE；计划显式声明不修改 users、teams 和成员外键。
+- 新增专项测试覆盖新增、精确 ID 更新、旧记录链接、同名人工审核、匹配分歧冲突、checksum 重放、合并目标主键映射和敏感字段拒绝。
+- 本次未读取远程 D1、未应用 0013、未导入高校数据、未部署 Worker/Pages。生产导入仍需在确认迁移状态、备份恢复和测试 D1 演练后单独设计。
