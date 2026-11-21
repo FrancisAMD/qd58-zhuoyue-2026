@@ -60,7 +60,6 @@ function plan(records, existing = [], imports = [], sourceText = null) {
 }
 
 const emptyPlan = plan([baseRecord]);
-console.log('planner debug', JSON.stringify({ catalog: catalog([baseRecord]), result: emptyPlan }));
 assert.equal(emptyPlan.counts.insert, 1);
 assert.equal(emptyPlan.items[0].target_university_id, baseRecord.id);
 assert.equal(emptyPlan.writes_performed, false);
@@ -110,6 +109,7 @@ const exactChecksum = createHash("sha256").update(raw, "utf8").digest("hex");
 const mismatchReplay = planCatalogImport(input, snapshot([], [{
   dataset_version: input.dataset_version,
   checksum_sha256: "b".repeat(64),
+  record_count: 1,
   status: "applied"
 }]), raw);
 assert.equal(mismatchReplay.counts.conflict, 1);
@@ -123,6 +123,14 @@ const appliedReplay = planCatalogImport(input, snapshot([], [{
 assert.equal(appliedReplay.counts.skip, 1);
 assert.equal(appliedReplay.items[0].match_by, "import_batch");
 
+const appliedCountMismatch = planCatalogImport(input, snapshot([], [{
+  dataset_version: input.dataset_version,
+  checksum_sha256: exactChecksum,
+  record_count: 2,
+  status: "applied"
+}]), raw);
+assert.equal(appliedCountMismatch.counts.conflict, 1);
+assert.match(appliedCountMismatch.items[0].reason, /record_count/);
 const badSnapshot = snapshot([{ ...row(), phone: "must-not-be-exported" }]);
 assert.throws(() => planCatalogImport(input, badSnapshot, raw), /禁止导出个人信息/);
 
