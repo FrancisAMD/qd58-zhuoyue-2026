@@ -206,3 +206,14 @@
 - 新增 backend/tests/university-catalog-api-smoke.mjs，覆盖筛选、NFKC 规范化、分页、别名查询 SQL、畸形 JSON 安全降级、字段白名单和无效参数在访问 D1 前被拒绝。
 - 不新增 D1 迁移；本次仅提交到高校目录 Draft PR #6，未导入真实高校、访问远程 D1、部署 Worker/Pages 或读取个人数据。
 - 当前目录为空模板，因此搜索接口暂时返回空结果属于预期。PUT /api/profile 仍使用旧版自由文本高校字段；下一步需在测试环境设计 catalog_id 绑定、旧账号映射与用户/队伍外键兼容，再切换资料保存流程。
+
+
+## 本次增量里程碑（2026-11-22）：高校目录绑定个人资料
+
+- `GET /api/profile` 增加稳定 `universityCatalogId`，不暴露数据库内部 ID；在迁移 0013 尚未应用时回退读取旧字段，保持既有账号资料可读。
+- `PUT /api/profile` 只接受 active、verified 且具有 verified_at 的高校目录记录；内地记录必须包含 undergraduate，国家/地区代码必须与 mainland/HMT/overseas 分类一致；名称和类别均从 D1 目录记录派生，不信任客户端提交的学校名称/类别。
+- 新账号不能再通过自由文本创建 universities 记录；旧账号可继续保留原大学，只能更新个人字段，不能自行更换或重命名既有高校。
+- 用户大学绑定使用 D1 universities.id，公开 catalog_id 仅作为选择标识；写入增加 university_id compare-and-set 条件，避免并发首次登记时相互覆盖。
+- 前端高校类别收敛为 mainland/HMT/overseas，搜索 GET /api/universities 并从已核验结果选择；中外合作办学、军事、公安、民族、艺术、体育等本科高校归入内地目录。
+- 新增 `backend/tests/university-catalog-profile-smoke.mjs`，覆盖伪造学校名称/类别、未核验记录、自由文本新建拒绝、旧账号兼容、跨校更换拒绝、并发 compare-and-set，以及未应用 0013 时 GET 兼容。
+- 当前目录仍为空模板，因此新用户在目录填充并核验前无法完成高校资料提交；这是预期的 fail-closed 行为。没有导入高校、读取个人资料、执行远程 D1 迁移或生产部署。
