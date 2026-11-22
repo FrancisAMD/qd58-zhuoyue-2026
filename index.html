@@ -6,35 +6,28 @@
 <div class="journey-steps" id="journeySteps"><span class="active" data-journey-step="profile">02 / 完善高校资料</span><i>→</i><span data-journey-step="directory">03 / 查看同校同学</span></div>
 <section id="join" class="section"><p class="eyebrow">01 / JOIN THE COMMUNITY</p><h2>留下你的坐标</h2><p class="lead">登录后完善个人资料，系统会自动将你加入所在大学的小队。</p><div id="gate" class="panel"><div><h3>先找到自己，再找到同路人。</h3><p>手机号作为用户名，使用密码登录。首次注册及找回密码需要短信验证。</p></div><button class="btn" id="gateLogin">登录 / 注册</button></div><form id="profile" class="panel" hidden>
 <h3>同学信息登记</h3>
-<div class="profile-step-indicator"><span class="current" id="stepOneLabel">01 选择高校类别</span><span id="stepTwoLabel">02 完善学校与个人资料</span></div>
+<div class="profile-step-indicator"><span class="current" id="stepOneLabel">01 选择高校类别</span><span id="stepTwoLabel">02 搜索并确认高校</span></div>
 <section id="universityTypeStep" class="university-type-step">
-<p class="profile-intro">首先选择你目前就读高校所属的类别，我们会根据类别展示相应的信息填写项。</p>
+<p class="profile-intro">先选择高校所在范围。中国内地统一收录本科高校，中外合作办学、军事、公安、民族、艺术、体育等本科高校均归入中国内地高校目录。</p>
 <input type="hidden" name="universityCategory" id="universityCategoryValue">
-<div class="university-type-grid" role="group" aria-label="高校类别">
-<button type="button" class="university-type-card" data-university-category="mainland"><span class="type-number">01 / MAINLAND</span><strong>中国大陆高校</strong><small>普通本科、专科，以及 985 / 211 / 双一流高校</small><span class="type-arrow">→</span></button>
-<button type="button" class="university-type-card" data-university-category="hmt"><span class="type-number">02 / HMT</span><strong>港澳台高校</strong><small>香港、澳门及台湾地区的高校</small><span class="type-arrow">→</span></button>
-<button type="button" class="university-type-card" data-university-category="sino_foreign"><span class="type-number">03 / JOINT</span><strong>中外合作办学</strong><small>在中国大陆设立的中外合作大学或办学机构</small><span class="type-arrow">→</span></button>
-<button type="button" class="university-type-card" data-university-category="overseas"><span class="type-number">04 / OVERSEAS</span><strong>海外高校</strong><small>中国大陆、港澳台以外的境外高校</small><span class="type-arrow">→</span></button>
+<div class="university-type-grid university-type-grid-three" role="group" aria-label="高校类别">
+<button type="button" class="university-type-card" data-university-category="mainland"><span class="type-number">01 / MAINLAND</span><strong>中国内地本科高校</strong><small>普通、民办、职业本科，以及军事、公安、民族、艺术、体育和中外合作办学高校</small><span class="type-arrow">→</span></button>
+<button type="button" class="university-type-card" data-university-category="hmt"><span class="type-number">02 / HMT</span><strong>港澳台高校</strong><small>香港、澳门及台湾地区高校</small><span class="type-arrow">→</span></button>
+<button type="button" class="university-type-card" data-university-category="overseas"><span class="type-number">03 / OVERSEAS</span><strong>海外高校</strong><small>按国家归类，不要求填写州、省或城市</small><span class="type-arrow">→</span></button>
 </div>
 <p id="universityCategoryMsg" class="msg" aria-live="polite"></p>
-<div class="step-actions"><span class="step-hint">选择一类后继续</span><button type="button" class="btn" id="universityNext" disabled>下一步：填写资料 <span>→</span></button></div>
+<div class="step-actions"><span class="step-hint">选择一类后继续</span><button type="button" class="btn" id="universityNext" disabled>下一步：搜索高校 <span>→</span></button></div>
 </section>
 <section id="universityDetailsStep" hidden>
-<div class="selected-university-type"><span>当前选择</span><strong id="selectedUniversityType">中国大陆高校</strong><button type="button" id="universityBack" class="text">更改类别</button></div>
-<input type="hidden" name="regionName" id="regionNameValue"><input type="hidden" name="educationLevel" id="educationLevelValue"><input type="hidden" name="partnerName" id="partnerNameValue">
+<div class="selected-university-type"><span>当前类别</span><strong id="selectedUniversityType">中国内地本科高校</strong><button type="button" id="universityBack" class="text">更改类别</button></div>
+<label>搜索高校名称、英文名称或学校代码<input id="universitySearch" type="search" maxlength="80" autocomplete="off" placeholder="例如：青岛大学 / Qingdao University / 11065"></label>
+<p class="field-help">搜索结果只包含已核验且仍有效的高校。请从结果中选择，不支持手动创建或输入未收录学校。</p>
+<div id="universitySearchResults" class="university-search-results" role="list" aria-live="polite"></div>
+<div class="selected-university-panel"><span>已选高校</span><strong id="selectedUniversityName">尚未选择高校</strong><p id="universitySelectionMsg">请从已核验高校目录中选择。</p></div>
+<input type="hidden" name="universityCatalogId" id="universityCatalogId">
+<input type="hidden" name="university" id="universityName">
 <div class="cols"><label>姓名<input name="name" required maxlength="80"></label><label>高中班级<input name="className" required maxlength="80"></label></div>
 <label>高中学校<input name="highSchool" value="青岛五十八中" required></label>
-<label>目前就读高校<input name="university" id="universityName" maxlength="120" placeholder="请填写学校的规范名称" required></label>
-<div id="mainlandFields" class="category-fields" hidden>
-<label>学校办学层次<select id="mainlandEducationLevel"><option value="">请选择</option><option value="undergraduate">本科院校</option><option value="vocational">专科（高职）院校</option></select></label>
-<p class="field-help">985、211、双一流是可重叠的高校属性，后续将由高校资料库自动识别并展示，不需要在这里重复选择。</p>
-</div>
-<div id="hmtFields" class="category-fields" hidden><label>所属地区<select id="hmtRegion"><option value="">请选择</option><option value="香港">香港</option><option value="澳门">澳门</option><option value="台湾">台湾</option></select></label></div>
-<div id="jointFields" class="category-fields" hidden>
-<div class="cols"><label>办学层次<select id="jointEducationLevel"><option value="">请选择</option><option value="undergraduate">本科</option><option value="vocational">专科（高职）</option></select></label><label>境外合作院校<input id="jointPartnerName" maxlength="120" placeholder="例如：境外合作大学名称"></label></div>
-<p class="field-help">这里登记的是设在中国大陆的中外合作办学高校或机构；普通高校的中外合作专业暂不单独拆分。</p>
-</div>
-<div id="overseasFields" class="category-fields" hidden><label>国家 / 地区<input id="overseasRegion" maxlength="80" placeholder="例如：美国、英国、日本、新加坡"></label></div>
 <div class="cols"><label>当前年级<select name="grade" required><option value="">请选择</option><option>大一</option><option>大二</option><option>大三</option><option>大四</option><option>研究生</option><option>博士生</option><option>其他</option></select></label><label>目前所在省份 / 地区<input name="province" maxlength="80" placeholder="用于同地区联络" required></label></div>
 <div class="cols"><label>所在城市<input name="city" maxlength="80"></label><label class="check"><input type="checkbox" name="phoneVisible">允许同校队员查看我的手机号（默认关闭）</label></div>
 <label>个人备注<textarea name="bio" maxlength="500"></textarea></label>
