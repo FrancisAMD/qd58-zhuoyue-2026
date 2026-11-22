@@ -7,7 +7,7 @@ const legacyRow={id:"legacy-university-1",canonical_name:"旧版合作大学",ca
 function makeDb({user={...baseUser},catalog=catalogRow,legacy=legacyRow,batchChanges=1,missingCatalogSchema=false}={}) {
   const state={batchCalls:0,statements:[],firstQueries:[]};
   const DB={
-    prepare(sql){return {sql,bind(...bindings){return {
+    prepare(sql){return {sql,bind(...bindings){return {sql,bindings,
       first:async()=>{
         state.firstQueries.push({sql,bindings});
         if(sql.startsWith("SELECT u.id,u.phone"))return user;
