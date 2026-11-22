@@ -196,3 +196,24 @@ body.dark .admin-stats .stat{border-color:var(--line)}
 .danger-button{background:#9f4941}
 body.dark .account-danger-zone,body.dark .deletion-warning{background:#382a28;border-color:#79504b;color:#e2b8b1}
 body.dark .account-danger-zone p{color:#c5a6a1}
+
+
+/* Verified university catalog selector */
+.university-type-grid-three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.university-search-results{display:grid;gap:7px;max-height:340px;overflow:auto;margin:10px 0}
+.university-result{display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;padding:12px 14px;text-align:left;border:1px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink)}
+.university-result:hover,.university-result:focus-visible{border-color:var(--green);outline:none}
+.university-result>span:first-child{display:grid;gap:5px;min-width:0}
+.university-result strong{font-size:12px;overflow-wrap:anywhere}
+.university-result small{font-size:10px;color:var(--muted)}
+.university-result-action{flex:0 0 auto;color:var(--green);font-size:11px}
+.university-search-empty{padding:14px;border:1px dashed var(--line);border-radius:8px;color:var(--muted);font-size:11px;line-height:1.8}
+.selected-university-panel{display:grid;gap:6px;margin:12px 0 20px;padding:14px 16px;border:1px solid var(--line);border-radius:9px;background:var(--paper)}
+.selected-university-panel>span{color:var(--muted);font-size:10px}
+.selected-university-panel>strong{color:var(--green);font:600 16px "Noto Serif SC",serif;overflow-wrap:anywhere}
+.selected-university-panel>p{margin:0;color:var(--muted);font-size:10px;line-height:1.7}
+body.dark .university-result{background:#203128;color:var(--ink);border-color:var(--line)}
+body.dark .university-result-action,body.dark .selected-university-panel>strong{color:#b7d4c0}
+body.dark .selected-university-panel{background:#203128;border-color:var(--line)}
+@media(max-width:900px){.university-type-grid-three{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.university-type-grid-three{grid-template-columns:1fr}.university-result{padding:11px}}
