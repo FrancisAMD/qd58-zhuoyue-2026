@@ -474,7 +474,108 @@ async function route(request, env) {
   const url=new URL(request.url), path=url.pathname, method=request.method, origin=request.headers.get("Origin");
   if(method==="OPTIONS") return new Response(null,{status:204,headers:corsHeaders(origin,env)});
   if(origin && origin!==env.APP_ORIGIN) return response({error:"origin_forbidden"},403,origin,env);
-  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"otp-lifecycle-20261119",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
+  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"university-search-20261122",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
+  if(path==="/api/universities" && method==="GET") {
+    // Public, read-only catalog lookup for profile selection. Never expose
+    // draft/unverified, inactive, merged, or legacy free-form university rows.
+    const rawQuery=(url.searchParams.get("q")||"").trim();
+    if(rawQuery.length>80) return response({error:"query_too_long"},400,origin,env);
+    const normalizedQuery=rawQuery.normalize("NFKC").replace(/[\s\p{P}\p{S}]+/gu,"").toLowerCase();
+    if(rawQuery && !normalizedQuery) return response({error:"invalid_query"},400,origin,env);
+
+    let category=(url.searchParams.get("category")||"").trim().toLowerCase();
+    let countryCode=(url.searchParams.get("countryCode")||"").trim().toUpperCase();
+    let provinceCode=(url.searchParams.get("provinceCode")||"").trim().toUpperCase();
+    if(category && !["mainland","hmt","overseas"].includes(category)) return response({error:"invalid_category"},400,origin,env);
+    if(countryCode && !/^[A-Z]{2}$/.test(countryCode)) return response({error:"invalid_country_code"},400,origin,env);
+    if(provinceCode && !/^CN-\d{2}$/.test(provinceCode)) return response({error:"invalid_province_code"},400,origin,env);
+    if(category==="mainland") {
+      if(countryCode && countryCode!=="CN") return response({error:"catalog_filter_conflict"},400,origin,env);
+      countryCode="CN";
+    }
+    if(category==="hmt" && countryCode && !["HK","MO","TW"].includes(countryCode)) return response({error:"catalog_filter_conflict"},400,origin,env);
+    if(category==="overseas" && ["CN","HK","MO","TW"].includes(countryCode)) return response({error:"catalog_filter_conflict"},400,origin,env);
+    if(provinceCode) {
+      if(category && category!=="mainland") return response({error:"catalog_filter_conflict"},400,origin,env);
+      if(countryCode && countryCode!=="CN") return response({error:"catalog_filter_conflict"},400,origin,env);
+      category="mainland";
+      countryCode="CN";
+    }
+    if(!rawQuery && !category && !countryCode && !provinceCode) return response({error:"catalog_filter_required"},400,origin,env);
+
+    const parseQueryInteger=(value,fallback,min,max)=>{
+      if(value===null) return fallback;
+      if(!/^(0|[1-9]\d*)$/.test(value)) return null;
+      const parsed=Number(value);
+      return Number.isSafeInteger(parsed) && parsed>=min && parsed<=max ? parsed : null;
+    };
+    const limit=parseQueryInteger(url.searchParams.get("limit"),10,1,25);
+    const offset=parseQueryInteger(url.searchParams.get("offset"),0,0,1000);
+    if(limit===null || offset===null) return response({error:"invalid_pagination"},400,origin,env);
+
+    const where=[
+      "u.catalog_id IS NOT NULL",
+      "u.catalog_status='active'",
+      "u.verification_status='verified'",
+      "u.verified_at IS NOT NULL",
+      "trim(u.verified_at)<>''"
+    ];
+    const bindings=[];
+    if(category) { where.push("u.category=?"); bindings.push(category); }
+    if(countryCode) { where.push("u.country_code=?"); bindings.push(countryCode); }
+    if(provinceCode) { where.push("u.province_code=?"); bindings.push(provinceCode); }
+    if(rawQuery) {
+      const searchParts=[
+        "instr(u.catalog_normalized_name,?)>0",
+        "instr(lower(coalesce(u.name_en,'')),lower(?))>0",
+        "EXISTS (SELECT 1 FROM university_aliases ua WHERE ua.university_id=u.id AND instr(ua.normalized_alias,?)>0)"
+      ];
+      bindings.push(normalizedQuery,rawQuery,normalizedQuery);
+      // School codes are searched by a literal prefix only; user input is
+      // never interpolated into a LIKE pattern containing wildcards.
+      if(/^[A-Za-z0-9-]{1,24}$/.test(rawQuery)) {
+        searchParts.push("u.official_school_code LIKE ?");
+        bindings.push(rawQuery+"%");
+      }
+      where.push("("+searchParts.join(" OR ")+")");
+    }
+    const sql=[
+      "SELECT u.catalog_id,u.canonical_name,u.name_en,u.category,",
+      "u.country_code,u.country_name_zh,u.country_name_en,u.province_code,u.province_name_zh,",
+      "u.city_name_zh,u.official_school_code,u.degree_levels_json,u.ownership,u.verified_at",
+      "FROM universities u",
+      "WHERE "+where.join(" AND "),
+      "ORDER BY u.category,u.canonical_name,u.catalog_id",
+      "LIMIT ? OFFSET ?"
+    ].join(" ");
+    const result=await env.DB.prepare(sql).bind(...bindings,limit+1,offset).all();
+    const rows=result.results||[];
+    const hasMore=rows.length>limit;
+    const universities=rows.slice(0,limit).map(row=>{
+      let degreeLevels=[];
+      try {
+        const parsed=JSON.parse(row.degree_levels_json||"[]");
+        if(Array.isArray(parsed)) degreeLevels=parsed.filter(value=>typeof value==="string");
+      } catch { /* malformed legacy data is never reflected as raw JSON */ }
+      return {
+        id:row.catalog_id,
+        name:row.canonical_name,
+        nameEn:row.name_en||null,
+        category:row.category,
+        countryCode:row.country_code,
+        countryName:row.country_name_zh,
+        countryNameEn:row.country_name_en||null,
+        provinceCode:row.province_code||null,
+        provinceName:row.province_name_zh||null,
+        cityName:row.city_name_zh||null,
+        schoolCode:row.official_school_code||null,
+        degreeLevels,
+        ownership:row.ownership,
+        verifiedAt:row.verified_at
+      };
+    });
+    return response({universities,pagination:{limit,offset,hasMore}},200,origin,env);
+  }
   if(path==="/api/auth/register/request-code" && method==="POST") {
     try { const d=await body(request); if(d.accountConsent !== true) return response({error:"consent_required"},400,origin,env); return response(await sendCode(String(d.phone||""),"register",d.turnstileToken,request,env),200,origin,env); }
     catch(e) {

@@ -203,3 +203,25 @@ npm run plan:universities -- --catalog data/university-catalog.json --existing d
 10. 对 `merged_into`，计划器会把目录 ID 解析为实际 D1 主键；目标无法解析时转人工审核。
 
 规划器的“可进入人工审核”不等于生产导入授权。真正的 D1 写入器、测试库导入、事务批次与回滚演练仍是独立后续里程碑。
+
+## 只读高校搜索 API（2026-11-22）
+
+Worker 提供 GET /api/universities，供个人资料页选择规范化高校。接口只读取 universities 与 university_aliases，不要求登录，因为高校目录本身不是个人信息；返回字段采用固定白名单。
+
+示例：
+
+    GET /api/universities?q=青岛大学&category=mainland&provinceCode=CN-37&limit=10&offset=0
+    GET /api/universities?category=hmt&countryCode=HK
+    GET /api/universities?q=11065
+
+安全与查询规则：
+
+- 仅返回 catalog_id IS NOT NULL、catalog_status='active'、verification_status='verified' 且具有 verified_at 的记录；旧版自由文本大学、草稿、待核验、停用和合并记录不会出现在选择结果中。
+- 支持 q、category、countryCode、provinceCode；至少提供一个非空筛选条件，避免无条件全表枚举。
+- q 最多 80 个字符，按 NFKC 规范化后匹配目录规范化名称、别名和英文名称；学校代码只支持字面前缀匹配，不把用户输入拼入 SQL。
+- provinceCode 只接受 CN-xx，并自动限定为 mainland / CN；分类与国家代码冲突时拒绝请求。
+- limit 默认为 10，范围 1–25；offset 默认为 0，最大 1000；通过多取一条返回 hasMore。
+- 响应不包含手机号、用户、队伍、成员、管理员、来源备注或审计字段；畸形 degree_levels_json 以空数组返回，不回显原始内容。
+- 目录尚未导入真实且已核验的高校时，接口会返回空数组。这是预期的 fail-closed 行为，不应回退到任意自由文本自动建校。
+
+**当前边界：**本次只增加只读搜索 API。现有 PUT /api/profile 仍沿用旧版自由文本高校字段，尚未切换为 catalog_id。下一步必须让资料保存只接受有效、active、verified 的目录 ID，并明确处理旧账号映射；在该集成完成前，目录搜索结果还不能视为完整的注册闭环。
