@@ -474,7 +474,7 @@ async function route(request, env) {
   const url=new URL(request.url), path=url.pathname, method=request.method, origin=request.headers.get("Origin");
   if(method==="OPTIONS") return new Response(null,{status:204,headers:corsHeaders(origin,env)});
   if(origin && origin!==env.APP_ORIGIN) return response({error:"origin_forbidden"},403,origin,env);
-  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"university-search-20261122",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
+  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"university-catalog-profile-20261122",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
   if(path==="/api/universities" && method==="GET") {
     // Public, read-only catalog lookup for profile selection. Never expose
     // draft/unverified, inactive, merged, or legacy free-form university rows.
@@ -745,10 +745,18 @@ async function route(request, env) {
   }
   if(path==="/api/profile" && method==="GET") {
     const user=await currentUser(request,env); if(!user) return response({error:"unauthorized"},401,origin,env);
-    const uni = user.university_id ? await env.DB.prepare("SELECT canonical_name,category,region_name,education_level,partner_name,project_tags_json FROM universities WHERE id=?").bind(user.university_id).first() : null;
+    let uni=null;
+    if(user.university_id) {
+      try {
+        uni=await env.DB.prepare("SELECT canonical_name,category,region_name,education_level,partner_name,project_tags_json,catalog_id FROM universities WHERE id=?").bind(user.university_id).first();
+      } catch {
+        // Keep existing profiles readable until additive migration 0013 is applied.
+        uni=await env.DB.prepare("SELECT canonical_name,category,region_name,education_level,partner_name,project_tags_json FROM universities WHERE id=?").bind(user.university_id).first();
+      }
+    }
     return response({profile:{
       name:user.name,className:user.class_name,highSchool:user.high_school,
-      university:uni?.canonical_name || "",universityCategory:uni?.category || "",
+      university:uni?.canonical_name || "",universityCatalogId:uni?.catalog_id || null,universityCategory:uni?.category || "",
       regionName:uni?.region_name || "",educationLevel:uni?.education_level || "",
       partnerName:uni?.partner_name || "",projectTags:uni?.project_tags_json || "[]",
       grade:user.grade,province:user.province,city:user.city,bio:user.bio,
@@ -764,52 +772,69 @@ async function route(request, env) {
       const d=await body(request);
       if(d.consent !== true) return response({error:"consent_required"},400,origin,env);
       const name=String(d.name||"").trim(), className=String(d.className||"").trim();
-      const rawUniversity=String(d.university||"").trim().replace(/\s+/g," ");
-      const category=String(d.universityCategory||"");
       const grade=String(d.grade||"").trim(), province=String(d.province||"").trim();
-      const regionName=String(d.regionName||"").trim(), partnerName=String(d.partnerName||"").trim();
-      const educationLevel=String(d.educationLevel||"");
-      const allowedCategories=["mainland","hmt","sino_foreign","overseas"];
-      if(!name || !className || !rawUniversity || !grade || !province || !allowedCategories.includes(category)) return response({error:"profile_incomplete"},400,origin,env);
-      if(name.length>80 || className.length>80 || rawUniversity.length>120 || grade.length>40 || province.length>80 || String(d.city||"").length>80 || String(d.bio||"").length>500 || regionName.length>80 || partnerName.length>120) return response({error:"profile_field_too_long"},400,origin,env);
-      if(category==="mainland" && !["undergraduate","vocational"].includes(educationLevel)) return response({error:"education_level_required"},400,origin,env);
-      if(category==="hmt" && !["香港","澳门","台湾"].includes(regionName)) return response({error:"university_region_required"},400,origin,env);
-      if(category==="sino_foreign" && (!partnerName || !["undergraduate","vocational"].includes(educationLevel))) return response({error:"cooperation_details_required"},400,origin,env);
-      if(category==="overseas" && !regionName) return response({error:"university_region_required"},400,origin,env);
-      const normalized=rawUniversity.normalize("NFKC").replace(/[\s\p{P}\p{S}]+/gu,"").toLowerCase();
-      if(!normalized) return response({error:"invalid_university"},400,origin,env);
-      const identityKey=category+":"+normalized;
-      const existingProfile=await env.DB.prepare("SELECT university_id FROM users WHERE id=?").bind(user.id).first();
-      let uni=await env.DB.prepare("SELECT id,category FROM universities WHERE normalized_name=?").bind(identityKey).first();
-      if(!uni) {
-        // Adopt a pre-classification university row rather than splitting existing
-        // members into a duplicate team when the first member classifies it.
-        const legacy=await env.DB.prepare("SELECT id FROM universities WHERE normalized_name=? AND category='unclassified'").bind("unclassified:"+normalized).first();
-        if(legacy) {
-          await env.DB.prepare("UPDATE universities SET canonical_name=?,normalized_name=?,category=?,region_name=?,education_level=?,partner_name=? WHERE id=? AND category='unclassified'")
-            .bind(rawUniversity,identityKey,category,regionName,educationLevel,partnerName,legacy.id).run();
-          uni=await env.DB.prepare("SELECT id,category FROM universities WHERE id=?").bind(legacy.id).first();
-        }
+      const city=String(d.city||"").trim(), bio=String(d.bio||"").trim();
+      if(!name || !className || !grade || !province) return response({error:"profile_incomplete"},400,origin,env);
+      if(name.length>80 || className.length>80 || grade.length>40 || province.length>80 || city.length>80 || bio.length>500) return response({error:"profile_field_too_long"},400,origin,env);
+
+      const hasCatalogId=d.universityCatalogId!==undefined && d.universityCatalogId!==null && d.universityCatalogId!=="";
+      if(hasCatalogId && typeof d.universityCatalogId!=="string") return response({error:"invalid_university_catalog_id"},400,origin,env);
+      let uni=null,rawUniversity="",category="",regionName="",educationLevel="",partnerName="";
+      if(hasCatalogId) {
+        const catalogId=d.universityCatalogId.trim();
+        if(!catalogId || catalogId.length>120 || /[\u0000-\u001f]/.test(catalogId)) return response({error:"invalid_university_catalog_id"},400,origin,env);
+        uni=await env.DB.prepare("SELECT id,catalog_id,canonical_name,category,region_name,education_level,partner_name,country_code,country_name_zh,province_name_zh,degree_levels_json FROM universities WHERE catalog_id=? AND catalog_status='active' AND verification_status='verified' AND verified_at IS NOT NULL AND ((category='mainland' AND country_code='CN' AND province_name_zh IS NOT NULL AND length(trim(province_name_zh))>0) OR (category='hmt' AND country_code IN ('HK','MO','TW')) OR (category='overseas' AND country_code NOT IN ('CN','HK','MO','TW')))")
+          .bind(catalogId).first();
+        if(!uni || !["mainland","hmt","overseas"].includes(uni.category)) return response({error:"university_not_selectable"},400,origin,env);
+        rawUniversity=String(uni.canonical_name||"").trim();
+        if(!rawUniversity || rawUniversity.length>120) return response({error:"university_not_selectable"},400,origin,env);
+        let degreeLevels=[];
+        try {
+          const parsed=JSON.parse(uni.degree_levels_json||"[]");
+          if(Array.isArray(parsed)) degreeLevels=parsed.filter(value=>typeof value==="string");
+        } catch { return response({error:"university_not_selectable"},400,origin,env); }
+        if(uni.category==="mainland" && !degreeLevels.includes("undergraduate")) return response({error:"university_not_selectable"},400,origin,env);
+        category=uni.category;
+        regionName=category==="mainland" ? String(uni.region_name||"") : String(uni.country_name_zh||"").trim();
+        if(category!=="mainland" && !regionName) return response({error:"university_not_selectable"},400,origin,env);
+        educationLevel=category==="mainland" ? "undergraduate" : String(uni.education_level||"");
+        partnerName=String(uni.partner_name||"");
+      } else {
+        // Legacy accounts may keep their existing university while editing other
+        // profile fields. New profiles cannot create free-form university rows.
+        if(!user.university_id) return response({error:"university_catalog_selection_required"},400,origin,env);
+        uni=await env.DB.prepare("SELECT id,canonical_name,category,region_name,education_level,partner_name FROM universities WHERE id=?").bind(user.university_id).first();
+        if(!uni) return response({error:"university_change_requires_support"},409,origin,env);
+        rawUniversity=String(uni.canonical_name||"").trim();
+        const submittedUniversity=String(d.university||"").trim().replace(/\s+/g," ");
+        const normalizeName=value=>String(value||"").normalize("NFKC").replace(/[\s\p{P}\p{S}]+/gu,"").toLowerCase();
+        if(submittedUniversity && normalizeName(submittedUniversity)!==normalizeName(rawUniversity)) return response({error:"university_change_requires_support"},409,origin,env);
+        const requestedCategory=String(d.universityCategory||"");
+        if(requestedCategory && requestedCategory!==uni.category) return response({error:"university_change_requires_support"},409,origin,env);
+        category=String(uni.category||"");
+        regionName=String(uni.region_name||"");
+        educationLevel=String(uni.education_level||"");
+        partnerName=String(uni.partner_name||"");
+        if(!["mainland","hmt","sino_foreign","overseas"].includes(category)) return response({error:"university_change_requires_support"},409,origin,env);
+        if(category==="mainland" && !["undergraduate","vocational"].includes(educationLevel)) return response({error:"education_level_required"},400,origin,env);
+        if(category==="hmt" && !["香港","澳门","台湾"].includes(regionName)) return response({error:"university_region_required"},400,origin,env);
+        if(category==="sino_foreign" && (!partnerName || !["undergraduate","vocational"].includes(educationLevel))) return response({error:"cooperation_details_required"},400,origin,env);
+        if(category==="overseas" && !regionName) return response({error:"university_region_required"},400,origin,env);
       }
-      if(!uni) {
-        const candidateId=randomHex(16);
-        await env.DB.prepare("INSERT OR IGNORE INTO universities(id,canonical_name,normalized_name,category,region_name,education_level,partner_name) VALUES(?,?,?,?,?,?,?)")
-          .bind(candidateId,rawUniversity,identityKey,category,regionName,educationLevel,partnerName).run();
-        uni=await env.DB.prepare("SELECT id,category FROM universities WHERE normalized_name=?").bind(identityKey).first();
-      }
-      if(!uni || uni.category!==category) return response({error:"university_normalization_conflict"},409,origin,env);
-      if(existingProfile?.university_id && existingProfile.university_id!==uni.id) return response({error:"university_change_requires_support"},409,origin,env);
-      const existingUniversity=await env.DB.prepare("SELECT region_name,education_level,partner_name FROM universities WHERE id=?").bind(uni.id).first();
-      if(existingUniversity && ((existingUniversity.region_name && regionName && existingUniversity.region_name!==regionName) || (existingUniversity.education_level && educationLevel && existingUniversity.education_level!==educationLevel) || (existingUniversity.partner_name && partnerName && existingUniversity.partner_name!==partnerName))) return response({error:"university_metadata_conflict"},409,origin,env);
+      if(!uni || !rawUniversity || !category) return response({error:"university_not_selectable"},400,origin,env);
+      if(user.university_id && user.university_id!==uni.id) return response({error:"university_change_requires_support"},409,origin,env);
+      if((uni.region_name && regionName && uni.region_name!==regionName) || (uni.education_level && educationLevel && uni.education_level!==educationLevel) || (uni.partner_name && partnerName && uni.partner_name!==partnerName)) return response({error:"university_metadata_conflict"},409,origin,env);
+
       const savedAt=new Date().toISOString();
-      await env.DB.batch([
-        env.DB.prepare("UPDATE universities SET region_name=CASE WHEN region_name='' THEN ? ELSE region_name END,education_level=CASE WHEN education_level='' THEN ? ELSE education_level END,partner_name=CASE WHEN partner_name='' THEN ? ELSE partner_name END WHERE id=? AND category=?")
-          .bind(regionName,educationLevel,partnerName,uni.id,category),
-        env.DB.prepare("UPDATE users SET name=?,class_name=?,high_school=?,university_id=?,grade=?,province=?,city=?,bio=?,phone_visible_to_team=?,consent_given=1,consent_at=CASE WHEN consent_given=0 OR consent_version<>? THEN ? ELSE consent_at END,consent_version=?,account_consent_at=CASE WHEN account_consent_at='' OR account_consent_version<>? THEN ? ELSE account_consent_at END,account_consent_version=?,updated_at=? WHERE id=?")
-          .bind(name,className,String(d.highSchool||"青岛五十八中").trim(),uni.id,grade,province,String(d.city||"").trim(),String(d.bio||"").trim(),d.phoneVisible?1:0,PRIVACY_NOTICE_VERSION,savedAt,PRIVACY_NOTICE_VERSION,PRIVACY_NOTICE_VERSION,savedAt,PRIVACY_NOTICE_VERSION,savedAt,user.id),
+      const results=await env.DB.batch([
+        env.DB.prepare("UPDATE universities SET region_name=CASE WHEN region_name='' THEN ? ELSE region_name END,education_level=CASE WHEN education_level='' THEN ? ELSE education_level END,partner_name=CASE WHEN partner_name='' THEN ? ELSE partner_name END WHERE id=? AND category=? AND EXISTS(SELECT 1 FROM users WHERE id=? AND (university_id IS NULL OR university_id=?))")
+          .bind(regionName,educationLevel,partnerName,uni.id,category,user.id,uni.id),
+        env.DB.prepare("UPDATE users SET name=?,class_name=?,high_school=?,university_id=?,grade=?,province=?,city=?,bio=?,phone_visible_to_team=?,consent_given=1,consent_at=CASE WHEN consent_given=0 OR consent_version<>? THEN ? ELSE consent_at END,consent_version=?,account_consent_at=CASE WHEN account_consent_at='' OR account_consent_version<>? THEN ? ELSE account_consent_at END,account_consent_version=?,updated_at=? WHERE id=? AND deleted_at='' AND (university_id IS NULL OR university_id=?)")
+          .bind(name,className,String(d.highSchool||"青岛五十八中").trim(),uni.id,grade,province,city,bio,d.phoneVisible?1:0,PRIVACY_NOTICE_VERSION,savedAt,PRIVACY_NOTICE_VERSION,PRIVACY_NOTICE_VERSION,savedAt,PRIVACY_NOTICE_VERSION,savedAt,user.id,uni.id),
         env.DB.prepare("UPDATE teams SET leader_user_id=? WHERE university_id=? AND leader_user_id IS NULL AND (SELECT COUNT(*) FROM users WHERE university_id=? AND deleted_at='')=1 AND EXISTS(SELECT 1 FROM users WHERE id=? AND university_id=? AND deleted_at='')").bind(user.id,uni.id,uni.id,user.id,uni.id),
         env.DB.prepare("INSERT OR IGNORE INTO teams(id,university_id,leader_user_id) SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM users WHERE id=? AND university_id=? AND deleted_at='')").bind(randomHex(16),uni.id,user.id,user.id,uni.id)
       ]);
+      if(!results?.[1]?.meta || Number(results[1].meta.changes||0)<1) return response({error:"university_change_requires_support"},409,origin,env);
       return response({ok:true},200,origin,env);
     }catch(e){return response({error:e.error||"profile_save_failed"},400,origin,env);}
   }
