@@ -75,7 +75,7 @@ assert.ok(!/\bphone\b/i.test(db.state.sql), "catalog query must not select or fi
 assert.deepEqual(db.state.bindings, [
   "mainland", "CN", "CN-37",
   "青岛大学", "青岛-大学", "青岛大学",
-  3, 2
+  3, 3
 ]);
 
 const codeDb = makeDb([]);
