@@ -327,7 +327,7 @@ must_fail("UPDATE university_catalog_import_staging SET action='update' WHERE da
 db.execute(
     "INSERT INTO universities(id,canonical_name,normalized_name,category,catalog_id,catalog_normalized_name,official_school_code,country_code,catalog_dataset_version,catalog_status) VALUES(?,?,?,?,?,?,?,?,?,?)",
     ("staged-new", "暂存大学", "catalog:mainland:CN-STAGED", "mainland", "mainland:CN-STAGED",
-     "mainland:CN:mainlandcn-staged", None, "CN", "2026-11-23-writer", "active"),
+     "mainland:CN:staged", None, "CN", "2026-11-23-writer", "active"),
 )
 db.execute(
     "UPDATE university_catalog_imports SET status='applied',inserted_count=1 WHERE dataset_version='2026-11-23-writer'"
