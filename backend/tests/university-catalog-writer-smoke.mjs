@@ -246,6 +246,12 @@ const appliedPlan = makePlan(input, [exactExisting], [{
 }], raw);
 const alreadyApplied = await buildCatalogImportManifest(input, appliedPlan, raw);
 assert.equal(alreadyApplied.already_applied, true);
+assert.deepEqual(await stageCatalogImport(new FakeD1(), alreadyApplied), { already_applied: true, staged_count: 0 });
+assert.deepEqual(await finalizeCatalogImport(new FakeD1(), alreadyApplied, "admin-owner"), { already_applied: true });
+await assert.rejects(
+  () => buildCatalogImportManifest(catalog([]), makePlan(catalog([]), [], [], JSON.stringify(catalog([]))), JSON.stringify(catalog([]))),
+  /catalog_invalid/
+);
 
 const db = new FakeD1();
 const staged = await stageCatalogImport(db, manifest, { chunkSize: 1 });
@@ -284,6 +290,14 @@ incompleteDb.stagingRows = [];
 await assert.rejects(
   () => finalizeCatalogImport(incompleteDb, manifest, "admin-owner"),
   /staging_incomplete/
+);
+
+const tamperedStageDb = new FakeD1();
+await stageCatalogImport(tamperedStageDb, manifest);
+tamperedStageDb.stagingRows[0].payload_json = "{}";
+await assert.rejects(
+  () => finalizeCatalogImport(tamperedStageDb, manifest, "admin-owner"),
+  /staging_payload_tampered/
 );
 
 const badPayloadManifest = {
