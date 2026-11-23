@@ -761,9 +761,9 @@ async function route(request, env) {
       partnerName:uni?.partner_name || "",projectTags:uni?.project_tags_json || "[]",
       grade:user.grade,province:user.province,city:user.city,bio:user.bio,
       phoneVisible:!!user.phone_visible_to_team,
-      consentGiven:!!user.consent_given && !!user.account_consent_at,
+      consentGiven:!!user.consent_given && !!user.consent_at && user.consent_version===PRIVACY_NOTICE_VERSION && !!user.account_consent_at && user.account_consent_version===PRIVACY_NOTICE_VERSION,
       consentAt:user.consent_at||"",consentVersion:user.consent_version||"",
-      accountConsentGiven:!!user.account_consent_at
+      accountConsentGiven:!!user.account_consent_at && user.account_consent_version===PRIVACY_NOTICE_VERSION
     }},200,origin,env);
   }
   if(path==="/api/profile" && method==="PUT") {
