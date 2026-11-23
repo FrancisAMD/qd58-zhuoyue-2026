@@ -38,14 +38,14 @@ catalog_columns = {
 }
 assert catalog_columns <= university_columns
 catalog_tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-assert {"university_aliases", "university_tags", "university_campuses", "university_sources", "university_catalog_imports"} <= catalog_tables
+assert {"university_aliases", "university_tags", "university_campuses", "university_sources", "university_catalog_imports", "university_catalog_import_staging"} <= catalog_tables
 catalog_indexes = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='index'")}
 assert {
     "idx_universities_catalog_id", "idx_universities_catalog_normalized_name",
     "idx_universities_catalog_school_code", "idx_universities_catalog_category_status",
     "idx_university_aliases_normalized", "idx_university_tags_lookup",
     "idx_university_one_main_campus", "idx_university_campuses_name",
-    "idx_university_sources_accessed", "idx_university_catalog_imports_imported"
+    "idx_university_sources_accessed", "idx_university_catalog_imports_imported", "idx_university_catalog_staging_target"
 } <= catalog_indexes
 
 # Legacy universities and their user/team foreign keys are not rewritten by 0013.
@@ -273,5 +273,127 @@ must_fail(
     ("2026-11-21", "bad-checksum", "2026-11-21T00:00:00Z", 0, "applied"),
 )
 assert db.execute("PRAGMA foreign_key_check").fetchall() == []
+
+
+# Migration 0014: staged catalog writes stay invisible until the final guarded commit.
+import json
+
+import_columns = {row[1] for row in db.execute("PRAGMA table_info(university_catalog_imports)")}
+assert "manifest_sha256" in import_columns
+stage_columns = {row[1] for row in db.execute("PRAGMA table_info(university_catalog_import_staging)")}
+assert {
+    "dataset_version", "checksum_sha256", "catalog_id", "target_university_id",
+    "action", "payload_json", "payload_sha256", "created_at"
+} <= stage_columns
+stage_triggers = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='trigger'")}
+assert {
+    "university_catalog_staging_insert_guard",
+    "university_catalog_staging_update_guard",
+    "university_catalog_staging_delete_guard",
+    "university_catalog_import_metadata_guard",
+    "university_catalog_import_applied_immutable",
+    "university_catalog_import_apply_guard"
+} <= stage_triggers
+
+def stage_test_batch(version, catalog_id, target_id, checksum, manifest_hash, record_count=1):
+    db.execute(
+        "INSERT INTO university_catalog_imports(dataset_version,checksum_sha256,manifest_sha256,imported_at,record_count,status) VALUES(?,?,?,?,?,'validated')",
+        (version, checksum, manifest_hash, "2026-11-23T00:00:00Z", record_count),
+    )
+    payload = {
+        "target_university_id": target_id,
+        "catalog_normalized_name": "mainland:CN:" + catalog_id.lower(),
+        "merged_into_university_id": None,
+        "record": {
+            "id": catalog_id,
+            "category": "mainland",
+            "location": {"country_code": "CN"},
+            "official_school_code": None,
+            "status": "active",
+        },
+    }
+    payload_text = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+    db.execute(
+        "INSERT INTO university_catalog_import_staging(dataset_version,checksum_sha256,catalog_id,target_university_id,action,payload_json,payload_sha256,created_at) VALUES(?,?,?,?,?,?,?,?)",
+        (version, checksum, catalog_id, target_id, "insert", payload_text, "e" * 64, "2026-11-23T00:00:00Z"),
+    )
+    return payload
+
+# A batch cannot be marked applied before every staged target is present and identical.
+stage_test_batch("2026-11-23-writer", "mainland:CN-STAGED", "staged-new", "c" * 64, "d" * 64)
+must_fail("UPDATE university_catalog_imports SET status='applied' WHERE dataset_version='2026-11-23-writer'")
+must_fail("DELETE FROM university_catalog_import_staging WHERE dataset_version='2026-11-23-writer'")
+must_fail("UPDATE university_catalog_import_staging SET action='update' WHERE dataset_version='2026-11-23-writer'")
+db.execute(
+    "INSERT INTO universities(id,canonical_name,normalized_name,category,catalog_id,catalog_normalized_name,official_school_code,country_code,catalog_dataset_version,catalog_status) VALUES(?,?,?,?,?,?,?,?,?,?)",
+    ("staged-new", "暂存大学", "catalog:mainland:CN-STAGED", "mainland", "mainland:CN-STAGED",
+     "mainland:CN:mainlandcn-staged", None, "CN", "2026-11-23-writer", "active"),
+)
+db.execute(
+    "UPDATE university_catalog_imports SET status='applied',inserted_count=1 WHERE dataset_version='2026-11-23-writer'"
+)
+assert db.execute("SELECT status FROM university_catalog_imports WHERE dataset_version='2026-11-23-writer'").fetchone()[0] == "applied"
+db.execute("DELETE FROM university_catalog_import_staging WHERE dataset_version='2026-11-23-writer'")
+assert db.execute("SELECT COUNT(*) FROM university_catalog_import_staging WHERE dataset_version='2026-11-23-writer'").fetchone()[0] == 0
+must_fail(
+    "INSERT INTO university_catalog_import_staging(dataset_version,checksum_sha256,catalog_id,target_university_id,action,payload_json,payload_sha256,created_at) VALUES(?,?,?,?,?,?,?,?)",
+    ("2026-11-23-writer", "c" * 64, "mainland:CN-LATE", "late-row", "insert", "{}", "f" * 64, "now"),
+)
+must_fail("UPDATE university_catalog_imports SET status='validated' WHERE dataset_version='2026-11-23-writer'")
+
+# A missing staged row prevents finalization.
+stage_test_batch("2026-11-23-incomplete", "mainland:CN-INCOMPLETE", "incomplete-new", "a" * 64, "b" * 64, 2)
+must_fail("UPDATE university_catalog_imports SET status='applied' WHERE dataset_version='2026-11-23-incomplete'")
+db.execute("UPDATE university_catalog_imports SET status='failed' WHERE dataset_version='2026-11-23-incomplete'")
+db.execute("DELETE FROM university_catalog_import_staging WHERE dataset_version='2026-11-23-incomplete'")
+
+# Two catalog IDs cannot map to one live D1 university row within the same batch.
+stage_test_batch("2026-11-23-duplicate-target", "mainland:CN-DUPLICATE-A", "same-target", "9" * 64, "8" * 64, 2)
+duplicate_payload = {
+    "target_university_id": "same-target",
+    "catalog_normalized_name": "mainland:CN:duplicate-b",
+    "merged_into_university_id": None,
+    "record": {
+        "id": "mainland:CN-DUPLICATE-B",
+        "category": "mainland",
+        "location": {"country_code": "CN"},
+        "official_school_code": None,
+        "status": "active",
+    },
+}
+must_fail(
+    "INSERT INTO university_catalog_import_staging(dataset_version,checksum_sha256,catalog_id,target_university_id,action,payload_json,payload_sha256,created_at) VALUES(?,?,?,?,?,?,?,?)",
+    ("2026-11-23-duplicate-target", "9" * 64, "mainland:CN-DUPLICATE-B", "same-target", "insert",
+     json.dumps(duplicate_payload), "7" * 64, "now"),
+)
+db.execute("UPDATE university_catalog_imports SET status='failed' WHERE dataset_version='2026-11-23-duplicate-target'")
+db.execute("DELETE FROM university_catalog_import_staging WHERE dataset_version='2026-11-23-duplicate-target'")
+
+# Simulate the final D1 batch: a late child-table constraint failure rolls back
+# the university insert and status transition, leaving only retryable staging.
+rollback_payload = stage_test_batch(
+    "2026-11-23-rollback", "mainland:CN-ROLLBACK", "rollback-new", "6" * 64, "5" * 64
+)
+db.execute("BEGIN")
+try:
+    db.execute(
+        "INSERT INTO universities(id,canonical_name,normalized_name,category,catalog_id,catalog_normalized_name,official_school_code,country_code,catalog_dataset_version,catalog_status) VALUES(?,?,?,?,?,?,?,?,?,?)",
+        ("rollback-new", "回滚大学", "catalog:mainland:CN-ROLLBACK", "mainland", "mainland:CN-ROLLBACK",
+         rollback_payload["catalog_normalized_name"], None, "CN", "2026-11-23-rollback", "active"),
+    )
+    db.execute("UPDATE university_catalog_imports SET status='applied' WHERE dataset_version='2026-11-23-rollback'")
+    db.execute(
+        "INSERT INTO university_tags(university_id,tag_group,tag_code) VALUES(?,?,?)",
+        ("rollback-new", "invalid-group", "bad-tag"),
+    )
+    db.commit()
+    raise AssertionError("Expected the simulated final batch to fail")
+except sqlite3.IntegrityError:
+    db.rollback()
+assert db.execute("SELECT COUNT(*) FROM universities WHERE id='rollback-new'").fetchone()[0] == 0
+assert db.execute("SELECT status FROM university_catalog_imports WHERE dataset_version='2026-11-23-rollback'").fetchone()[0] == "validated"
+assert db.execute("SELECT COUNT(*) FROM university_catalog_import_staging WHERE dataset_version='2026-11-23-rollback'").fetchone()[0] == 1
+db.execute("UPDATE university_catalog_imports SET status='failed' WHERE dataset_version='2026-11-23-rollback'")
+db.execute("DELETE FROM university_catalog_import_staging WHERE dataset_version='2026-11-23-rollback'")
 
 print("D1 schema tests: PASS (all migrations, legacy compatibility, catalog constraints, team/transfer invariants, RBAC and account anonymization).")
