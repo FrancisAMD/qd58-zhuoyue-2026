@@ -374,7 +374,7 @@ db.execute("DELETE FROM university_catalog_import_staging WHERE dataset_version=
 rollback_payload = stage_test_batch(
     "2026-11-23-rollback", "mainland:CN-ROLLBACK", "rollback-new", "6" * 64, "5" * 64
 )
-db.execute("BEGIN")
+db.execute("SAVEPOINT catalog_import_atomicity_test")
 try:
     db.execute(
         "INSERT INTO universities(id,canonical_name,normalized_name,category,catalog_id,catalog_normalized_name,official_school_code,country_code,catalog_dataset_version,catalog_status) VALUES(?,?,?,?,?,?,?,?,?,?)",
@@ -386,10 +386,11 @@ try:
         "INSERT INTO university_tags(university_id,tag_group,tag_code) VALUES(?,?,?)",
         ("rollback-new", "invalid-group", "bad-tag"),
     )
-    db.commit()
+    db.execute("RELEASE SAVEPOINT catalog_import_atomicity_test")
     raise AssertionError("Expected the simulated final batch to fail")
 except sqlite3.IntegrityError:
-    db.rollback()
+    db.execute("ROLLBACK TO SAVEPOINT catalog_import_atomicity_test")
+    db.execute("RELEASE SAVEPOINT catalog_import_atomicity_test")
 assert db.execute("SELECT COUNT(*) FROM universities WHERE id='rollback-new'").fetchone()[0] == 0
 assert db.execute("SELECT status FROM university_catalog_imports WHERE dataset_version='2026-11-23-rollback'").fetchone()[0] == "validated"
 assert db.execute("SELECT COUNT(*) FROM university_catalog_import_staging WHERE dataset_version='2026-11-23-rollback'").fetchone()[0] == 1
