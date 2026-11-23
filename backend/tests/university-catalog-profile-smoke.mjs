@@ -19,7 +19,7 @@ function makeDb({user={...baseUser},catalog=catalogRow,legacy=legacyRow,batchCha
       },
       all:async()=>({results:[]}),run:async()=>({meta:{changes:1}})
     };}}},
-    async batch(statements){state.batchCalls++;state.statements=statements.map(statement=>statement.sql);return [{meta:{changes:1}},{meta:{changes:batchChanges}},{meta:{changes:1}},{meta:{changes:1}}];}
+    async batch(statements){state.batchCalls++;state.statements=statements.map(statement=>statement.sql);state.batchBindings=statements.map(statement=>statement.bindings);return [{meta:{changes:1}},{meta:{changes:batchChanges}},{meta:{changes:1}},{meta:{changes:1}}];}
   };
   return {DB,state};
 }
@@ -34,6 +34,17 @@ assert.equal(selectedDb.state.batchCalls,1);
 assert.ok(selectedDb.state.firstQueries.some(q=>q.sql.includes("catalog_id=?")&&q.sql.includes("verification_status='verified'")&&q.sql.includes("catalog_status='active'")));
 assert.ok(selectedDb.state.statements.some(sql=>sql.includes("UPDATE users")&&sql.includes("university_id=?")));
 assert.ok(!selectedDb.state.statements.some(sql=>sql.includes("INSERT OR IGNORE INTO universities")),"profile save must never create a free-form university");
+assert.equal(selectedDb.state.batchBindings[1][8],0,"an unchecked phone-sharing option must be stored as opt-out");
+for (const forgedOptIn of ["false", 1, "1", "true"]) {
+  const strictDb=makeDb();
+  const strictResponse=await requestProfile(strictDb.DB,{universityCatalogId:catalogRow.catalog_id,phoneVisible:forgedOptIn});
+  assert.equal(strictResponse.status,200);
+  assert.equal(strictDb.state.batchBindings[1][8],0,"only the literal boolean true may grant phone visibility");
+}
+const explicitOptInDb=makeDb();
+const explicitOptIn=await requestProfile(explicitOptInDb.DB,{universityCatalogId:catalogRow.catalog_id,phoneVisible:true});
+assert.equal(explicitOptIn.status,200);
+assert.equal(explicitOptInDb.state.batchBindings[1][8],1,"the explicit checkbox boolean may grant phone visibility");
 const noCatalogDb=makeDb();
 const noCatalog=await requestProfile(noCatalogDb.DB,{university:"用户随意输入的学校",universityCategory:"mainland"});
 assert.equal(noCatalog.status,400);
