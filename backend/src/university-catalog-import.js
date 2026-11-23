@@ -86,7 +86,7 @@ function preparePayload(record, planItem) {
 
 export async function buildCatalogImportManifest(catalog, plan, catalogText) {
   if (!isObject(catalog) || !Array.isArray(catalog.universities) ||
-      typeof catalog.dataset_version !== "string") {
+      typeof catalog.dataset_version !== "string" || catalog.universities.length < 1) {
     throw new Error("catalog_import_catalog_invalid");
   }
   if (!isObject(plan) || plan.plan_version !== "1.0.0" || plan.mode !== "dry-run" ||
@@ -160,11 +160,19 @@ export async function buildCatalogImportManifest(catalog, plan, catalogText) {
 
 async function validateManifest(manifest) {
   if (!isObject(manifest) || manifest.manifest_version !== "1.0.0" ||
-      manifest.already_applied !== false ||
       !/^\d{4}-\d{2}-\d{2}$/.test(String(manifest.dataset_version || "")) ||
       !/^[0-9a-f]{64}$/.test(String(manifest.checksum_sha256 || "")) ||
+      !Array.isArray(manifest.records) || manifest.record_count !== manifest.records.length) {
+    throw new Error("catalog_import_manifest_invalid");
+  }
+  if (manifest.already_applied === true) {
+    if (manifest.records.length !== 0 || manifest.record_count < 1 || manifest.manifest_sha256 !== null) {
+      throw new Error("catalog_import_applied_manifest_invalid");
+    }
+    return;
+  }
+  if (manifest.already_applied !== false ||
       !/^[0-9a-f]{64}$/.test(String(manifest.manifest_sha256 || "")) ||
-      !Array.isArray(manifest.records) || manifest.record_count !== manifest.records.length ||
       manifest.record_count < 1) {
     throw new Error("catalog_import_manifest_invalid");
   }
@@ -188,6 +196,15 @@ async function validateManifest(manifest) {
     if (!isObject(payload) || payload.target_university_id !== item.target_university_id ||
         !isObject(payload.record) || payload.record.id !== item.catalog_id) {
       throw new Error("catalog_import_manifest_payload_identity_mismatch");
+    }
+    const rebuilt = preparePayload(payload.record, {
+      catalog_id: item.catalog_id,
+      target_university_id: item.target_university_id,
+      action: item.action,
+      merged_into_university_id: payload.merged_into_university_id
+    });
+    if (JSON.stringify(rebuilt) !== JSON.stringify(payload)) {
+      throw new Error("catalog_import_manifest_payload_not_canonical");
     }
   }
   if (await manifestDigest(manifest.dataset_version, manifest.records) !== manifest.manifest_sha256) {
