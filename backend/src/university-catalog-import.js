@@ -162,18 +162,19 @@ async function validateManifest(manifest) {
   if (!isObject(manifest) || manifest.manifest_version !== "1.0.0" ||
       !/^\d{4}-\d{2}-\d{2}$/.test(String(manifest.dataset_version || "")) ||
       !/^[0-9a-f]{64}$/.test(String(manifest.checksum_sha256 || "")) ||
-      !Array.isArray(manifest.records) || manifest.record_count !== manifest.records.length) {
+      !Array.isArray(manifest.records) || !Number.isInteger(manifest.record_count) ||
+      manifest.record_count < 1) {
     throw new Error("catalog_import_manifest_invalid");
   }
   if (manifest.already_applied === true) {
-    if (manifest.records.length !== 0 || manifest.record_count < 1 || manifest.manifest_sha256 !== null) {
+    if (manifest.records.length !== 0 || manifest.manifest_sha256 !== null) {
       throw new Error("catalog_import_applied_manifest_invalid");
     }
     return;
   }
   if (manifest.already_applied !== false ||
-      !/^[0-9a-f]{64}$/.test(String(manifest.manifest_sha256 || "")) ||
-      manifest.record_count < 1) {
+      manifest.record_count !== manifest.records.length ||
+      !/^[0-9a-f]{64}$/.test(String(manifest.manifest_sha256 || ""))) {
     throw new Error("catalog_import_manifest_invalid");
   }
   const ids = new Set();
