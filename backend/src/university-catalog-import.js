@@ -237,14 +237,14 @@ export async function stageCatalogImport(db, manifest, options = {}) {
 
     const placeholders = chunk.map(() => "?").join(",");
     const rows = await db.prepare(
-      "SELECT catalog_id,target_university_id,action,payload_sha256 " +
+      "SELECT catalog_id,target_university_id,action,payload_json,payload_sha256 " +
       "FROM university_catalog_import_staging WHERE dataset_version=? AND catalog_id IN (" + placeholders + ")"
     ).bind(manifest.dataset_version, ...chunk.map(item => item.catalog_id)).all();
     const found = new Map((rows.results || []).map(row => [row.catalog_id, row]));
     for (const item of chunk) {
       const row = found.get(item.catalog_id);
       if (!row || row.target_university_id !== item.target_university_id ||
-          row.action !== item.action || row.payload_sha256 !== item.payload_sha256) {
+          row.action !== item.action || row.payload_json !== item.payload_json || row.payload_sha256 !== item.payload_sha256) {
         throw new Error("catalog_import_staging_replay_conflict");
       }
     }
@@ -392,11 +392,16 @@ export async function finalizeCatalogImport(db, manifest, actorAdminId, imported
   if (batch.status !== "validated") throw new Error("catalog_import_batch_not_finalizable");
 
   const staged = await db.prepare(
-    "SELECT catalog_id,payload_sha256 FROM university_catalog_import_staging " +
+    "SELECT catalog_id,payload_json,payload_sha256 FROM university_catalog_import_staging " +
     "WHERE dataset_version=? ORDER BY catalog_id"
   ).bind(manifest.dataset_version).all();
   const rows = staged.results || [];
   if (rows.length !== manifest.record_count) throw new Error("catalog_import_staging_incomplete");
+  for (const row of rows) {
+    if (await sha256Hex(row.payload_json) !== row.payload_sha256) {
+      throw new Error("catalog_import_staging_payload_tampered");
+    }
+  }
   const stagedDigest = await manifestDigest(manifest.dataset_version, rows);
   if (stagedDigest !== manifest.manifest_sha256) throw new Error("catalog_import_staging_manifest_mismatch");
 
