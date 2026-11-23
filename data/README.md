@@ -225,3 +225,28 @@ Worker 提供 GET /api/universities，供个人资料页选择规范化高校。
 - 目录尚未导入真实且已核验的高校时，接口会返回空数组。这是预期的 fail-closed 行为，不应回退到任意自由文本自动建校。
 
 **当前边界：**本次只增加只读搜索 API。现有 PUT /api/profile 仍沿用旧版自由文本高校字段，尚未切换为 catalog_id。下一步必须让资料保存只接受有效、active、verified 的目录 ID，并明确处理旧账号映射；在该集成完成前，目录搜索结果还不能视为完整的注册闭环。
+
+
+## 分阶段 D1 写入核心（迁移 0014）
+
+迁移 0014_university_catalog_import_staging.sql 增加了导入 staging 表和最终应用保护：
+
+- university_catalog_imports.manifest_sha256 保存按目录 ID 排序的规范化清单摘要，与原始 JSON 文件 SHA-256 分开。
+- university_catalog_import_staging 只存高校目录记录、目标 D1 高校 ID、计划动作、payload JSON 和单条摘要；不包含用户、手机号、队伍、Session、OTP 或审计详情。
+- 每个 staging chunk 最多 20 条，使用 D1 batch() 原子写入 staging；同一 chunk 可安全重放，摘要不一致会拒绝。
+- staging 行不可更新；只有导入批次处于 validated 且 checksum/manifest 一致时才能插入。
+- 最终应用前必须满足 staging 数量完整、目标 D1 主键唯一、每条目标高校的目录 ID/分类/国家/规范化名称/学校代码/状态与 payload 一致。
+- 最终应用由 13 条预编译语句组成一个 DB.batch()：新增/更新高校、替换别名/标签/校区/来源、将批次标记为 applied、清理 staging、写入不含个人资料的管理员审计。任一语句失败时，整个最终 batch 回滚，staging 保留以便排查或重试。
+- 不删除高校，不修改 users.university_id、teams.university_id，不自动迁移用户或队伍。
+
+### 生成不可变导入清单
+
+在已完成 dry-run 且不存在 manual_review / conflict 后运行：
+
+npm run prepare:universities -- --catalog data/university-catalog.json --plan data/university-catalog-import-plan.json --out data/university-catalog-import-manifest.json
+
+输出文件使用独占创建模式，不覆盖已有清单。它包含高校目录 payload、每条记录 SHA-256、整份规范化 manifest SHA-256 和原始 JSON 文件 SHA-256。修改任何高校记录后，必须提升 dataset_version 并重新生成 dry-run 与 manifest；不能复用旧版本。
+
+### 当前安全边界
+
+backend/src/university-catalog-import.js 已实现 manifest 构建、staging chunk 写入和最终 D1 batch 核心，并由隔离测试覆盖。**目前尚未接入 Worker HTTP 管理路由或上传 CLI**，因此生成 manifest 不会连接或写入 D1；不要手动把 manifest 当作 SQL 执行。下一步应增加仅 owner 可用的管理端点，重新在服务端核验目标映射，并在独立测试 D1 上完成 staging、finalize、失败重试和恢复演练后，才考虑生产导入。
