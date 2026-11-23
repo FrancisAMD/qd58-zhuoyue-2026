@@ -221,8 +221,8 @@
 
 ## 本次增量里程碑（2026-11-23）：同队手机号展示的当前授权校验
 
-- 修复 /api/directory 的手机号展示条件：不再仅依赖 phone_visible_to_team=1，还必须同时满足资料同意已勾选、资料同意时间存在、资料同意版本等于当前隐私说明版本，以及账号同意时间/版本有效。
+- 修复 /api/directory 的手机号展示条件：不再仅依赖 phone_visible_to_team=1，还必须同时满足资料同意已勾选、资料同意时间存在、资料同意版本等于当前隐私说明版本，以及账号同意时间/版本有效。资料保存接口仅接受 JSON 布尔值 true 作为手机号展示授权；字符串 false、字符串 true、数字 1 均按关闭处理。
 - 所有条件在 D1 查询的 CASE 中执行，未授权、撤回、旧版本或不完整同意记录均返回 phone: null；省级队长列表仍不查询、不返回手机号。
-- 新增 backend/tests/directory-phone-consent-smoke.mjs，覆盖明确授权、关闭展示、旧版本、缺失同意时间、缺失账号同意和版本不匹配，并检查 SQL 侧强制执行隐私条件。
+- 新增 backend/tests/directory-phone-consent-smoke.mjs，覆盖明确授权、关闭展示、旧版本、缺失同意时间、缺失账号同意和版本不匹配，并检查 SQL 侧强制执行隐私条件；扩展 university-catalog-profile-smoke.mjs 验证只有字面布尔值 true 可以开启手机号展示。
 - 将专项测试接入 check:worker 与 test:worker。
 - 不新增 D1 迁移；不访问远程 D1、真实用户数据、短信服务或生产部署。该测试使用隔离 Worker/D1 mock，真实浏览器和云端联调仍待执行。
