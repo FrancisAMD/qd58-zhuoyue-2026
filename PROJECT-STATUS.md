@@ -226,3 +226,15 @@
 - 新增 backend/tests/directory-phone-consent-smoke.mjs，覆盖明确授权、关闭展示、旧版本、缺失同意时间、缺失账号同意和版本不匹配，并检查 SQL 侧强制执行隐私条件；扩展 university-catalog-profile-smoke.mjs 验证只有字面布尔值 true 可以开启手机号展示，且旧版/不完整同意不会在资料页被自动勾选。
 - 将专项测试接入 check:worker 与 test:worker。
 - 不新增 D1 迁移；不访问远程 D1、真实用户数据、短信服务或生产部署。该测试使用隔离 Worker/D1 mock，真实浏览器和云端联调仍待执行。
+
+
+## 本次增量里程碑（2026-11-23）：高校目录分阶段 D1 Writer 核心
+
+- 新增 backend/migrations/0014_university_catalog_import_staging.sql：为导入批次增加规范化 manifest SHA-256，并建立只存高校目录 payload 的 staging 表；staging 不包含 users、teams、手机号、Session、OTP 或审计详情。
+- 增加 staging 插入/更新/删除保护、导入元数据冻结、已应用批次不可回退，以及最终应用前的完整数量和 live university identity 检查。
+- 新增 backend/src/university-catalog-import.js：从已通过 dry-run 的 catalog + plan 生成逐条 payload SHA-256 和排序 manifest SHA-256；分 20 条 chunk 使用 DB.batch() 可重放地写 staging；最终用固定 13 条预编译语句组成一个 D1 batch，新增/更新 universities 并替换 aliases/tags/campuses/sources，最后标记 applied、清理 staging、写入最小化管理员审计。
+- 最终 batch 不修改 users、teams 或其外键；任一语句失败时，按 D1 batch 事务语义整体回滚，staging 保留用于排查/重试。
+- 新增 scripts/prepare-university-catalog-import.mjs 和 npm run prepare:universities，生成不可覆盖的 manifest 文件；该命令只生成高校目录 payload，不连接 D1。
+- 新增 backend/tests/university-catalog-writer-smoke.mjs，覆盖 manifest checksum、冲突计划拒绝、insert/update/link_existing 映射、分块重放、finalize 顺序、无用户/队伍写入、失败后保留 staging 和已应用批次幂等。
+- 扩展 backend/tests/schema-smoke.py，应用 0014 并验证 staging 完整性、目标映射、不可变性、重复目标拒绝和事务失败回滚。
+- 当前 writer 核心尚未接入 Worker HTTP 管理路由/上传 CLI；本轮没有读取远程 D1、应用迁移、导入高校数据、读取真实用户数据、发送短信或部署。必须先完成 owner-only 路由、服务端重验、独立测试 D1 演练和恢复测试。
