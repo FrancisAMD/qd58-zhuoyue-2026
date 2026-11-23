@@ -164,6 +164,7 @@ class FakeD1 {
             catalog_id: values[2],
             target_university_id: values[3],
             action: values[4],
+            payload_json: values[5],
             payload_sha256: values[6]
           });
         }
