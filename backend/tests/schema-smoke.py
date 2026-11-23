@@ -302,7 +302,7 @@ def stage_test_batch(version, catalog_id, target_id, checksum, manifest_hash, re
     )
     payload = {
         "target_university_id": target_id,
-        "catalog_normalized_name": "mainland:CN:" + catalog_id.lower(),
+        "catalog_normalized_name": "mainland:CN:" + catalog_id.split(":", 1)[1].replace("CN-", "").lower(),
         "merged_into_university_id": None,
         "record": {
             "id": catalog_id,
