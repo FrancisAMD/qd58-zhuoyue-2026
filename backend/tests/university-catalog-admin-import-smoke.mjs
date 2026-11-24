@@ -324,6 +324,29 @@ const replay = await worker.fetch(request("/api/admin/universities/import/finali
 assert.equal(replay.status, 200);
 assert.equal((await replay.json()).alreadyApplied, true);
 
+const staleFinalizeDb = new ImportRouteDB();
+const stageBeforeDrift = await worker.fetch(request("/api/admin/universities/import/stage", { body: { manifest } }), env(staleFinalizeDb));
+assert.equal(stageBeforeDrift.status, 202);
+staleFinalizeDb.universities = [{
+  id: record.id,
+  catalog_id: null,
+  catalog_normalized_name: null,
+  official_school_code: null,
+  category: "mainland",
+  country_code: "CN"
+}];
+const finalizeAfterDrift = await worker.fetch(request("/api/admin/universities/import/finalize", {
+  body: {
+    datasetVersion: manifest.dataset_version,
+    manifestSha256: manifest.manifest_sha256,
+    confirmManifestSha256: manifest.manifest_sha256
+  }
+}), env(staleFinalizeDb));
+assert.equal(finalizeAfterDrift.status, 409);
+assert.equal(staleFinalizeDb.importRow.status, "validated");
+assert.equal(staleFinalizeDb.stagingRows.length, 1);
+assert.equal(staleFinalizeDb.batches.some(batch => batch.length === 13), false);
+
 const linkSnapshot = makeSnapshot([{
   id: "legacy-by-code",
   catalog_id: null,
