@@ -280,7 +280,7 @@ assert.equal(db.importRow.status, "applied");
 assert.equal(db.stagingRows.length, 0);
 const finalBatch = db.batches.at(-1);
 assert.equal(finalBatch.length, 13);
-assert.ok(finalBatch.every(statement => !/\\b(?:FROM|INTO|UPDATE|DELETE FROM)\\s+(?:users|teams)\\b/i.test(statement.sql)));
+assert.ok(finalBatch.every(statement => !/\b(?:FROM|INTO|UPDATE|DELETE FROM)\s+(?:users|teams)\b/i.test(statement.sql)));
 
 const replay = await worker.fetch(request("/api/admin/universities/import/finalize", {
   body: {
