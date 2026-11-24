@@ -969,14 +969,14 @@ async function route(request, env) {
         if (checked.already_applied) {
           return response({ok:true,alreadyApplied:true,stagedCount:0},200,origin,env);
         }
-        const staged = await stageCatalogImport(env.DB,data.manifest);
-        await writeAudit(env.DB,"admin",admin.id,"admin.university_catalog.staged",
+        await writeAudit(env.DB,"admin",admin.id,"admin.university_catalog.stage_requested",
           "university_catalog_import",data.manifest.dataset_version,{
             datasetVersion:data.manifest.dataset_version,
             checksumSha256:data.manifest.checksum_sha256,
             manifestSha256:data.manifest.manifest_sha256,
             recordCount:data.manifest.record_count
           });
+        const staged = await stageCatalogImport(env.DB,data.manifest);
         return response({
           ok:true,
           datasetVersion:data.manifest.dataset_version,
