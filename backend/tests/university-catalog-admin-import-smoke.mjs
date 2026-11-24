@@ -229,8 +229,8 @@ assert.equal(badContentType.status, 415);
 const oversizedDb = new ImportRouteDB();
 const oversized = await worker.fetch(new Request(ORIGIN + "/api/admin/universities/import/stage", {
   method: "POST",
-  headers: { origin: ORIGIN, cookie: SESSION_COOKIE, "content-type": "application/json", "content-length": String(8 * 1024 * 1024 + 1) },
-  body: "{}"
+  headers: { origin: ORIGIN, cookie: SESSION_COOKIE, "content-type": "application/json" },
+  body: " ".repeat(8 * 1024 * 1024 + 1)
 }), env(oversizedDb));
 assert.equal(oversized.status, 413);
 
