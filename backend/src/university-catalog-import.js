@@ -266,7 +266,7 @@ function assertImportableRecord(record) {
         typeof source.title !== "string" || !source.title.trim() ||
         !Array.isArray(source.supports_fields) ||
         source.supports_fields.some(field => typeof field !== "string" || !evidenceFields.has(field)) ||
-        typeof source.accessed_at !== "string" || !/^\\d{4}-\\d{2}-\\d{2}$/.test(source.accessed_at)) {
+        typeof source.accessed_at !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(source.accessed_at)) {
       throw new Error("catalog_import_source_invalid");
     }
     let url;
@@ -287,7 +287,7 @@ function assertImportableRecord(record) {
     throw new Error("catalog_import_record_location_invalid");
   }
   if (category === "mainland" && (countryCode !== "CN" || !String(id).startsWith("mainland:CN-") ||
-      typeof location.province_code !== "string" || !/^CN-\\d{2}$/.test(location.province_code) ||
+      typeof location.province_code !== "string" || !/^CN-\d{2}$/.test(location.province_code) ||
       typeof location.province_name_zh !== "string" || !location.province_name_zh.trim())) {
     throw new Error("catalog_import_record_category_mismatch");
   }
@@ -432,7 +432,7 @@ export async function revalidateCatalogImportTargets(db, manifest) {
 }
 
 export async function loadStagedCatalogImportManifest(db, datasetVersion, manifestSha256) {
-  if (typeof datasetVersion !== "string" || !/^\\d{4}-\\d{2}-\\d{2}$/.test(datasetVersion) ||
+  if (typeof datasetVersion !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(datasetVersion) ||
       typeof manifestSha256 !== "string" || !/^[0-9a-f]{64}$/.test(manifestSha256)) {
     throw new Error("catalog_import_confirmation_invalid");
   }
