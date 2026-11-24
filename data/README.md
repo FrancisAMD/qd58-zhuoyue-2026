@@ -250,3 +250,44 @@ npm run prepare:universities -- --catalog data/university-catalog.json --plan da
 ### 当前安全边界
 
 backend/src/university-catalog-import.js 已实现 manifest 构建、staging chunk 写入和最终 D1 batch 核心，并由隔离测试覆盖。**目前尚未接入 Worker HTTP 管理路由或上传 CLI**，因此生成 manifest 不会连接或写入 D1；不要手动把 manifest 当作 SQL 执行。下一步应增加仅 owner 可用的管理端点，重新在服务端核验目标映射，并在独立测试 D1 上完成 staging、finalize、失败重试和恢复演练后，才考虑生产导入。
+
+
+## Owner-only D1 catalog import API (2026-11-24)
+
+The staged writer is now connected to two owner-only Worker routes. Both routes are disabled unless the Worker environment explicitly sets `UNIVERSITY_CATALOG_IMPORT_ENABLED=true`; the default and production-safe state is disabled.
+
+### Stage a prepared manifest
+
+1. Run the local catalog validator and dry-run planner against a university-only D1 snapshot.
+2. Resolve every `manual_review` / `conflict`; do not generate a manifest while any remain.
+3. Generate the immutable manifest with `npm run prepare:universities`.
+4. Authenticate through the independent admin session as the `owner` role.
+5. POST the manifest to `/api/admin/universities/import/stage` as JSON: `{"manifest": ...}`.
+
+The stage route requires the exact configured app Origin, a live admin session, owner role plus `universities:import` permission, the import feature flag, JSON content type, an 8 MiB request limit, and at most 5,000 records. Before staging, the Worker rechecks the manifest hashes and re-reads only the safe university identity columns (`id`, `catalog_id`, country-aware normalized name, official school code, category and country code). It rejects stale or ambiguous target mappings.
+
+The server also revalidates the importable record shape and official evidence: no unknown payload keys, only supported category/location combinations, mainland undergraduate scope, `verification.status=verified`, required verified fields, and official HTTPS sources covering those fields. This prevents a caller from bypassing the offline catalog validator by hand-editing a manifest.
+
+Staging writes only the import batch and immutable university staging rows. A minimal `admin.university_catalog.stage_requested` audit entry is written before staging; metadata contains only dataset version, checksums and record count.
+
+### Finalize an explicitly confirmed manifest
+
+After reviewing the stage response, POST to `/api/admin/universities/import/finalize`:
+
+```json
+{
+  "datasetVersion": "YYYY-MM-DD",
+  "manifestSha256": "<64 lowercase hex characters>",
+  "confirmManifestSha256": "<the exact same 64-character hash>"
+}
+```
+
+The Worker loads the staged manifest from D1, validates every row hash and the whole manifest digest, rechecks live university target mappings immediately before finalization, then invokes the existing single 13-statement D1 batch. The final batch only mutates universities and the university alias/tag/campus/source/import tables; it does not update or delete users, teams, or membership foreign keys. The same batch marks the import applied, clears staging, and writes the minimal admin audit. Replaying an already-applied version is idempotent.
+
+### Safety boundary
+
+- Both endpoints return `catalog_import_disabled` unless `UNIVERSITY_CATALOG_IMPORT_ENABLED=true` is deliberately configured.
+- Only the independent owner admin session can stage or finalize; admin and viewer roles are denied.
+- No production environment variable was changed and no endpoint was called in this development run.
+- No remote D1 migration, read, write, catalog import, personal-data access, SMS send, or Worker/Pages deployment was performed.
+- The isolated route smoke test uses synthetic university data and a mock D1. Before any real import, apply migrations 0013 and 0014 to an isolated test D1, run a backup/restore rehearsal, and compare the staged/finalized university-only snapshot.
