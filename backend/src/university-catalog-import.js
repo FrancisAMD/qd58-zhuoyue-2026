@@ -249,7 +249,13 @@ function assertImportableRecord(record) {
     }
   }
   for (const campus of record.campuses) {
-    if (!onlyKeys(campus, campusKeys) || !onlyKeys(campus.location, locationKeys)) {
+    if (!onlyKeys(campus, campusKeys) || !onlyKeys(campus.location, locationKeys) ||
+        !/^[a-z0-9][a-z0-9._:-]{1,79}$/.test(String(campus.id || "")) ||
+        !(typeof campus.name_zh === "string" && campus.name_zh.trim() ||
+          typeof campus.name_en === "string" && campus.name_en.trim()) ||
+        typeof campus.is_main_campus !== "boolean" ||
+        !(typeof campus.is_branch_campus === "boolean" || campus.is_branch_campus === null) ||
+        (campus.is_main_campus && campus.is_branch_campus)) {
       throw new Error("catalog_import_campus_schema_invalid");
     }
   }
@@ -274,20 +280,34 @@ function assertImportableRecord(record) {
   const countryCode = location.country_code;
   if (!["mainland", "hmt", "overseas"].includes(category) ||
       typeof countryCode !== "string" || !/^[A-Z]{2}$/.test(countryCode) ||
-      typeof location.country_name_zh !== "string" || !location.country_name_zh.trim()) {
+      typeof location.country_name_zh !== "string" || !location.country_name_zh.trim() ||
+      !(location.country_name_en === null || typeof location.country_name_en === "string" && location.country_name_en.trim()) ||
+      !["province_code", "province_name_zh", "city_name_zh"].every(key =>
+        location[key] === null || typeof location[key] === "string" && location[key].trim())) {
     throw new Error("catalog_import_record_location_invalid");
   }
-  if (category === "mainland" && (countryCode !== "CN" || !String(id).startsWith("mainland:CN-"))) {
+  if (category === "mainland" && (countryCode !== "CN" || !String(id).startsWith("mainland:CN-") ||
+      typeof location.province_code !== "string" || !/^CN-\\d{2}$/.test(location.province_code) ||
+      typeof location.province_name_zh !== "string" || !location.province_name_zh.trim())) {
     throw new Error("catalog_import_record_category_mismatch");
   }
-  if (category === "hmt" && (!["HK", "MO", "TW"].includes(countryCode) || !String(id).startsWith("hmt:" + countryCode + ":"))) {
+  if (category === "hmt" && (!["HK", "MO", "TW"].includes(countryCode) ||
+      !String(id).startsWith("hmt:" + countryCode + ":") ||
+      location.province_code !== null || location.province_name_zh !== null || location.city_name_zh !== null)) {
     throw new Error("catalog_import_record_category_mismatch");
   }
-  if (category === "overseas" && (["CN", "HK", "MO", "TW"].includes(countryCode) || !String(id).startsWith("overseas:" + countryCode + ":"))) {
+  if (category === "overseas" && (["CN", "HK", "MO", "TW"].includes(countryCode) ||
+      !String(id).startsWith("overseas:" + countryCode + ":") ||
+      location.province_code !== null || location.province_name_zh !== null || location.city_name_zh !== null)) {
     throw new Error("catalog_import_record_category_mismatch");
   }
-  if (typeof record.name_zh !== "string" && typeof record.name_en !== "string") {
-    throw new Error("catalog_import_name_missing");
+  if (!(typeof record.name_zh === "string" && record.name_zh.trim() ||
+        typeof record.name_en === "string" && record.name_en.trim()) ||
+      !["public", "private", "cooperative", "other", "unknown"].includes(record.ownership) ||
+      !["single", "multiple", "unknown"].includes(record.campus_structure) ||
+      !(typeof record.has_branch_campus === "boolean" || record.has_branch_campus === null) ||
+      !["complete", "partial", "not_collected", "unknown"].includes(record.campus_info_status)) {
+    throw new Error("catalog_import_name_or_metadata_invalid");
   }
   if (category === "mainland" && !record.degree_levels.includes("undergraduate")) {
     throw new Error("catalog_import_undergraduate_required");
