@@ -98,6 +98,9 @@ class ImportRouteDB {
   prepare(sql) {
     const db = this;
     return {
+      all: () => db.all(sql, []),
+      first: () => db.first(sql, []),
+      run: () => db.run(sql, []),
       bind(...values) {
         return {
           sql,
