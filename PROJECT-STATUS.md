@@ -253,3 +253,12 @@
 - 不新增 D1 迁移（继续使用 0014）；本次没有设置线上 feature flag、调用导入路由、读取/写入远程 D1、导入真实高校、读取真实个人数据、发送短信或部署 Worker/Pages。测试使用合成高校记录与 mock D1，真实测试 D1 导入/备份恢复演练仍待执行。
 
 - 2026-11-24 测试补充：在 staging 与 finalize 两个阶段分别模拟 D1 高校身份记录漂移；finalize 前发现目标已变化时返回 409，保留 validated 批次和 staging，不执行最终 13 语句 batch。
+
+
+## 本次增量里程碑（2026-11-24）：高校目录导入状态只读接口
+
+- 新增 owner-only `GET /api/admin/universities/import/status?datasetVersion=YYYY-MM-DD`；继续受 `UNIVERSITY_CATALOG_IMPORT_ENABLED=true` feature flag、独立管理员 Session、owner 角色和 `universities:import` 权限保护。
+- 仅返回导入批次摘要、记录数量、各操作计数、staging 数量及 staging 完整性；不返回高校 payload、手机号、用户、队伍、Session、OTP 或审计正文。
+- 对 datasetVersion 做严格日期格式校验；批次不存在返回 404；状态读取使用参数绑定，响应继承 `Cache-Control: no-store`。
+- 扩展 `backend/tests/university-catalog-admin-import-smoke.mjs`：覆盖未登录、普通 admin、feature flag 关闭、非法版本、批次不存在、validated staging 完整和 applied staging 清空状态。
+- 本次只修改开发分支和 Draft PR；未开启线上 feature flag、未调用线上导入接口、未读取或写入远程 D1、未导入真实高校、未读取个人数据或部署。
