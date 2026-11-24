@@ -238,3 +238,15 @@
 - 新增 backend/tests/university-catalog-writer-smoke.mjs，覆盖 manifest checksum、冲突计划拒绝、insert/update/link_existing 映射、分块重放、finalize 顺序、无用户/队伍写入、失败后保留 staging 和已应用批次幂等。
 - 扩展 backend/tests/schema-smoke.py，应用 0014 并验证 staging 完整性、目标映射、不可变性、重复目标拒绝和事务失败回滚。
 - 当前 writer 核心尚未接入 Worker HTTP 管理路由/上传 CLI；本轮没有读取远程 D1、应用迁移、导入高校数据、读取真实用户数据、发送短信或部署。必须先完成 owner-only 路由、服务端重验、独立测试 D1 演练和恢复测试。
+
+
+## 本次增量里程碑（2026-11-24）：高校目录 owner-only D1 导入路由
+
+- 将 `backend/src/university-catalog-import.js` 的 writer 核心连接到 Worker：新增 `POST /api/admin/universities/import/stage` 与 `POST /api/admin/universities/import/finalize`。
+- 两个端点默认关闭，只有环境变量 `UNIVERSITY_CATALOG_IMPORT_ENABLED=true` 时才启用；要求独立管理员会话、owner 角色、`universities:import` 权限及严格匹配的 APP_ORIGIN。普通 admin、viewer、未登录请求均不能调用。
+- staging 请求限制为 JSON、8 MiB、最多 5,000 条；finalize 必须同时提交 dataset_version、manifest SHA-256 和完全相同的二次确认摘要。
+- 新增服务端重验：manifest/payload 摘要、唯一目标映射、insert/update/link_existing 当前 D1 主表身份字段、合并目标映射；只读取 universities 的安全身份字段，不读取 users、teams、手机号、Session、OTP 或审计详情。
+- 服务端拒绝未核验高校：verification.status 必须为 verified，必要字段必须同时出现在 verified_fields 和政府/教育主管部门/高校 HTTPS 来源 supports_fields 中；限制 payload key 白名单，避免把任意个人信息塞入 staging。
+- staging 前写入最小化 `admin.university_catalog.stage_requested` 审计；finalize 的成功审计仍在同一个 13 语句 D1 batch 中完成。
+- 新增 `backend/tests/university-catalog-admin-import-smoke.mjs`，覆盖未登录、非 owner、功能开关关闭、Origin 错误、陈旧目标冲突、未核验数据拒绝、staging、二次摘要确认、finalize 和幂等重放；检查最终 batch 不触及 users/teams。
+- 不新增 D1 迁移（继续使用 0014）；本次没有设置线上 feature flag、调用导入路由、读取/写入远程 D1、导入真实高校、读取真实个人数据、发送短信或部署 Worker/Pages。测试使用合成高校记录与 mock D1，真实测试 D1 导入/备份恢复演练仍待执行。
