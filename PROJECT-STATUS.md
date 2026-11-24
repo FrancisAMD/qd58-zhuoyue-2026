@@ -261,4 +261,5 @@
 - 仅返回导入批次摘要、记录数量、各操作计数、staging 数量及 staging 完整性；不返回高校 payload、手机号、用户、队伍、Session、OTP 或审计正文。
 - 对 datasetVersion 做严格日期格式校验；批次不存在返回 404；状态读取使用参数绑定，响应继承 `Cache-Control: no-store`。
 - 扩展 `backend/tests/university-catalog-admin-import-smoke.mjs`：覆盖未登录、普通 admin、feature flag 关闭、非法版本、批次不存在、validated staging 完整和 applied staging 清空状态。
+- GitHub Actions run #194 已对代码/测试提交 `babf296f5596b6897fd64c259f3b51782255a65e` 执行完整检查，13 个工作流步骤全部成功：https://github.com/FrancisAMD/qd58-zhuoyue-2026/actions/runs/45349736022。
 - 本次只修改开发分支和 Draft PR；未开启线上 feature flag、未调用线上导入接口、未读取或写入远程 D1、未导入真实高校、未读取个人数据或部署。
