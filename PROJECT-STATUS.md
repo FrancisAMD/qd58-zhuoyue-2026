@@ -250,3 +250,5 @@
 - staging 前写入最小化 `admin.university_catalog.stage_requested` 审计；finalize 的成功审计仍在同一个 13 语句 D1 batch 中完成。
 - 新增 `backend/tests/university-catalog-admin-import-smoke.mjs`，覆盖未登录、非 owner、功能开关关闭、Origin 错误、陈旧目标冲突、未核验数据拒绝、staging、二次摘要确认、finalize 和幂等重放；检查最终 batch 不触及 users/teams。
 - 不新增 D1 迁移（继续使用 0014）；本次没有设置线上 feature flag、调用导入路由、读取/写入远程 D1、导入真实高校、读取真实个人数据、发送短信或部署 Worker/Pages。测试使用合成高校记录与 mock D1，真实测试 D1 导入/备份恢复演练仍待执行。
+
+- 2026-11-24 测试补充：在 staging 与 finalize 两个阶段分别模拟 D1 高校身份记录漂移；finalize 前发现目标已变化时返回 409，保留 validated 批次和 staging，不执行最终 13 语句 batch。
