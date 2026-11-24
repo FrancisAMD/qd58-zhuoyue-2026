@@ -215,13 +215,66 @@ async function validateManifest(manifest) {
 
 
 function assertImportableRecord(record) {
-  if (!isObject(record) || !isObject(record.location) || !isObject(record.verification)) {
-    throw new Error("catalog_import_record_invalid");
+  const isObjectValue = value => value !== null && typeof value === "object" && !Array.isArray(value);
+  const onlyKeys = (value, allowed) => isObjectValue(value) && Object.keys(value).every(key => allowed.has(key));
+  const recordKeys = new Set([
+    "id", "official_school_code", "name_zh", "name_en", "aliases", "category", "degree_levels",
+    "ownership", "school_type_tags", "project_tags", "double_first_class_disciplines", "location",
+    "campus_structure", "has_branch_campus", "campus_info_status", "campuses", "source_records",
+    "verification", "status", "merged_into"
+  ]);
+  const locationKeys = new Set(["country_code", "country_name_zh", "country_name_en", "province_code", "province_name_zh", "city_name_zh"]);
+  const sourceKeys = new Set(["source_type", "publisher", "title", "url", "accessed_at", "supports_fields"]);
+  const verificationKeys = new Set(["status", "verified_at", "verified_fields", "notes"]);
+  const campusKeys = new Set(["id", "name_zh", "name_en", "is_main_campus", "is_branch_campus", "location"]);
+  const evidenceFields = new Set([
+    "official_school_code", "name_zh", "name_en", "aliases", "category", "degree_levels", "ownership",
+    "school_type_tags", "project_tags", "double_first_class_disciplines", "location", "campus_structure",
+    "has_branch_campus", "campus_info_status", "campuses"
+  ]);
+  if (!onlyKeys(record, recordKeys) || !onlyKeys(record.location, locationKeys) ||
+      !onlyKeys(record.verification, verificationKeys)) {
+    throw new Error("catalog_import_record_schema_invalid");
   }
+  if (!Array.isArray(record.aliases) || !Array.isArray(record.degree_levels) ||
+      !Array.isArray(record.school_type_tags) || !Array.isArray(record.project_tags) ||
+      !Array.isArray(record.double_first_class_disciplines) || !Array.isArray(record.campuses) ||
+      !Array.isArray(record.source_records)) {
+    throw new Error("catalog_import_record_schema_invalid");
+  }
+  for (const values of [record.aliases, record.degree_levels, record.school_type_tags,
+    record.project_tags, record.double_first_class_disciplines]) {
+    if (values.some(value => typeof value !== "string" || !value.trim())) {
+      throw new Error("catalog_import_record_schema_invalid");
+    }
+  }
+  for (const campus of record.campuses) {
+    if (!onlyKeys(campus, campusKeys) || !onlyKeys(campus.location, locationKeys)) {
+      throw new Error("catalog_import_campus_schema_invalid");
+    }
+  }
+  for (const source of record.source_records) {
+    if (!onlyKeys(source, sourceKeys) ||
+        !["government", "education_authority", "institution", "other"].includes(source.source_type) ||
+        typeof source.publisher !== "string" || !source.publisher.trim() ||
+        typeof source.title !== "string" || !source.title.trim() ||
+        !Array.isArray(source.supports_fields) ||
+        source.supports_fields.some(field => typeof field !== "string" || !evidenceFields.has(field)) ||
+        typeof source.accessed_at !== "string" || !/^\\d{4}-\\d{2}-\\d{2}$/.test(source.accessed_at)) {
+      throw new Error("catalog_import_source_invalid");
+    }
+    let url;
+    try { url = new URL(source.url); } catch { throw new Error("catalog_import_source_url_invalid"); }
+    if (url.protocol !== "https:" || url.username || url.password) {
+      throw new Error("catalog_import_source_url_invalid");
+    }
+  }
+
   const { category, id, location, verification } = record;
   const countryCode = location.country_code;
   if (!["mainland", "hmt", "overseas"].includes(category) ||
-      typeof countryCode !== "string" || !/^[A-Z]{2}$/.test(countryCode)) {
+      typeof countryCode !== "string" || !/^[A-Z]{2}$/.test(countryCode) ||
+      typeof location.country_name_zh !== "string" || !location.country_name_zh.trim()) {
     throw new Error("catalog_import_record_location_invalid");
   }
   if (category === "mainland" && (countryCode !== "CN" || !String(id).startsWith("mainland:CN-"))) {
@@ -233,7 +286,10 @@ function assertImportableRecord(record) {
   if (category === "overseas" && (["CN", "HK", "MO", "TW"].includes(countryCode) || !String(id).startsWith("overseas:" + countryCode + ":"))) {
     throw new Error("catalog_import_record_category_mismatch");
   }
-  if (category === "mainland" && (!Array.isArray(record.degree_levels) || !record.degree_levels.includes("undergraduate"))) {
+  if (typeof record.name_zh !== "string" && typeof record.name_en !== "string") {
+    throw new Error("catalog_import_name_missing");
+  }
+  if (category === "mainland" && !record.degree_levels.includes("undergraduate")) {
     throw new Error("catalog_import_undergraduate_required");
   }
   if (!["active", "inactive", "merged"].includes(record.status)) {
@@ -243,29 +299,14 @@ function assertImportableRecord(record) {
       typeof verification.verified_at !== "string" ||
       !Number.isFinite(Date.parse(verification.verified_at)) ||
       !Array.isArray(verification.verified_fields) ||
-      verification.verified_fields.length === 0) {
+      verification.verified_fields.length === 0 ||
+      verification.verified_fields.some(field => typeof field !== "string" || !evidenceFields.has(field))) {
     throw new Error("catalog_import_record_not_verified");
   }
-  const officialSources = Array.isArray(record.source_records)
-    ? record.source_records.filter(source => isObject(source) &&
-      ["government", "education_authority", "institution"].includes(source.source_type))
-    : [];
+  const officialSources = record.source_records.filter(source =>
+    ["government", "education_authority", "institution"].includes(source.source_type));
   if (!officialSources.length) throw new Error("catalog_import_official_source_required");
-  const coverage = new Set();
-  for (const source of officialSources) {
-    if (typeof source.publisher !== "string" || !source.publisher.trim() ||
-        typeof source.title !== "string" || !source.title.trim() ||
-        !Array.isArray(source.supports_fields) ||
-        typeof source.accessed_at !== "string" || !/^\\d{4}-\\d{2}-\\d{2}$/.test(source.accessed_at)) {
-      throw new Error("catalog_import_source_invalid");
-    }
-    let url;
-    try { url = new URL(source.url); } catch { throw new Error("catalog_import_source_url_invalid"); }
-    if (url.protocol !== "https:" || url.username || url.password) {
-      throw new Error("catalog_import_source_url_invalid");
-    }
-    for (const field of source.supports_fields) coverage.add(field);
-  }
+  const coverage = new Set(officialSources.flatMap(source => source.supports_fields));
   const required = [
     typeof record.name_zh === "string" && record.name_zh.trim() ? "name_zh" : "name_en",
     "category", "degree_levels", "location"
@@ -273,10 +314,8 @@ function assertImportableRecord(record) {
   if (typeof record.official_school_code === "string" && record.official_school_code.trim()) {
     required.push("official_school_code");
   }
-  if (Array.isArray(record.project_tags) && record.project_tags.length) required.push("project_tags");
-  if (Array.isArray(record.double_first_class_disciplines) && record.double_first_class_disciplines.length) {
-    required.push("double_first_class_disciplines");
-  }
+  if (record.project_tags.length) required.push("project_tags");
+  if (record.double_first_class_disciplines.length) required.push("double_first_class_disciplines");
   if (record.campus_info_status === "complete") required.push("campuses", "campus_structure", "has_branch_campus");
   for (const field of verification.verified_fields) {
     if (!coverage.has(field)) throw new Error("catalog_import_evidence_incomplete");
