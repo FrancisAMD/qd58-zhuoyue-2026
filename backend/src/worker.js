@@ -1,4 +1,10 @@
 import { buildXlsxWorkbook } from "./xlsx.js";
+import {
+  stageCatalogImport,
+  finalizeCatalogImport,
+  revalidateCatalogImportTargets,
+  loadStagedCatalogImportManifest
+} from "./university-catalog-import.js";
 const encoder = new TextEncoder();
 export const PBKDF2_ITERATIONS = 100000;
 const PBKDF2_KEY_BYTES = 32;
@@ -66,6 +72,15 @@ function getCookie(request) {
 }
 async function body(request) {
   try { return await request.json(); } catch { throw new Error("invalid_json"); }
+}
+async function limitedJsonBody(request, maxBytes) {
+  const contentType = String(request.headers.get("content-type") || "").toLowerCase();
+  if (!contentType.includes("application/json")) throw err("json_required", 415);
+  const declaredLength = Number(request.headers.get("content-length") || 0);
+  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) throw err("payload_too_large", 413);
+  const raw = await request.text();
+  if (encoder.encode(raw).byteLength > maxBytes) throw err("payload_too_large", 413);
+  try { return JSON.parse(raw); } catch { throw err("invalid_json", 400); }
 }
 function err(message, status = 400, meta = {}) { return { error: message, status, ...meta }; }
 async function turnstile(token, action, request, env) {
@@ -198,7 +213,7 @@ async function currentAdmin(request, env) {
     .bind(digest, now()).first();
 }
 const ADMIN_PERMISSIONS = {
-  owner: ["overview", "people:read", "people:export", "audit:read", "admins:manage"],
+  owner: ["overview", "people:read", "people:export", "audit:read", "admins:manage", "universities:import"],
   admin: ["overview", "people:read", "people:export", "audit:read"],
   viewer: ["overview"]
 };
@@ -474,7 +489,7 @@ async function route(request, env) {
   const url=new URL(request.url), path=url.pathname, method=request.method, origin=request.headers.get("Origin");
   if(method==="OPTIONS") return new Response(null,{status:204,headers:corsHeaders(origin,env)});
   if(origin && origin!==env.APP_ORIGIN) return response({error:"origin_forbidden"},403,origin,env);
-  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"university-catalog-profile-20261122",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
+  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"university-catalog-import-owner-20261124",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
   if(path==="/api/universities" && method==="GET") {
     // Public, read-only catalog lookup for profile selection. Never expose
     // draft/unverified, inactive, merged, or legacy free-form university rows.
@@ -925,6 +940,78 @@ async function route(request, env) {
     const members=own.university_id?await env.DB.prepare("SELECT u.name,u.class_name AS className,u.grade,u.province,uni.canonical_name AS university,uni.category AS universityCategory,uni.region_name AS universityRegion,uni.education_level AS educationLevel,uni.project_tags_json AS projectTags,CASE WHEN u.phone_visible_to_team=1 AND u.consent_given=1 AND u.consent_at<>'' AND u.consent_version=? AND u.account_consent_at<>'' AND u.account_consent_version=? THEN u.phone ELSE NULL END AS phone FROM users u JOIN universities uni ON uni.id=u.university_id WHERE u.university_id=? AND u.id<>? AND u.deleted_at='' ORDER BY u.created_at").bind(PRIVACY_NOTICE_VERSION,PRIVACY_NOTICE_VERSION,own.university_id,user.id).all():{results:[]};
     const leaders=await env.DB.prepare("SELECT u.name,u.grade,u.province,uni.canonical_name AS university,uni.category AS universityCategory,uni.region_name AS universityRegion,uni.education_level AS educationLevel,uni.project_tags_json AS projectTags FROM teams t JOIN users u ON u.id=t.leader_user_id JOIN universities uni ON uni.id=t.university_id WHERE u.province=? AND u.deleted_at='' ORDER BY uni.canonical_name").bind(own.province||"").all();
     return response({members:members.results||[],provinceLeaders:leaders.results||[]},200,origin,env);
+  }
+
+  if ((path === "/api/admin/universities/import/stage" ||
+       path === "/api/admin/universities/import/finalize") && method === "POST") {
+    if (origin !== env.APP_ORIGIN) return response({error:"origin_forbidden"},403,origin,env);
+    if (env.UNIVERSITY_CATALOG_IMPORT_ENABLED !== "true") {
+      return response({error:"catalog_import_disabled"},503,origin,env);
+    }
+    const admin = await currentAdmin(request,env);
+    if (!admin) return response({error:"unauthorized"},401,origin,env);
+    if (admin.role !== "owner" || !hasAdminPermission(admin,"universities:import")) {
+      return response({error:"forbidden"},403,origin,env);
+    }
+
+    try {
+      if (path.endsWith("/stage")) {
+        const data = await limitedJsonBody(request,8*1024*1024);
+        if (!data || typeof data !== "object" || Array.isArray(data) ||
+            Object.keys(data).some(key => key !== "manifest") ||
+            !data.manifest || typeof data.manifest !== "object") {
+          return response({error:"invalid_import_request"},400,origin,env);
+        }
+        if (!Number.isInteger(data.manifest.record_count) || data.manifest.record_count > 5000) {
+          return response({error:"catalog_import_record_limit"},413,origin,env);
+        }
+        const checked = await revalidateCatalogImportTargets(env.DB,data.manifest);
+        if (checked.already_applied) {
+          return response({ok:true,alreadyApplied:true,stagedCount:0},200,origin,env);
+        }
+        const staged = await stageCatalogImport(env.DB,data.manifest);
+        await writeAudit(env.DB,"admin",admin.id,"admin.university_catalog.staged",
+          "university_catalog_import",data.manifest.dataset_version,{
+            datasetVersion:data.manifest.dataset_version,
+            checksumSha256:data.manifest.checksum_sha256,
+            manifestSha256:data.manifest.manifest_sha256,
+            recordCount:data.manifest.record_count
+          });
+        return response({
+          ok:true,
+          datasetVersion:data.manifest.dataset_version,
+          manifestSha256:data.manifest.manifest_sha256,
+          stagedCount:staged.staged_count,
+          alreadyApplied:staged.already_applied===true
+        },202,origin,env);
+      }
+
+      const data = await limitedJsonBody(request,4096);
+      if (!data || typeof data !== "object" || Array.isArray(data) ||
+          Object.keys(data).some(key => !["datasetVersion","manifestSha256","confirmManifestSha256"].includes(key)) ||
+          typeof data.datasetVersion !== "string" ||
+          typeof data.manifestSha256 !== "string" ||
+          data.confirmManifestSha256 !== data.manifestSha256) {
+        return response({error:"explicit_manifest_confirmation_required"},400,origin,env);
+      }
+      const loaded = await loadStagedCatalogImportManifest(env.DB,data.datasetVersion,data.manifestSha256);
+      if (loaded.already_applied) {
+        return response({ok:true,alreadyApplied:true,datasetVersion:data.datasetVersion},200,origin,env);
+      }
+      const checked = await revalidateCatalogImportTargets(env.DB,loaded.manifest);
+      if (checked.already_applied) {
+        return response({ok:true,alreadyApplied:true,datasetVersion:data.datasetVersion},200,origin,env);
+      }
+      const result = await finalizeCatalogImport(env.DB,loaded.manifest,admin.id);
+      return response({ok:true,...result},200,origin,env);
+    } catch (error) {
+      const code = String(error?.message || "catalog_import_failed");
+      const conflict = /target_changed|target_unmatched|target_already_linked|batch_mismatch|version_conflict|not_resumable|not_finalizable|staging_incomplete|replay_conflict|manifest_immutable|manifest_mismatch|live_identity/i.test(code);
+      const invalid = /invalid|checksum|verified|evidence|source_|undergraduate|required|normalized_identity|merge_target|manifest_|plan_|record_/i.test(code);
+      console.error("University catalog import request failed",code);
+      return response({error:conflict?"catalog_import_conflict":invalid?"catalog_import_invalid":"catalog_import_failed"},
+        conflict?409:invalid?400:500,origin,env);
+    }
   }
 
   if (path === "/api/admin/login" && method === "POST") {
