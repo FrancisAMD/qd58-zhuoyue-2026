@@ -952,7 +952,7 @@ async function route(request, env) {
       return response({error:"forbidden"},403,origin,env);
     }
     const datasetVersion = url.searchParams.get("datasetVersion") || "";
-    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(datasetVersion)) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(datasetVersion)) {
       return response({error:"catalog_import_version_invalid"},400,origin,env);
     }
     try {
