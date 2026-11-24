@@ -942,6 +942,56 @@ async function route(request, env) {
     return response({members:members.results||[],provinceLeaders:leaders.results||[]},200,origin,env);
   }
 
+  if (path === "/api/admin/universities/import/status" && method === "GET") {
+    if (env.UNIVERSITY_CATALOG_IMPORT_ENABLED !== "true") {
+      return response({error:"catalog_import_disabled"},503,origin,env);
+    }
+    const admin = await currentAdmin(request,env);
+    if (!admin) return response({error:"unauthorized"},401,origin,env);
+    if (admin.role !== "owner" || !hasAdminPermission(admin,"universities:import")) {
+      return response({error:"forbidden"},403,origin,env);
+    }
+    const datasetVersion = url.searchParams.get("datasetVersion") || "";
+    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(datasetVersion)) {
+      return response({error:"catalog_import_version_invalid"},400,origin,env);
+    }
+    try {
+      const batch = await env.DB.prepare(
+        "SELECT dataset_version,checksum_sha256,manifest_sha256,imported_at,record_count," +
+        "inserted_count,updated_count,linked_existing_count,skipped_count,status " +
+        "FROM university_catalog_imports WHERE dataset_version=?"
+      ).bind(datasetVersion).first();
+      if (!batch) return response({error:"catalog_import_not_found"},404,origin,env);
+      const staged = await env.DB.prepare(
+        "SELECT COUNT(*) AS staged_count FROM university_catalog_import_staging WHERE dataset_version=?"
+      ).bind(datasetVersion).first();
+      const recordCount = Number(batch.record_count || 0);
+      const stagedCount = Number(staged?.staged_count || 0);
+      const stagingComplete = batch.status === "applied"
+        ? stagedCount === 0
+        : batch.status === "validated" && recordCount > 0 && stagedCount === recordCount;
+      return response({
+        import: {
+          datasetVersion: batch.dataset_version,
+          checksumSha256: batch.checksum_sha256,
+          manifestSha256: batch.manifest_sha256 || null,
+          importedAt: batch.imported_at,
+          recordCount,
+          insertedCount: Number(batch.inserted_count || 0),
+          updatedCount: Number(batch.updated_count || 0),
+          linkedExistingCount: Number(batch.linked_existing_count || 0),
+          skippedCount: Number(batch.skipped_count || 0),
+          status: batch.status,
+          stagedCount,
+          stagingComplete
+        }
+      },200,origin,env);
+    } catch (error) {
+      console.error("University catalog import status failed",error?.message || "unknown");
+      return response({error:"catalog_import_status_failed"},500,origin,env);
+    }
+  }
+
   if ((path === "/api/admin/universities/import/stage" ||
        path === "/api/admin/universities/import/finalize") && method === "POST") {
     if (origin !== env.APP_ORIGIN) return response({error:"origin_forbidden"},403,origin,env);
