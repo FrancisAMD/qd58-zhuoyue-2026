@@ -691,8 +691,33 @@ export async function finalizeCatalogImport(db, manifest, actorAdminId, imported
     db.prepare(FINALIZE_SQL[11]).bind(version),
     db.prepare(FINALIZE_SQL[12]).bind(randomHex(), actorAdminId, version)
   ];
-  const results = await db.batch(statements);
-  if ((results[10]?.meta?.changes || 0) !== 1) throw new Error("catalog_import_commit_not_applied");
+  let results;
+  try {
+    results = await db.batch(statements);
+  } catch (error) {
+    // A concurrent finalize may have committed after our preflight read.
+    // Treat that exact same manifest as an idempotent replay, not a failure.
+    const current = await db.prepare(
+      "SELECT checksum_sha256,manifest_sha256,status FROM university_catalog_imports WHERE dataset_version=?"
+    ).bind(version).first().catch(() => null);
+    if (current?.status === "applied" &&
+        current.checksum_sha256 === manifest.checksum_sha256 &&
+        current.manifest_sha256 === manifest.manifest_sha256) {
+      return { already_applied: true };
+    }
+    throw error;
+  }
+  if ((results[10]?.meta?.changes || 0) !== 1) {
+    const current = await db.prepare(
+      "SELECT checksum_sha256,manifest_sha256,status FROM university_catalog_imports WHERE dataset_version=?"
+    ).bind(version).first();
+    if (current?.status === "applied" &&
+        current.checksum_sha256 === manifest.checksum_sha256 &&
+        current.manifest_sha256 === manifest.manifest_sha256) {
+      return { already_applied: true };
+    }
+    throw new Error("catalog_import_commit_not_applied");
+  }
   return {
     already_applied: false,
     dataset_version: version,
