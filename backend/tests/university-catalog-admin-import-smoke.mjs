@@ -218,6 +218,22 @@ const wrongOrigin = await worker.fetch(request("/api/admin/universities/import/s
 assert.equal(wrongOrigin.status, 403);
 assert.equal(wrongOriginDb.stagingRows.length, 0);
 
+const badContentTypeDb = new ImportRouteDB();
+const badContentType = await worker.fetch(new Request(ORIGIN + "/api/admin/universities/import/stage", {
+  method: "POST",
+  headers: { origin: ORIGIN, cookie: SESSION_COOKIE, "content-type": "text/plain" },
+  body: "{}"
+}), env(badContentTypeDb));
+assert.equal(badContentType.status, 415);
+
+const oversizedDb = new ImportRouteDB();
+const oversized = await worker.fetch(new Request(ORIGIN + "/api/admin/universities/import/stage", {
+  method: "POST",
+  headers: { origin: ORIGIN, cookie: SESSION_COOKIE, "content-type": "application/json", "content-length": String(8 * 1024 * 1024 + 1) },
+  body: "{}"
+}), env(oversizedDb));
+assert.equal(oversized.status, 413);
+
 const staleDb = new ImportRouteDB({
   universities: [{
     id: record.id,
@@ -245,6 +261,18 @@ const unverified = await worker.fetch(request("/api/admin/universities/import/st
 assert.equal(unverified.status, 400);
 assert.equal(unverifiedDb.stagingRows.length, 0);
 
+const piiManifest = structuredClone(manifest);
+const piiPayload = JSON.parse(piiManifest.records[0].payload_json);
+piiPayload.record.phone = "13800000000";
+piiManifest.records[0].payload_json = JSON.stringify(piiPayload);
+piiManifest.records[0].payload_sha256 = createHash("sha256").update(piiManifest.records[0].payload_json).digest("hex");
+const piiRows = piiManifest.records.map(item => item.catalog_id + ":" + item.payload_sha256).sort();
+piiManifest.manifest_sha256 = createHash("sha256").update(piiManifest.dataset_version + "\n" + piiRows.join("\n") + "\n").digest("hex");
+const piiDb = new ImportRouteDB();
+const piiResponse = await worker.fetch(request("/api/admin/universities/import/stage", { body: { manifest: piiManifest } }), env(piiDb));
+assert.equal(piiResponse.status, 400);
+assert.equal(piiDb.stagingRows.length, 0);
+
 const db = new ImportRouteDB();
 const staged = await worker.fetch(request("/api/admin/universities/import/stage", { body: { manifest } }), env(db));
 assert.equal(staged.status, 202);
@@ -254,6 +282,7 @@ assert.equal(db.importRow.status, "validated");
 assert.equal(db.stagingRows.length, 1);
 assert.equal(db.auditRows.length, 1);
 assert.equal(db.auditRows[0][3], "admin.university_catalog.stage_requested");
+assert.ok(db.queries.every(sql => !/\\b(?:FROM|INTO|UPDATE|DELETE FROM)\\s+(?:users|teams)\\b/i.test(sql)));
 assert.deepEqual(JSON.parse(db.auditRows[0][6]), {
   datasetVersion: manifest.dataset_version,
   checksumSha256: manifest.checksum_sha256,
