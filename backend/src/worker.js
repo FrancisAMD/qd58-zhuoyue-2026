@@ -1005,6 +1005,7 @@ async function route(request, env) {
       const result = await finalizeCatalogImport(env.DB,loaded.manifest,admin.id);
       return response({ok:true,...result},200,origin,env);
     } catch (error) {
+      if (error?.error) return response({error:error.error},error.status||400,origin,env);
       const code = String(error?.message || "catalog_import_failed");
       const conflict = /target_changed|target_unmatched|target_already_linked|batch_mismatch|version_conflict|not_resumable|not_finalizable|staging_incomplete|replay_conflict|manifest_immutable|manifest_mismatch|live_identity/i.test(code);
       const invalid = /invalid|checksum|verified|evidence|source_|undergraduate|required|normalized_identity|merge_target|manifest_|plan_|record_/i.test(code);
