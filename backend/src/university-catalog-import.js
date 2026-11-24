@@ -213,6 +213,198 @@ async function validateManifest(manifest) {
   }
 }
 
+
+function assertImportableRecord(record) {
+  if (!isObject(record) || !isObject(record.location) || !isObject(record.verification)) {
+    throw new Error("catalog_import_record_invalid");
+  }
+  const { category, id, location, verification } = record;
+  const countryCode = location.country_code;
+  if (!["mainland", "hmt", "overseas"].includes(category) ||
+      typeof countryCode !== "string" || !/^[A-Z]{2}$/.test(countryCode)) {
+    throw new Error("catalog_import_record_location_invalid");
+  }
+  if (category === "mainland" && (countryCode !== "CN" || !String(id).startsWith("mainland:CN-"))) {
+    throw new Error("catalog_import_record_category_mismatch");
+  }
+  if (category === "hmt" && (!["HK", "MO", "TW"].includes(countryCode) || !String(id).startsWith("hmt:" + countryCode + ":"))) {
+    throw new Error("catalog_import_record_category_mismatch");
+  }
+  if (category === "overseas" && (["CN", "HK", "MO", "TW"].includes(countryCode) || !String(id).startsWith("overseas:" + countryCode + ":"))) {
+    throw new Error("catalog_import_record_category_mismatch");
+  }
+  if (category === "mainland" && (!Array.isArray(record.degree_levels) || !record.degree_levels.includes("undergraduate"))) {
+    throw new Error("catalog_import_undergraduate_required");
+  }
+  if (!["active", "inactive", "merged"].includes(record.status)) {
+    throw new Error("catalog_import_record_status_invalid");
+  }
+  if (verification.status !== "verified" ||
+      typeof verification.verified_at !== "string" ||
+      !Number.isFinite(Date.parse(verification.verified_at)) ||
+      !Array.isArray(verification.verified_fields) ||
+      verification.verified_fields.length === 0) {
+    throw new Error("catalog_import_record_not_verified");
+  }
+  const officialSources = Array.isArray(record.source_records)
+    ? record.source_records.filter(source => isObject(source) &&
+      ["government", "education_authority", "institution"].includes(source.source_type))
+    : [];
+  if (!officialSources.length) throw new Error("catalog_import_official_source_required");
+  const coverage = new Set();
+  for (const source of officialSources) {
+    if (typeof source.publisher !== "string" || !source.publisher.trim() ||
+        typeof source.title !== "string" || !source.title.trim() ||
+        !Array.isArray(source.supports_fields) ||
+        typeof source.accessed_at !== "string" || !/^\\d{4}-\\d{2}-\\d{2}$/.test(source.accessed_at)) {
+      throw new Error("catalog_import_source_invalid");
+    }
+    let url;
+    try { url = new URL(source.url); } catch { throw new Error("catalog_import_source_url_invalid"); }
+    if (url.protocol !== "https:" || url.username || url.password) {
+      throw new Error("catalog_import_source_url_invalid");
+    }
+    for (const field of source.supports_fields) coverage.add(field);
+  }
+  const required = [
+    typeof record.name_zh === "string" && record.name_zh.trim() ? "name_zh" : "name_en",
+    "category", "degree_levels", "location"
+  ];
+  if (typeof record.official_school_code === "string" && record.official_school_code.trim()) {
+    required.push("official_school_code");
+  }
+  if (Array.isArray(record.project_tags) && record.project_tags.length) required.push("project_tags");
+  if (Array.isArray(record.double_first_class_disciplines) && record.double_first_class_disciplines.length) {
+    required.push("double_first_class_disciplines");
+  }
+  if (record.campus_info_status === "complete") required.push("campuses", "campus_structure", "has_branch_campus");
+  for (const field of verification.verified_fields) {
+    if (!coverage.has(field)) throw new Error("catalog_import_evidence_incomplete");
+  }
+  for (const field of required) {
+    if (!verification.verified_fields.includes(field) || !coverage.has(field)) {
+      throw new Error("catalog_import_required_evidence_missing");
+    }
+  }
+}
+
+function addUniqueIndex(index, key, row) {
+  if (typeof key !== "string" || !key) return;
+  const rows = index.get(key) || [];
+  rows.push(row);
+  index.set(key, rows);
+}
+
+export async function revalidateCatalogImportTargets(db, manifest) {
+  await validateManifest(manifest);
+  if (manifest.already_applied) return { already_applied: true, checked_count: 0 };
+  const targetIds = new Set(manifest.records.map(item => item.target_university_id));
+  for (const item of manifest.records) {
+    const payload = JSON.parse(item.payload_json);
+    const record = payload.record;
+    assertImportableRecord(record);
+    const expectedName = record.category + ":" + record.location.country_code + ":" +
+      normalizeUniversityName(record.name_zh || record.name_en);
+    if (payload.catalog_normalized_name !== expectedName) {
+      throw new Error("catalog_import_normalized_identity_mismatch");
+    }
+    if (payload.merged_into_university_id && !targetIds.has(payload.merged_into_university_id)) {
+      throw new Error("catalog_import_merge_target_missing");
+    }
+  }
+
+  // Only university-master identity columns are read. No users, teams, phones,
+  // sessions, OTPs, or audit metadata are part of the import snapshot.
+  const snapshot = await db.prepare(
+    "SELECT id,catalog_id,catalog_normalized_name,official_school_code,category,country_code FROM universities"
+  ).all();
+  const rows = snapshot.results || [];
+  const byId = new Map();
+  const byCatalogId = new Map();
+  const byCode = new Map();
+  const byName = new Map();
+  for (const row of rows) {
+    byId.set(row.id, row);
+    addUniqueIndex(byCatalogId, row.catalog_id, row);
+    addUniqueIndex(byCode, row.official_school_code, row);
+    addUniqueIndex(byName, row.catalog_normalized_name, row);
+  }
+
+  for (const item of manifest.records) {
+    const payload = JSON.parse(item.payload_json);
+    const record = payload.record;
+    const target = byId.get(item.target_university_id);
+    const codeMatches = record.official_school_code ? (byCode.get(record.official_school_code) || []) : [];
+    const nameMatches = byName.get(payload.catalog_normalized_name) || [];
+    const catalogMatches = byCatalogId.get(item.catalog_id) || [];
+    const matchingRows = [...new Map([...codeMatches, ...nameMatches, ...catalogMatches].map(row => [row.id, row])).values()];
+    const hasOtherMatch = matchingRows.some(row => row.id !== item.target_university_id);
+
+    if (item.action === "insert") {
+      if (item.target_university_id !== item.catalog_id || target || matchingRows.length) {
+        throw new Error("catalog_import_target_changed");
+      }
+      continue;
+    }
+    if (!target || target.category !== record.category ||
+        (target.country_code && target.country_code !== record.location.country_code) ||
+        (target.official_school_code && target.official_school_code !== (record.official_school_code || null)) ||
+        (target.catalog_normalized_name && target.catalog_normalized_name !== payload.catalog_normalized_name) ||
+        hasOtherMatch) {
+      throw new Error("catalog_import_target_changed");
+    }
+    if (item.action === "update") {
+      if (target.catalog_id !== item.catalog_id ||
+          target.country_code !== record.location.country_code ||
+          target.catalog_normalized_name !== payload.catalog_normalized_name) {
+        throw new Error("catalog_import_update_target_changed");
+      }
+    } else if (item.action === "link_existing") {
+      const matchedByStableKey =
+        (!!record.official_school_code && target.official_school_code === record.official_school_code) ||
+        target.catalog_normalized_name === payload.catalog_normalized_name;
+      if (target.catalog_id !== null && target.catalog_id !== undefined) {
+        throw new Error("catalog_import_link_target_already_linked");
+      }
+      if (!matchedByStableKey) throw new Error("catalog_import_link_target_unmatched");
+    }
+  }
+  return { already_applied: false, checked_count: manifest.records.length, snapshot_count: rows.length };
+}
+
+export async function loadStagedCatalogImportManifest(db, datasetVersion, manifestSha256) {
+  if (typeof datasetVersion !== "string" || !/^\\d{4}-\\d{2}-\\d{2}$/.test(datasetVersion) ||
+      typeof manifestSha256 !== "string" || !/^[0-9a-f]{64}$/.test(manifestSha256)) {
+    throw new Error("catalog_import_confirmation_invalid");
+  }
+  const batch = await db.prepare(
+    "SELECT dataset_version,checksum_sha256,manifest_sha256,record_count,status " +
+    "FROM university_catalog_imports WHERE dataset_version=?"
+  ).bind(datasetVersion).first();
+  if (!batch || batch.manifest_sha256 !== manifestSha256) {
+    throw new Error("catalog_import_batch_mismatch");
+  }
+  if (batch.status === "applied") return { already_applied: true, dataset_version: datasetVersion };
+  if (batch.status !== "validated") throw new Error("catalog_import_batch_not_finalizable");
+  const staged = await db.prepare(
+    "SELECT catalog_id,target_university_id,action,payload_json,payload_sha256 " +
+    "FROM university_catalog_import_staging WHERE dataset_version=? ORDER BY catalog_id"
+  ).bind(datasetVersion).all();
+  const records = staged.results || [];
+  if (records.length !== Number(batch.record_count)) throw new Error("catalog_import_staging_incomplete");
+  const manifest = {
+    manifest_version: "1.0.0",
+    already_applied: false,
+    dataset_version: batch.dataset_version,
+    checksum_sha256: batch.checksum_sha256,
+    manifest_sha256: batch.manifest_sha256,
+    record_count: Number(batch.record_count),
+    records
+  };
+  await validateManifest(manifest);
+  return { already_applied: false, manifest };
+}
+
 export async function beginCatalogImport(db, manifest, importedAt = new Date().toISOString()) {
   await validateManifest(manifest);
   if (manifest.already_applied) return { already_applied: true };
