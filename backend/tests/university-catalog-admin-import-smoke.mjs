@@ -282,7 +282,7 @@ assert.equal(db.importRow.status, "validated");
 assert.equal(db.stagingRows.length, 1);
 assert.equal(db.auditRows.length, 1);
 assert.equal(db.auditRows[0][3], "admin.university_catalog.stage_requested");
-assert.ok(db.queries.every(sql => !/\\b(?:FROM|INTO|UPDATE|DELETE FROM)\\s+(?:users|teams)\\b/i.test(sql)));
+assert.ok(db.queries.every(sql => !/\b(?:FROM|INTO|UPDATE|DELETE FROM)\s+(?:users|teams)\b/i.test(sql)));
 assert.deepEqual(JSON.parse(db.auditRows[0][6]), {
   datasetVersion: manifest.dataset_version,
   checksumSha256: manifest.checksum_sha256,
