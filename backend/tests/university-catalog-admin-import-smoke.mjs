@@ -117,6 +117,10 @@ class ImportRouteDB {
     if (sql.startsWith("SELECT a.id,a.username,a.role FROM admin_sessions")) {
       return this.role ? { id: "owner-test", username: "owner", role: this.role } : null;
     }
+    if (sql.includes("COUNT(*) AS staged_count")) {
+      const version = values[0];
+      return { staged_count: this.stagingRows.filter(row => row.dataset_version === version).length };
+    }
     if (sql.includes("FROM university_catalog_imports")) return this.importRow;
     return null;
   }
@@ -139,7 +143,12 @@ class ImportRouteDB {
           dataset_version: values[0],
           checksum_sha256: values[1],
           manifest_sha256: values[2],
+          imported_at: values[3],
           record_count: values[4],
+          inserted_count: 0,
+          updated_count: 0,
+          linked_existing_count: 0,
+          skipped_count: 0,
           status: "validated"
         };
       }
@@ -276,6 +285,27 @@ const piiResponse = await worker.fetch(request("/api/admin/universities/import/s
 assert.equal(piiResponse.status, 400);
 assert.equal(piiDb.stagingRows.length, 0);
 
+const statusUnauthDb = new ImportRouteDB({ role: null });
+const statusUnauth = await worker.fetch(request("/api/admin/universities/import/status?datasetVersion=2026-11-24", { method: "GET", cookie: "" }), env(statusUnauthDb));
+assert.equal(statusUnauth.status, 401);
+
+const statusAdminDb = new ImportRouteDB({ role: "admin" });
+const statusAdmin = await worker.fetch(request("/api/admin/universities/import/status?datasetVersion=2026-11-24", { method: "GET" }), env(statusAdminDb));
+assert.equal(statusAdmin.status, 403);
+
+const statusDisabledDb = new ImportRouteDB();
+const statusDisabled = await worker.fetch(request("/api/admin/universities/import/status?datasetVersion=2026-11-24", { method: "GET" }), env(statusDisabledDb, false));
+assert.equal(statusDisabled.status, 503);
+
+const statusInvalidDb = new ImportRouteDB();
+const statusInvalid = await worker.fetch(request("/api/admin/universities/import/status?datasetVersion=not-a-date", { method: "GET" }), env(statusInvalidDb));
+assert.equal(statusInvalid.status, 400);
+assert.equal(statusInvalidDb.queries.some(sql => sql.includes("FROM university_catalog_imports")), false);
+
+const statusMissingDb = new ImportRouteDB();
+const statusMissing = await worker.fetch(request("/api/admin/universities/import/status?datasetVersion=2026-11-24", { method: "GET" }), env(statusMissingDb));
+assert.equal(statusMissing.status, 404);
+
 const db = new ImportRouteDB();
 const staged = await worker.fetch(request("/api/admin/universities/import/stage", { body: { manifest } }), env(db));
 assert.equal(staged.status, 202);
@@ -283,6 +313,16 @@ const stagedBody = await staged.json();
 assert.equal(stagedBody.stagedCount, 1);
 assert.equal(db.importRow.status, "validated");
 assert.equal(db.stagingRows.length, 1);
+
+const stagedStatusResponse = await worker.fetch(request("/api/admin/universities/import/status?datasetVersion=2026-11-24", { method: "GET" }), env(db));
+assert.equal(stagedStatusResponse.status, 200);
+const stagedStatus = (await stagedStatusResponse.json()).import;
+assert.equal(stagedStatus.status, "validated");
+assert.equal(stagedStatus.recordCount, 1);
+assert.equal(stagedStatus.stagedCount, 1);
+assert.equal(stagedStatus.stagingComplete, true);
+assert.equal(stagedStatus.manifestSha256, manifest.manifest_sha256);
+
 assert.equal(db.auditRows.length, 1);
 assert.equal(db.auditRows[0][3], "admin.university_catalog.stage_requested");
 assert.ok(db.queries.every(sql => !/\b(?:FROM|INTO|UPDATE|DELETE FROM)\s+(?:users|teams)\b/i.test(sql)));
@@ -310,6 +350,15 @@ assert.equal(finalized.status, 200);
 assert.equal((await finalized.json()).record_count, 1);
 assert.equal(db.importRow.status, "applied");
 assert.equal(db.stagingRows.length, 0);
+
+const appliedStatusResponse = await worker.fetch(request("/api/admin/universities/import/status?datasetVersion=2026-11-24", { method: "GET" }), env(db));
+assert.equal(appliedStatusResponse.status, 200);
+const appliedStatus = (await appliedStatusResponse.json()).import;
+assert.equal(appliedStatus.status, "applied");
+assert.equal(appliedStatus.stagedCount, 0);
+assert.equal(appliedStatus.stagingComplete, true);
+assert.ok(db.queries.every(sql => !/\\b(?:FROM|INTO|UPDATE|DELETE FROM)\\s+(?:users|teams)\\b/i.test(sql)));
+
 const finalBatch = db.batches.at(-1);
 assert.equal(finalBatch.length, 13);
 assert.ok(finalBatch.every(statement => !/\b(?:FROM|INTO|UPDATE|DELETE FROM)\s+(?:users|teams)\b/i.test(statement.sql)));
