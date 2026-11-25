@@ -1,6 +1,6 @@
 # 项目状态
 
-最后更新：2026-11-24
+最后更新：2026-11-25
 
 ## 已提交
 - Cloudflare Pages/Worker 域名与 D1 配置。
@@ -263,3 +263,16 @@
 - 扩展 `backend/tests/university-catalog-admin-import-smoke.mjs`：覆盖未登录、普通 admin、feature flag 关闭、非法版本、批次不存在、validated staging 完整和 applied staging 清空状态。
 - GitHub Actions run #194 已对代码/测试提交 `babf296f5596b6897fd64c259f3b51782255a65e` 执行完整检查，13 个工作流步骤全部成功：https://github.com/FrancisAMD/qd58-zhuoyue-2026/actions/runs/45349736022。
 - 本次只修改开发分支和 Draft PR；未开启线上 feature flag、未调用线上导入接口、未读取或写入远程 D1、未导入真实高校、未读取个人数据或部署。
+
+
+## 本次增量里程碑（2026-11-25）：D1 导出备份恢复校验与删除隐私复核
+
+- 新增 \`scripts/verify-d1-export.py\`：本地读取 Wrangler D1 SQL export，在临时 SQLite 数据库中执行恢复校验；检查 SQLite integrity、外键、关键业务表、可选的 d1_migrations 目标版本，以及已匿名化账号 tombstone 不再含手机号/密码/姓名/学校/地区/备注/授权字段。
+- 校验器限制 SQL 导入能力：拒绝 ATTACH/DETACH、虚拟表、load_extension 和危险 PRAGMA；只输出 SHA-256、文件大小及聚合校验结果，不输出行内容。
+- 新增 \`backend/tests/d1-backup-restore-smoke.py\`，使用合成用户、合成高校和仓库全部 0001–0014 迁移生成 SQL dump；覆盖正常恢复、摘要不匹配、缺失迁移、损坏 SQL、外键断裂、删除账号残留个人信息及缺失关键表。
+- 新增 \`docs/d1-backup-restore.md\`，区分 D1 Time Travel 与 Cloudflare 账户外的加密导出备份；记录只读检查、导出、加密、隔离测试库恢复和回归验证流程。
+- \`.gitignore\` 增加 private-backups、D1 SQL 导出和 SQLite 文件规则，避免把包含个人信息的备份提交到 Git。
+- GitHub Actions 增加备份恢复校验测试；不连接 Cloudflare，不导出真实数据，不创建测试 D1，不执行任何 restore。
+- 重要隐私发现：D1 恢复到早于账号删除时间的 bookmark，可能重新带回已匿名化的个人信息；同一 D1 中的 \`account.deleted\` 审计记录也会随旧 bookmark 一起回退，不能作为跨恢复的独立删除台账。正式开放前必须建立 D1 恢复域之外、独立权限保护的删除 tombstone 台账，并在恢复后、重新开放流量前重放删除事件。
+- 不把此前建议的 30 天作为已批准备份政策。账号资料、审计和外部备份保留期限、隐私联系邮箱、控制者信息仍需组织方确认。
+- 本次没有新增 D1 迁移，没有执行远程 D1 查询/导出/写入/恢复，没有发送短信、访问真实个人数据或部署 Worker/Pages。
