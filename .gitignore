@@ -9,3 +9,10 @@ coverage/
 
 # Temporary one-time admin bootstrap SQL (contains a password hash)
 admin-bootstrap.sql
+
+# D1 exports and local restore artifacts contain personal data; never commit them.
+private-backups/
+*.d1-export.sql
+*.d1-backup.*
+*.sqlite
+*.sqlite3
