@@ -4,8 +4,8 @@ This runbook is an operational procedure, not a claim that a backup has been tak
 
 ## 1. Two separate recovery layers
 
-1. **D1 Time Travel** is the first response for accidental writes and migration mistakes. It is provider-managed point-in-time recovery, not an independent off-account backup. Before relying on it, inspect the target database with \`npx wrangler d1 info qd58-zhuoyue-db\` and confirm its storage version and the Time Travel window available to the account plan. Cloudflare currently documents up to 7 days on Workers Free and up to 30 days on Workers Paid; verify the actual account entitlement at the time of launch.
-2. **Encrypted external export** protects against loss of access to the Cloudflare account and provides a separately retained recovery copy. \`wrangler d1 export\` produces a SQL export containing personal data. Treat it as highly sensitive plaintext until encrypted; do not place it in Git, a Pages asset directory, a public bucket, chat, or an unencrypted workstation backup. Store the encrypted copy in a private location outside the Cloudflare account, with access limited to named operators and the decryption key stored separately.
+1. **D1 Time Travel** is the first response for accidental writes and migration mistakes. It is provider-managed point-in-time recovery, not an independent off-account backup. Before relying on it, inspect the target database with `npx wrangler d1 info qd58-zhuoyue-db` and confirm its storage version and the Time Travel window available to the account plan. Cloudflare currently documents up to 7 days on Workers Free and up to 30 days on Workers Paid; verify the actual account entitlement at the time of launch.
+2. **Encrypted external export** protects against loss of access to the Cloudflare account and provides a separately retained recovery copy. `wrangler d1 export` produces a SQL export containing personal data. Treat it as highly sensitive plaintext until encrypted; do not place it in Git, a Pages asset directory, a public bucket, chat, or an unencrypted workstation backup. Store the encrypted copy in a private location outside the Cloudflare account, with access limited to named operators and the decryption key stored separately.
 
 D1 Time Travel restores in place and overwrites the current database. Never use a restore command as a routine test. Rehearse exports against a disposable test database only.
 
@@ -13,22 +13,22 @@ D1 Time Travel restores in place and overwrites the current database. Never use 
 
 Run these read-only checks first:
 
-\`\`\`powershell
+```powershell
 npx wrangler d1 info qd58-zhuoyue-db
 npx wrangler d1 time-travel info qd58-zhuoyue-db
 npx wrangler d1 migrations list qd58-zhuoyue-db --remote
-\`\`\`
+```
 
 Record the database name, storage version, current bookmark, and applied migration names in the restricted change record. Do not paste bookmarks or export contents into public issues.
 
 Create an export only when an authorized operator is ready to handle the resulting personal data:
 
-\`\`\`powershell
+```powershell
 New-Item -ItemType Directory -Force private-backups
 $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
 npx wrangler d1 export qd58-zhuoyue-db --remote --output "private-backups/qd58-$stamp.d1-export.sql"
 python scripts/verify-d1-export.py "private-backups/qd58-$stamp.d1-export.sql" --expected-migration 0014_university_catalog_import_staging.sql
-\`\`\`
+```
 
 The verifier restores the SQL into a temporary local SQLite database and checks SQLite integrity, foreign keys, required application tables, the expected migration marker, and that anonymized account tombstones contain no direct profile/authentication fields. It prints only a digest and aggregate checks; it never prints row values. A successful local SQLite check is necessary but does not prove that Cloudflare D1 will accept every statement.
 
@@ -36,17 +36,17 @@ Encrypt the export immediately with the organization-approved tool (for example,
 
 ## 3. Restore rehearsal (test database only)
 
-1. Create or select a disposable D1 database dedicated to restore testing. Confirm its database ID is not the production ID in \`backend/wrangler.toml\`.
+1. Create or select a disposable D1 database dedicated to restore testing. Confirm its database ID is not the production ID in `backend/wrangler.toml`.
 2. Decrypt a copy of the export into a restricted temporary directory.
-3. Restore only into that disposable database, using the D1 import/execute procedure supported by the installed Wrangler version. Never use \`time-travel restore\` or \`d1 migrations apply --remote\` against production for a rehearsal.
-4. Run the verifier locally before import, then compare key table counts and \`PRAGMA foreign_key_check\` results between the export and test restore. Exercise login, directory, team/transfer, admin RBAC, CSV/XLSX export, and account-deletion behavior with synthetic accounts only.
+3. Restore only into that disposable database, using the D1 import/execute procedure supported by the installed Wrangler version. Never use `time-travel restore` or `d1 migrations apply --remote` against production for a rehearsal.
+4. Run the verifier locally before import, then compare key table counts and `PRAGMA foreign_key_check` results between the export and test restore. Exercise login, directory, team/transfer, admin RBAC, CSV/XLSX export, and account-deletion behavior with synthetic accounts only.
 5. Delete the disposable test database only after recording the rehearsal result and confirming no production binding was used.
 
 A restore rehearsal is not complete merely because the import command exits successfully; application queries and privacy invariants must also pass.
 
 ## 4. Deleted-account privacy after restore
 
-A point-in-time restore can bring back personal data that had been anonymized after the selected bookmark. The current \`account.deleted\` audit record is stored in the same D1 database and therefore is not, by itself, a durable deletion ledger across a restore to an earlier point.
+A point-in-time restore can bring back personal data that had been anonymized after the selected bookmark. The current `account.deleted` audit record is stored in the same D1 database and therefore is not, by itself, a durable deletion ledger across a restore to an earlier point.
 
 **This is a launch blocker for any recovery procedure that could restore a pre-deletion snapshot.** Before real users are onboarded, implement and test an append-only deletion/tombstone ledger outside the D1 restore domain (for example, a separately permissioned, encrypted R2 object or another independently backed-up store), and replay all post-bookmark deletion tombstones before the restored database is returned to service. Do not claim deletion is complete across backups until this control exists and has been rehearsed.
 
@@ -65,6 +65,6 @@ Do not copy the previously suggested 30-day backup period as an approved policy.
 
 ## 6. Current implementation boundary
 
-- \`scripts/verify-d1-export.py\` is local-only and has no Cloudflare credentials or network access.
-- \`backend/tests/d1-backup-restore-smoke.py\` uses synthetic rows and the repository migrations; it does not touch a remote D1 database.
+- `scripts/verify-d1-export.py` is local-only and has no Cloudflare credentials or network access.
+- `backend/tests/d1-backup-restore-smoke.py` uses synthetic rows and the repository migrations; it does not touch a remote D1 database.
 - No backup/export, encryption, upload, remote migration, restore, deployment, or real-person-data access is performed by CI.
