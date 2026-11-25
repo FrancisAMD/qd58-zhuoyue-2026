@@ -272,7 +272,7 @@
 - 新增 \`backend/tests/d1-backup-restore-smoke.py\`，使用合成用户、合成高校和仓库全部 0001–0014 迁移生成 SQL dump；覆盖正常恢复、摘要不匹配、缺失迁移、损坏 SQL、外键断裂、删除账号残留个人信息及缺失关键表。
 - 新增 \`docs/d1-backup-restore.md\`，区分 D1 Time Travel 与 Cloudflare 账户外的加密导出备份；记录只读检查、导出、加密、隔离测试库恢复和回归验证流程。
 - \`.gitignore\` 增加 private-backups、D1 SQL 导出和 SQLite 文件规则，避免把包含个人信息的备份提交到 Git。
-- GitHub Actions 增加备份恢复校验测试；不连接 Cloudflare，不导出真实数据，不创建测试 D1，不执行任何 restore。
+- 增加 `npm run test:backup`，GitHub Actions 通过该命令运行备份恢复校验；测试不连接 Cloudflare，不导出真实数据，不创建测试 D1，不执行任何 restore。
 - 重要隐私发现：D1 恢复到早于账号删除时间的 bookmark，可能重新带回已匿名化的个人信息；同一 D1 中的 \`account.deleted\` 审计记录也会随旧 bookmark 一起回退，不能作为跨恢复的独立删除台账。正式开放前必须建立 D1 恢复域之外、独立权限保护的删除 tombstone 台账，并在恢复后、重新开放流量前重放删除事件。
 - 不把此前建议的 30 天作为已批准备份政策。账号资料、审计和外部备份保留期限、隐私联系邮箱、控制者信息仍需组织方确认。
 - 本次没有新增 D1 迁移，没有执行远程 D1 查询/导出/写入/恢复，没有发送短信、访问真实个人数据或部署 Worker/Pages。
