@@ -25,5 +25,5 @@ jobs:
       - run: npm run plan:universities -- --catalog data/university-catalog.template.json --existing data/university-catalog-existing.snapshot.template.json
       - run: python scripts/check-frontend-html.py
       - run: python backend/tests/schema-smoke.py
-      - run: python backend/tests/d1-backup-restore-smoke.py
+      - run: npm run test:backup
       - run: python backend/tests/xlsx-export-smoke.py
