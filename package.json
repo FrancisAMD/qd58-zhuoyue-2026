@@ -11,6 +11,7 @@
     "test:worker": "node backend/tests/worker-smoke.mjs && node backend/tests/directory-phone-consent-smoke.mjs && node backend/tests/transfer-expiry-smoke.mjs && node backend/tests/account-deletion-smoke.mjs && node backend/tests/retention-smoke.mjs && node backend/tests/admin-auth-audit-smoke.mjs && node backend/tests/auth-enumeration-smoke.mjs && node backend/tests/admin-xlsx-export-smoke.mjs && node backend/tests/password-lifecycle-smoke.mjs && node backend/tests/pnvs-challenge-persistence-smoke.mjs && node backend/tests/otp-verification-smoke.mjs",
     "validate:universities": "node scripts/validate-university-catalog.mjs",
     "test:catalog": "node backend/tests/university-catalog-smoke.mjs && node backend/tests/university-catalog-import-plan-smoke.mjs && node backend/tests/university-catalog-api-smoke.mjs && node backend/tests/university-catalog-profile-smoke.mjs && node backend/tests/university-catalog-writer-smoke.mjs && node backend/tests/university-catalog-admin-import-smoke.mjs",
+    "test:backup": "python backend/tests/d1-backup-restore-smoke.py",
     "plan:universities": "node scripts/plan-university-catalog-import.mjs",
     "prepare:universities": "node scripts/prepare-university-catalog-import.mjs"
   },
