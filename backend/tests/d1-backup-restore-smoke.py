@@ -96,6 +96,18 @@ with tempfile.TemporaryDirectory(prefix="qd58-backup-smoke-") as temporary:
     malformed_path.write_text("CREATE TABLE broken (", encoding="utf-8")
     expect_error(malformed_path, "backup_sql_restore_failed")
 
+    attach_path = directory / "attach-not-allowed.sql"
+    attach_path.write_text("ATTACH DATABASE ':memory:' AS external_db;", encoding="utf-8")
+    expect_error(attach_path, "backup_sql_restore_failed")
+
+    pragma_path = directory / "writable-schema-not-allowed.sql"
+    pragma_path.write_text("PRAGMA writable_schema=ON;", encoding="utf-8")
+    expect_error(pragma_path, "backup_sql_restore_failed")
+
+    extension_path = directory / "extension-not-allowed.sql"
+    extension_path.write_text("SELECT load_extension('not-a-real-extension');", encoding="utf-8")
+    expect_error(extension_path, "backup_sql_restore_failed")
+
     fk_db = sqlite3.connect(":memory:")
     fk_db.executescript(valid_path.read_text(encoding="utf-8"))
     fk_db.execute("PRAGMA foreign_keys=OFF")
