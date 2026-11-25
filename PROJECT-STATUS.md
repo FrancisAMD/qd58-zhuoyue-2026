@@ -276,3 +276,15 @@
 - 重要隐私发现：D1 恢复到早于账号删除时间的 bookmark，可能重新带回已匿名化的个人信息；同一 D1 中的 \`account.deleted\` 审计记录也会随旧 bookmark 一起回退，不能作为跨恢复的独立删除台账。正式开放前必须建立 D1 恢复域之外、独立权限保护的删除 tombstone 台账，并在恢复后、重新开放流量前重放删除事件。
 - 不把此前建议的 30 天作为已批准备份政策。账号资料、审计和外部备份保留期限、隐私联系邮箱、控制者信息仍需组织方确认。
 - 本次没有新增 D1 迁移，没有执行远程 D1 查询/导出/写入/恢复，没有发送短信、访问真实个人数据或部署 Worker/Pages。
+
+
+## 本次增量里程碑（2026-11-25）：高校目录 Owner CLI
+
+- 新增 `scripts/university-catalog-admin-cli.mjs`，提供批次 status、stage、finalize 三个命令；必须显式指定 API Base 与 App Origin，防止误操作目标环境。
+- CLI 在上传前验证 Manifest 格式、单条 payload SHA-256、目录/目标 ID 唯一性、规范化 Manifest SHA-256，并限制请求体不超过 Worker 8 MiB。
+- 管理员用户名可见输入，密码采用交互式不回显输入；不接受命令行密码参数，不将 Session Cookie 或密码写入文件。结束时尽力调用管理员注销接口。
+- stage 后读取 Worker 状态并核对 checksum、manifest SHA-256、记录数和完整暂存标记；finalize 前要求批次完整且 SHA-256 一致，并要求输入完整的 APPLY 确认词；提交后再查询状态，仅在 applied 且 staging 清空时报告成功。
+- 新增 `backend/tests/university-catalog-admin-cli-smoke.mjs`，使用 mock fetch 覆盖 stage、finalize、状态验证、确认词、logout 和损坏 Manifest 拒绝；接入 check:worker 与 test:catalog。
+- GitHub Actions Run #205 已全部通过：依赖安装、Worker 检查、Worker/目录测试、目录模板校验、Dry-run、前端 HTML、D1 SQLite 迁移测试、备份恢复 smoke 和 XLSX 测试。https://github.com/FrancisAMD/qd58-zhuoyue-2026/actions/runs/45570369554
+- 新增使用说明 `data/UNIVERSITY-CATALOG-CLI.md`。CLI 的真实 Cloudflare 联调尚未执行；功能开关默认关闭，仍需独立测试 D1、备份和恢复演练。
+- 本次未应用远程 D1 迁移、读取/写入真实用户数据、发送真实短信、启用导入功能开关或部署 Worker/Pages。
