@@ -2,7 +2,20 @@ const API="https://api.58er.eon21.space/api",$=id=>document.getElementById(id);
 let current=null,page=1,pageSize=50,totalPages=1,filters={};
 async function req(path,data){const r=await fetch(API+path,{method:data?"POST":"GET",credentials:"include",headers:data?{"Content-Type":"application/json"}:{},body:data?JSON.stringify(data):undefined});let d={};try{d=await r.json()}catch{}if(!r.ok)throw Error(d.error||"request_failed");return d}
 function safe(v){return String(v??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
-function showError(id,e){$(id).textContent=({unauthorized:"登录已失效，请重新登录",forbidden:"当前管理员角色没有此项权限",rate_limited:"登录尝试过于频繁，请稍后再试",admin_username_exists:"用户名已存在",admin_password_too_weak:"管理员密码至少需要14位"})[e.message]||"操作失败，请稍后重试"}
+function showError(id,e){
+  const messages={
+    unauthorized:"登录已失效，请重新登录",
+    invalid_credentials:"管理员用户名或密码不正确；也可能是首位 owner 尚未初始化到当前 D1，请检查管理员账号记录",
+    rate_limited:"登录尝试过于频繁，请稍后再试",
+    rate_limit_secret_not_configured:"服务器尚未配置 RATE_LIMIT_HMAC_SECRET，管理员登录已安全暂停；请在 Cloudflare Worker Secrets 中配置后重试",
+    origin_forbidden:"后台页面与 API 的 APP_ORIGIN 不一致，请检查 Cloudflare Worker 配置",
+    admin_login_failed:"管理员登录服务发生内部错误，请检查 Worker Logs",
+    forbidden:"当前管理员角色没有此项权限",
+    admin_username_exists:"用户名已存在",
+    admin_password_too_weak:"管理员密码至少需要14位"
+  };
+  $(id).textContent=messages[e.message]||"操作失败，请稍后重试";
+}
 function has(permission){return !!current?.permissions?.includes(permission)}
 async function enter(){try{const d=await req("/admin/me");current=d.admin;$("adminLogin").hidden=true;$("dashboard").hidden=false;$("adminIdentity").textContent=current.username;$("adminRole").textContent="角色："+({owner:"所有者",admin:"管理员",viewer:"只读查看"}[current.role]||current.role);$("peoplePanel").hidden=!has("people:read");$("auditPanel").hidden=!has("audit:read");$("managePanel").hidden=!has("admins:manage");await loadOverview();if(has("people:read"))await loadPeople();if(has("audit:read"))await loadAudit();if(has("admins:manage"))await loadAdmins()}catch{$("adminLogin").hidden=false;$("dashboard").hidden=true}}
 async function loadOverview(){const d=await req("/admin/overview"),c=d.counts||{};$("summary").innerHTML='<div class="stat"><small>账号总数</small><b>'+Number(c.total||0)+'</b></div><div class="stat"><small>已完成高校登记</small><b>'+Number(c.completed||0)+'</b></div><div class="stat"><small>资料同意记录</small><b>'+Number(c.consented||0)+'</b></div><div class="stat"><small>大学队伍</small><b>'+Number(d.teamCount||0)+'</b></div>'}
