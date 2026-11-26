@@ -490,7 +490,7 @@ async function route(request, env) {
   const url=new URL(request.url), path=url.pathname, method=request.method, origin=request.headers.get("Origin");
   if(method==="OPTIONS") return new Response(null,{status:204,headers:corsHeaders(origin,env)});
   if(origin && origin!==env.APP_ORIGIN) return response({error:"origin_forbidden"},403,origin,env);
-  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"university-catalog-import-owner-20261124",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
+  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"profile-registration-v4-20261126",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
   if(path==="/api/universities" && method==="GET") {
     // Public, read-only catalog lookup for profile selection. Never expose
     // draft/unverified, inactive, merged, or legacy free-form university rows.
