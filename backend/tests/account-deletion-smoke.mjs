@@ -401,6 +401,18 @@ try {
   const conflictIntent = JSON.parse(conflictLedger.objects.get("account-deletion-intents/v1/"+USER_ID+".json"));
   assert.equal(conflictDb.state.audit,null,"failed D1 transaction must not leave a deletion audit row");
   conflictDb.state.forceDeleteConflict = false;
+
+  // The first delete request already sent an SMS and consumed this account's
+  // 60-second cooldown. Simulate the cooldown elapsing before requesting a
+  // fresh one-time code for the retry; keep the daily-phone and hourly-IP
+  // counters intact so this still exercises the production limit buckets.
+  const retryCooldownKey = await createRateLimitKey(
+    conflictEnv.RATE_LIMIT_HMAC_SECRET,"sms:cooldown",PHONE
+  );
+  const retryCooldown = conflictDb.state.rateLimits.get(retryCooldownKey);
+  assert.ok(retryCooldown,"the initial SMS must have reserved its cooldown bucket");
+  retryCooldown.window_started_at -= 61;
+
   const retryCode = await worker.fetch(request("/api/account/delete/request-code", {
     turnstileToken: "turnstile-valid"
   }), conflictEnv);
