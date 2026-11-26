@@ -6,7 +6,7 @@ const html = readFileSync(new URL("admin.html",root),"utf8");
 const js = readFileSync(new URL("admin.js",root),"utf8");
 const css = readFileSync(new URL("style.css",root),"utf8");
 
-for(const id of ["adminLogin","adminMsg","demoPanel","demoTabs","demoContent","demoSearch","dashboard","adminPanelStatus"]) {
+for(const id of ["adminLogin","adminMsg","demoPanel","demoTabs","demoContent","demoSearch","dashboard","adminPanelStatus","universityReviewPanel","universityReviewRows","refreshUniversityReviews"]) {
   assert.match(html,new RegExp('id="'+id+'"'),"admin.html must contain #"+id);
 }
 assert.match(html,/演示模式/);
@@ -17,7 +17,7 @@ assert.match(js,/await req\("\/admin\/me"\)/);
 assert.match(js,/Promise\.allSettled/);
 assert.match(js,/密码已被登录接口接受，但随后读取管理员会话返回 401/);
 assert.match(js,/已登录；部分面板加载失败/);
-assert.match(js,/const DEMO_DATA=/);
+assert.match(js,/const DEMO_DATA=/);\nassert.match(js,/loadUniversityReviews/);\nassert.match(js,/universities:review/);\nassert.match(js,/\/admin\/universities\/review/);
 assert.match(js,/function renderDemo\(\)/);
 assert.match(js,/虚构报名数据/);
 assert.match(js,/不会接受或拒绝任何真实转让/);
