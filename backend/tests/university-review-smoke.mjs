@@ -69,7 +69,7 @@ assert.ok(approvedDb.state.batchStatements.some(sql=>sql.includes("UPDATE users 
 assert.ok(approvedDb.state.batchStatements.some(sql=>sql.startsWith("UPDATE teams SET leader_user_id=?")));
 assert.ok(approvedDb.state.batchStatements.some(sql=>sql.startsWith("INSERT OR IGNORE INTO teams")));
 assert.equal(approvedDb.state.batchBindings[1][0],approvedBody.universityId);
-assert.equal(approvedDb.state.batchBindings[1][3],USER_ID);
+assert.equal(approvedDb.state.batchBindings[1][4],USER_ID);
 assert.equal(approvedDb.state.audit.at(-1)?.[3],"admin.overseas_university.approved");
 
 const mergeDb=makeDb({existing:[{id:"existing-overseas",canonical_name:"Example University",normalized_name:"overseas:exampleuniversity"}]});
