@@ -20,7 +20,7 @@ assert.match(js,/已登录；部分面板加载失败/);
 assert.match(js,/const DEMO_DATA=/);
 assert.match(js,/loadUniversityReviews/);
 assert.match(js,/universities:review/);
-assert.match(js,/OVERSEAS UNIVERSITY REVIEW/);
+assert.match(html,/OVERSEAS UNIVERSITY REVIEW/);
 assert.match(js,/loadUniversityReviews/);
 assert.match(js,/universities:review/);
 assert.match(js,/\/admin\/universities\/review/);
