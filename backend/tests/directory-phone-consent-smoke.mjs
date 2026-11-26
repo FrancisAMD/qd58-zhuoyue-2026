@@ -72,7 +72,8 @@ const result=await response.json();
 assert.equal(result.members.length,candidates.length);
 assert.equal(result.members[0].phone,"13800000001","new privacy v4 consent shares primary phone within same university");
 assert.equal(result.members[0].secondaryPhone,"13900000001");
-assert.equal(result.members[0].wechatId,"wechat-1");\nassert.equal(Object.hasOwn(result.members[0],"gender"),false,"gender is private to the profile owner");
+assert.equal(result.members[0].wechatId,"wechat-1");
+assert.equal(Object.hasOwn(result.members[0],"gender"),false,"gender is private to the profile owner");
 for(const member of result.members.slice(1)){
   assert.equal(member.phone,null,member.name+" must not expose primary phone before v4 re-consent");
   assert.equal(member.secondaryPhone,null);
