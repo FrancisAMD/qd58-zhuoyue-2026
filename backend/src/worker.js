@@ -1279,11 +1279,11 @@ if(path==="/api/teams/transfer" && method==="POST") {
         return response({ok:true,status:"rejected"},200,origin,env);
       }
 
-      const canonicalName=String(d.canonicalName||"").trim().replace(/\\s+/g," ");
-      if(canonicalName.length<2||canonicalName.length>160||/[\\u0000-\\u001f]/.test(canonicalName)) {
+      const canonicalName=String(d.canonicalName||"").trim().replace(/\s+/g," ");
+      if(canonicalName.length<2||canonicalName.length>160||/[\u0000-\u001f]/.test(canonicalName)) {
         return response({error:"review_canonical_name_required"},400,origin,env);
       }
-      const normalized=value=>String(value||"").normalize("NFKC").replace(/[\\s\\p{P}\\p{S}]+/gu,"").toLowerCase();
+      const normalized=value=>String(value||"").normalize("NFKC").replace(/[\s\p{P}\p{S}]+/gu,"").toLowerCase();
       const normalizedName=normalized(canonicalName);
       if(!normalizedName) return response({error:"review_canonical_name_required"},400,origin,env);
 
