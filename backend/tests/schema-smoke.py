@@ -57,6 +57,23 @@ assert db.execute("SELECT university_id FROM users WHERE id='legacy-catalog-user
 assert db.execute("SELECT leader_user_id FROM teams WHERE id='legacy-catalog-team'").fetchone()[0] == "legacy-catalog-user"
 user_columns = {row[1] for row in db.execute("PRAGMA table_info(users)")}
 assert {"consent_given", "consent_version", "account_consent_at", "account_consent_version", "auth_version"} <= user_columns
+
+profile_columns = {
+    "gender", "major_group", "major_discipline_code", "admission_category_id",
+    "admission_type_id", "campus_id", "campus_name", "campus_tag",
+    "secondary_phone", "wechat_id", "profile_review_status",
+    "overseas_university_name", "profile_review_submitted_at", "profile_reviewed_at"
+}
+assert profile_columns <= user_columns
+profile_tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+assert {"profile_university_catalog", "profile_option_codes"} <= profile_tables
+profile_option_columns = {row[1] for row in db.execute("PRAGMA table_info(profile_option_codes)")}
+assert {"option_type", "code", "parent_code", "label", "is_active"} <= profile_option_columns
+profile_catalog_columns = {row[1] for row in db.execute("PRAGMA table_info(profile_university_catalog)")}
+assert {"source_id", "university_id", "category", "canonical_name", "region_name", "province_name",
+        "city_name", "tags_json", "campuses_json", "source_name", "verified_at", "dataset_version"} <= profile_catalog_columns
+
+
 session_columns = {row[1] for row in db.execute("PRAGMA table_info(sessions)")}
 assert "auth_version" in session_columns
 transfer_columns = {row[1] for row in db.execute("PRAGMA table_info(leader_transfers)")}
