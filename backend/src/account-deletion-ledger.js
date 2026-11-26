@@ -42,7 +42,7 @@ export async function recordDeletionIntent(bucket, userId, requestedAt, eventId)
   let written;
   try {
     written = await bucket.put(key, JSON.stringify(record), {
-      onlyIf: { etagDoesNotMatch: "*" },
+      onlyIf: new Headers({ "If-None-Match": "*" }),
       httpMetadata: { contentType: "application/json", cacheControl: "no-store" }
     });
   } catch { fail("deletion_ledger_unavailable"); }
