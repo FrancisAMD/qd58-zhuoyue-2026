@@ -288,3 +288,15 @@
 - GitHub Actions Run #205 已全部通过：依赖安装、Worker 检查、Worker/目录测试、目录模板校验、Dry-run、前端 HTML、D1 SQLite 迁移测试、备份恢复 smoke 和 XLSX 测试。https://github.com/FrancisAMD/qd58-zhuoyue-2026/actions/runs/45570369554
 - 新增使用说明 `data/UNIVERSITY-CATALOG-CLI.md`。CLI 的真实 Cloudflare 联调尚未执行；功能开关默认关闭，仍需独立测试 D1、备份和恢复演练。
 - 本次未应用远程 D1 迁移、读取/写入真实用户数据、发送真实短信、启用导入功能开关或部署 Worker/Pages。
+
+
+## 本次增量里程碑（2026-11-26）：账号删除的 D1 外部 R2 意图台账
+
+- 新增 `backend/src/account-deletion-ledger.js`：以用户随机 ID 为键，在私有 R2 中使用条件写入创建一次性删除意图；记录 schema version、随机 event ID、时间和 SHA-256，不包含手机号、姓名、学校、密码或其他资料字段。已存在记录会被校验并复用，不覆盖。
+- 新增分页枚举/读取/校验接口；校验对象键、结构、时间、事件 ID 与摘要，损坏或缺失条目会 fail closed。
+- 账号删除 Worker 在短信验证通过后、D1 匿名化事务开始前先写 R2；R2 写入失败返回 503 且不执行 D1 batch。若 R2 已写、D1 事务失败，意图仍保留并必须在恢复/重试时进行核对。
+- Wrangler 增加 `DELETE_LEDGER` R2 binding（拟定 bucket 名 `qd58-account-deletion-ledger`），需在部署前由授权操作者创建私有 bucket；本次没有创建 R2 bucket 或部署。
+- 新增 `backend/tests/account-deletion-ledger-smoke.mjs`，覆盖 create-once、重试复用、校验摘要、分页、损坏拒绝和输入校验；扩展账号删除测试，覆盖 ledger 写入顺序、R2 写入失败阻止 D1 batch、以及 D1 事务冲突时 ledger 意图仍存在。
+- 将 ledger smoke 加入 `check:worker` / `test:worker`。
+- 自动恢复重放工具尚未完成：本次仅实现意图记录和分页读取，不能声称已解决旧快照恢复后的删除重放。正式上线仍需完成恢复重放工具、隔离 D1 演练、R2 权限/保留策略及远程 D1 核对。
+- 本次未创建 bucket、未访问远程 D1/R2、未导出或恢复备份、未发送短信、未读取真实个人数据、未部署 Worker/Pages。
