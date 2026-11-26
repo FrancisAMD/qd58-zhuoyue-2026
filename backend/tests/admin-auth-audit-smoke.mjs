@@ -106,7 +106,7 @@ if(bootstrapBody.admin?.username!=="rootops" || bootstrapBody.admin?.role!=="own
 }
 if(JSON.stringify(bootstrapBody).includes(ADMIN_PASSWORD)) throw new Error("admin login response must never contain the password");
 const bootstrapCookie=bootstrapResponse.headers.get("set-cookie")||"";
-const cookieMatch=/^__Host-qd58_admin=([a-f0-9]{64}); Path=\\/; HttpOnly; Secure; SameSite=Strict; Max-Age=28800$/.exec(bootstrapCookie);
+const cookieMatch=/^__Host-qd58_admin=([a-f0-9]{64}); Path=\/; HttpOnly; Secure; SameSite=Strict; Max-Age=28800$/.exec(bootstrapCookie);
 if(!cookieMatch) throw new Error("successful admin login must set the secure host-only admin cookie");
 if(!bootstrapDb.adminSession || !bootstrapDb.lastLoginAt) throw new Error("successful admin login must persist the session and last-login timestamp");
 if(bootstrapDb.auditRows.at(-1)?.[3]!=="admin.login.succeeded") throw new Error("successful admin login audit event missing");
