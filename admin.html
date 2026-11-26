@@ -1,26 +1,96 @@
 <!doctype html>
 <html lang="zh-CN">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>卓越2026 · 管理后台</title><link rel="stylesheet" href="style.css"></head>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>卓越2026 · 管理后台</title>
+  <link rel="stylesheet" href="style.css">
+</head>
 <body>
-<header><a class="brand" href="index.html"><b>58</b><span>卓越 · 2026<small>组织管理后台</small></span></a><a href="index.html">返回首页 ↗</a></header>
+<header>
+  <a class="brand" href="index.html"><b>58</b><span>卓越 · 2026<small>组织管理后台</small></span></a>
+  <a href="index.html">返回首页 ↗</a>
+</header>
 <main class="section admin-shell">
-  <p class="eyebrow">ADMIN CONSOLE · PRIVATE ACCESS</p><h2>组织管理后台</h2>
-  <form id="adminLogin" class="panel admin-login"><p>管理员账号独立于同学账号，请勿共用密码。</p><label>管理员用户名<input id="username" required autocomplete="username" maxlength="40"></label><label>管理员密码<input id="password" type="password" required autocomplete="current-password"></label><button class="btn">安全登录</button><p id="adminMsg" class="msg"></p></form>
+  <p class="eyebrow">ADMIN CONSOLE · PRIVATE ACCESS</p>
+  <h2>组织管理后台</h2>
+
+  <form id="adminLogin" class="panel admin-login">
+    <p>管理员账号独立于同学账号，请勿共用密码。</p>
+    <label>管理员用户名<input id="username" required autocomplete="username" maxlength="40"></label>
+    <label>管理员密码<input id="password" type="password" required autocomplete="current-password" maxlength="128"></label>
+    <button class="btn" type="submit">安全登录</button>
+    <p id="adminMsg" class="msg" role="status" aria-live="polite"></p>
+    <button id="openDemo" class="ghost demo-open" type="button">预览内置 Demo（虚构数据） ↗</button>
+  </form>
+
+  <section id="demoPanel" class="panel admin-demo" hidden aria-label="内置演示后台">
+    <div class="admin-heading">
+      <div><p class="eyebrow">SANDBOX · FICTIONAL DATA</p><h3>内置 Demo 后台预览</h3></div>
+      <button id="closeDemo" class="ghost" type="button">收起演示</button>
+    </div>
+    <div class="demo-warning"><strong>演示模式</strong><span>以下姓名、学校、记录和统计均为虚构样例。仅在浏览器内筛选与展示，不读取、不写入 D1，不会触发真实报名、转让或导出。</span></div>
+    <div id="demoTabs" class="demo-tabs" role="tablist" aria-label="演示模块">
+      <button type="button" data-demo-tab="overview" class="active" aria-pressed="true">总览</button>
+      <button type="button" data-demo-tab="people" aria-pressed="false">报名名单</button>
+      <button type="button" data-demo-tab="teams" aria-pressed="false">高校分组</button>
+      <button type="button" data-demo-tab="transfers" aria-pressed="false">组长转让</button>
+      <button type="button" data-demo-tab="audit" aria-pressed="false">审计记录</button>
+    </div>
+    <div id="demoSearchWrap" class="demo-search" hidden><input id="demoSearch" type="search" placeholder="在演示数据中搜索姓名、大学或地区" aria-label="搜索演示数据"></div>
+    <div id="demoContent" class="demo-content"></div>
+    <p class="demo-footnote">此演示区不具备真实管理员权限，不连接 API，不会影响任何真实账号或数据。</p>
+  </section>
+
   <section id="dashboard" hidden>
-    <div class="admin-toolbar panel"><div><b id="adminIdentity">已登录</b><small id="adminRole"></small></div><button id="adminLogout" class="ghost">退出后台</button></div>
+    <div class="admin-toolbar panel">
+      <div><b id="adminIdentity">已登录</b><small id="adminRole"></small></div>
+      <div class="admin-toolbar-actions">
+        <button id="dashboardDemo" class="ghost" type="button">内置 Demo</button>
+        <button id="adminLogout" class="ghost" type="button">退出后台</button>
+      </div>
+    </div>
+    <p id="adminPanelStatus" class="admin-panel-status" role="status" aria-live="polite"></p>
     <div class="admin-stats" id="summary"></div>
+
     <section id="peoplePanel" class="panel">
-      <div class="admin-heading"><div><p class="eyebrow">PEOPLE DIRECTORY</p><h3>报名名单</h3></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="export" class="btn">导出当前筛选 CSV</button><button id="exportXlsx" class="ghost">导出当前筛选 Excel (.xlsx)</button></div></div>
+      <div class="admin-heading">
+        <div><p class="eyebrow">PEOPLE DIRECTORY</p><h3>报名名单</h3></div>
+        <div class="admin-actions">
+          <button id="export" class="btn" type="button">导出当前筛选 CSV</button>
+          <button id="exportXlsx" class="ghost" type="button">导出当前筛选 Excel (.xlsx)</button>
+        </div>
+      </div>
       <form id="filters" class="admin-filters">
-        <label>关键词<input id="q" placeholder="姓名、班级、大学或省份"></label><label>省份<input id="province" placeholder="例如：山东省"></label><label>大学<input id="university" placeholder="大学名称"></label><label>年级<input id="grade" placeholder="例如：大一"></label>
-        <label>高校类别<select id="category"><option value="">全部类别</option><option value="mainland">中国大陆</option><option value="hmt">港澳台</option><option value="sino_foreign">中外合作办学</option><option value="overseas">海外</option><option value="unclassified">未分类</option></select></label>
-        <div class="filter-actions"><button class="btn">筛选</button><button type="reset" id="clearFilters" class="ghost">清空</button></div>
+        <label>关键词<input id="q" placeholder="姓名、班级、大学或省份"></label>
+        <label>省份<input id="province" placeholder="例如：山东省"></label>
+        <label>大学<input id="university" placeholder="大学名称"></label>
+        <label>年级<input id="grade" placeholder="例如：大一"></label>
+        <label>高校类别<select id="category"><option value="">全部类别</option><option value="mainland">中国内地</option><option value="hmt">港澳台</option><option value="sino_foreign">历史中外合作记录</option><option value="overseas">海外</option><option value="unclassified">未分类</option></select></label>
+        <div class="filter-actions"><button class="btn" type="submit">筛选</button><button type="reset" id="clearFilters" class="ghost">清空</button></div>
       </form>
-      <p id="peopleMeta" class="muted"></p><div class="table-wrap"><table class="admin-table"><thead><tr><th>姓名</th><th>高中班级</th><th>大学</th><th>年级</th><th>省份</th><th>资料同意</th><th>登记时间</th></tr></thead><tbody id="peopleRows"></tbody></table></div>
-      <div class="pagination"><button id="prevPage" class="ghost">上一页</button><span id="pageLabel"></span><button id="nextPage" class="ghost">下一页</button></div>
+      <p id="peopleMeta" class="muted"></p>
+      <div class="table-wrap"><table class="admin-table"><thead><tr><th>姓名</th><th>高中班级</th><th>大学</th><th>年级</th><th>省份</th><th>资料同意</th><th>登记时间</th></tr></thead><tbody id="peopleRows"></tbody></table></div>
+      <div class="pagination"><button id="prevPage" class="ghost" type="button">上一页</button><span id="pageLabel"></span><button id="nextPage" class="ghost" type="button">下一页</button></div>
     </section>
-    <section id="auditPanel" class="panel" hidden><div class="admin-heading"><div><p class="eyebrow">AUDIT TRAIL</p><h3>管理员操作审计</h3></div><button id="refreshAudit" class="ghost">刷新</button></div><div class="table-wrap"><table class="admin-table"><thead><tr><th>时间</th><th>操作者</th><th>操作</th><th>对象</th><th>记录摘要</th></tr></thead><tbody id="auditRows"></tbody></table></div></section>
-    <section id="managePanel" class="panel" hidden><p class="eyebrow">ACCESS CONTROL</p><h3>管理员账号与角色</h3><form id="createAdmin" class="admin-filters"><label>用户名<input id="newUsername" required minlength="3" maxlength="40"></label><label>初始密码（至少14位）<input id="newPassword" type="password" required minlength="14" maxlength="128"></label><label>角色<select id="newRole"><option value="admin">管理员：名单、审计和导出</option><option value="viewer">只读：仅统计概览</option></select></label><div class="filter-actions"><button class="btn">创建账号</button></div></form><p id="createAdminMsg" class="msg"></p><div id="adminAccounts" class="admin-account-list"></div></section>
+
+    <section id="auditPanel" class="panel" hidden>
+      <div class="admin-heading"><div><p class="eyebrow">AUDIT TRAIL</p><h3>管理员操作审计</h3></div><button id="refreshAudit" class="ghost" type="button">刷新</button></div>
+      <div class="table-wrap"><table class="admin-table"><thead><tr><th>时间</th><th>操作者</th><th>操作</th><th>对象</th><th>记录摘要</th></tr></thead><tbody id="auditRows"></tbody></table></div>
+    </section>
+
+    <section id="managePanel" class="panel" hidden>
+      <p class="eyebrow">ACCESS CONTROL</p><h3>管理员账号与角色</h3>
+      <form id="createAdmin" class="admin-filters">
+        <label>用户名<input id="newUsername" required minlength="3" maxlength="40"></label>
+        <label>初始密码（至少14位）<input id="newPassword" type="password" required minlength="14" maxlength="128"></label>
+        <label>角色<select id="newRole"><option value="admin">管理员：名单、审计和导出</option><option value="viewer">只读：仅统计概览</option></select></label>
+        <div class="filter-actions"><button class="btn" type="submit">创建账号</button></div>
+      </form>
+      <p id="createAdminMsg" class="msg"></p><div id="adminAccounts" class="admin-account-list"></div>
+    </section>
   </section>
 </main>
-<script src="admin.js" defer></script></body></html>
+<script src="admin.js" defer></script>
+</body>
+</html>
