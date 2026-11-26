@@ -1,4 +1,5 @@
 import { buildXlsxWorkbook } from "./xlsx.js";
+import { recordDeletionIntent } from "./account-deletion-ledger.js";
 import {
   stageCatalogImport,
   finalizeCatalogImport,
@@ -723,6 +724,7 @@ async function route(request, env) {
       if(leadership && Number(leadership.other_members||0)>0) return response({error:"leader_transfer_required"},409,origin,env);
       await verifyCode(user.phone,d.code,"account_delete",env);
       const timestamp=new Date().toISOString();
+      await recordDeletionIntent(env.DELETE_LEDGER,user.id,timestamp,randomHex(16));
       const phoneRateLimitKeys=await Promise.all([
         rateLimitKey(env,"sms:cooldown",user.phone),
         rateLimitKey(env,"sms:phone",user.phone),
@@ -750,7 +752,7 @@ async function route(request, env) {
       const known=String(e.error||e.message||"account_delete_failed");
       const conflict=["account_delete_conflict","account_deletion_requires_team_transfer","account_deletion_requires_no_pending_transfer"].find(code=>known.includes(code));
       const error=conflict==="account_deletion_requires_team_transfer"?"leader_transfer_required":conflict?"account_delete_conflict":known;
-      const status=e.status||(conflict?409:400);
+      const status=e.status||(error==="deletion_ledger_unavailable"?503:conflict?409:400);
       return response({error},status,origin,env);
     }
   }
