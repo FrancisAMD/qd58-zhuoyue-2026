@@ -308,3 +308,10 @@
 - 现在复用 R2 intent 的 eventId 作为 D1 的 account.deleted audit ID；失败事务不会留下审计行，重试读取 create-once intent 后使用同一 ID，形成跨存储可核验关联。
 - 修正 account-deletion smoke 的 R2 conditional-put mock，使其按 Worker R2 API 的 If-None-Match 语义模拟 create-once；增加事务冲突后重试并验证事件 ID一致、意图未被覆盖的回归测试。
 - 本次仅修改 Worker 与隔离测试；未访问 R2/D1、未导出/恢复备份、未发送短信或部署。远程环境及恢复重放仍待授权操作和隔离演练。
+
+
+## 验证状态补充（2026-11-26）：删除重试回归测试未通过
+
+- Worker 关联 R2 intent eventId 与 D1 account.deleted audit ID 的代码提交已通过 CI run #214。
+- 后续新增的“D1 冲突后重新申请验证码并重试”测试在 run #215/#216 失败：模拟短信冷却仍保留，重试验证码请求返回 429，而测试预期 200。当前判断是测试 fixture 的冷却隔离问题；生产 Worker 修改本身在 run #214 已通过。
+- 修复测试 fixture 前不宣称全套 CI 通过；PR #6 仍 Draft。未操作远程 R2/D1、未部署。
