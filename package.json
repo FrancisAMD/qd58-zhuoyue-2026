@@ -13,7 +13,8 @@
     "test:catalog": "node backend/tests/university-catalog-smoke.mjs && node backend/tests/university-catalog-import-plan-smoke.mjs && node backend/tests/university-catalog-api-smoke.mjs && node backend/tests/university-catalog-profile-smoke.mjs && node backend/tests/university-catalog-writer-smoke.mjs && node backend/tests/university-catalog-admin-import-smoke.mjs && node backend/tests/university-catalog-admin-cli-smoke.mjs",
     "test:backup": "python backend/tests/d1-backup-restore-smoke.py",
     "plan:universities": "node scripts/plan-university-catalog-import.mjs",
-    "prepare:universities": "node scripts/prepare-university-catalog-import.mjs"
+    "prepare:universities": "node scripts/prepare-university-catalog-import.mjs",
+    "seed:profile-catalog": "node scripts/seed-profile-catalog.mjs"
   },
   "type": "module"
 }
