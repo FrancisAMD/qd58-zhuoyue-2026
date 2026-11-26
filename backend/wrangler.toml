@@ -22,8 +22,8 @@ OTP_SEND_COOLDOWN_SECONDS = "60"
 TRANSFER_TTL_SECONDS = "604800"
 
 # Set these non-secret PNVS values only after checking the approved console configuration:
-# ALIBABA_SIGN_NAME = "YOUR_APPROVED_SIGN_NAME"
-# ALIBABA_TEMPLATE_CODE = "YOUR_APPROVED_TEMPLATE_CODE"
+# ALIBABA_SIGN_NAME = "恒创联众"
+# ALIBABA_TEMPLATE_CODE = "100001"
 
 # Configure as Worker secrets only; never commit secret values:
 # wrangler secret put RATE_LIMIT_HMAC_SECRET
