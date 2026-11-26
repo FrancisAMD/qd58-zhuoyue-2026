@@ -183,16 +183,18 @@ function updateCampusFromSelection(){
   if(!campus)return;
   $("campusName").value=campus.name;
   $("campusTag").value=campus.tag;
-  $("profileProvince").value=campus.province||"";
+  const region=campus.country&&campus.country!=="中国"?[campus.country,campus.province].filter(Boolean).join(" · "):(campus.province||"");
+  $("profileProvince").value=region;
   $("profileCity").value=campus.city||"";
-  $("universitySelectionMsg").textContent="已选择 "+campus.name+" · "+[campus.province,campus.city].filter(Boolean).join(" · ")+"。同一所大学所有校区属于同一团队。";
+  $("universitySelectionMsg").textContent="已选择 "+campus.name+" · "+[region,campus.city].filter(Boolean).join(" · ")+"。同一所大学所有校区属于同一团队。";
 }
 function populateCampusOptions(item,selectedId=""){
   const campuses=campusesFor(item);
   $("campusSelectionWrap").hidden=false;
   $("campusSelect").required=true;
   $("campusSelect").innerHTML='<option value="">请选择就读校区</option>'+campuses.map(c=>{
-    const label=c.name+"（"+[c.tag,c.province,c.city].filter(Boolean).join(" · ")+"）";
+    const region=c.country&&c.country!=="中国"?[c.country,c.province].filter(Boolean).join(" · "):(c.province||"");
+    const label=c.name+"（"+[c.tag,region,c.city].filter(Boolean).join(" · ")+"）";
     return '<option value="'+safe(c.id)+'">'+safe(label)+'</option>';
   }).join("");
   $("campusSelect").value=selectedId||campuses[0]?.id||"";
