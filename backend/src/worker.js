@@ -1258,7 +1258,7 @@ if(path==="/api/teams/transfer" && method==="POST") {
     }
   }
 
-  const universityReviewMatch=path.match(/^\\/api\\/admin\\/universities\\/review\\/([a-f0-9]{32})\\/(approve|reject)$/);
+  const universityReviewMatch=path.match(new RegExp("^/api/admin/universities/review/([a-f0-9]{32})/(approve|reject)$"));
   if(universityReviewMatch && method==="POST") {
     const admin=await currentAdmin(request,env);
     if(!admin) return response({error:"unauthorized"},401,origin,env);
