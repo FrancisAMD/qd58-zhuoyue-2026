@@ -737,7 +737,10 @@ async function route(request, env) {
         env.DB.prepare("DELETE FROM rate_limits WHERE bucket_key IN (?,?,?,?,?,?)").bind(...phoneRateLimitKeys,"sms:cooldown:"+user.phone,"sms:phone:"+user.phone,"login:phone:"+user.phone),
         env.DB.prepare("UPDATE teams SET leader_user_id=NULL WHERE leader_user_id=? AND id=? AND NOT EXISTS (SELECT 1 FROM users member WHERE member.university_id=teams.university_id AND member.deleted_at='' AND member.id<>?)").bind(user.id,leadership?.id||"",user.id),
         env.DB.prepare(`UPDATE users SET phone='deleted:'||id,password_hash=NULL,name=NULL,high_school=NULL,class_name=NULL,
-          university_id=NULL,grade=NULL,province=NULL,city=NULL,bio=NULL,phone_visible_to_team=0,
+          university_id=NULL,grade=NULL,province=NULL,city=NULL,bio=NULL,gender='undisclosed',major_group='',
+          major_discipline_code='',admission_category_id='',admission_type_id='',campus_id='',campus_name='',
+          campus_tag='',secondary_phone='',wechat_id='',profile_review_status='rejected',overseas_university_name='',
+          profile_review_submitted_at='',profile_reviewed_at='',phone_visible_to_team=0,
           consent_at='',consent_given=0,consent_version='',account_consent_at='',account_consent_version='',
           deleted_at=?,updated_at=? WHERE id=? AND deleted_at='' AND password_hash=? AND auth_version=?
           AND NOT EXISTS(SELECT 1 FROM teams WHERE leader_user_id=users.id)
