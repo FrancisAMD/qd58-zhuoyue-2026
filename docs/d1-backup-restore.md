@@ -50,6 +50,19 @@ A point-in-time restore can bring back personal data that had been anonymized af
 
 **This is a launch blocker for any recovery procedure that could restore a pre-deletion snapshot.** Before real users are onboarded, implement and test an append-only deletion/tombstone ledger outside the D1 restore domain (for example, a separately permissioned, encrypted R2 object or another independently backed-up store), and replay all post-bookmark deletion tombstones before the restored database is returned to service. Do not claim deletion is complete across backups until this control exists and has been rehearsed.
 
+## 4.1 Deletion-intent ledger implementation (R2)
+
+The Worker now writes a create-once deletion intent to a private R2 binding before the D1 anonymization batch. The object key is derived from the pseudonymous 32-hex user ID and contains only the schema version, pseudonymous user ID, request timestamp, random event ID, and SHA-256 checksum; it does not contain phone, name, school, password, or profile fields.
+
+- Binding: `DELETE_LEDGER`; proposed bucket name: `qd58-account-deletion-ledger`.
+- The bucket must be created and kept private by an authorized operator before any deployment that includes this code.
+- R2 writes use a conditional create-only operation. A retry reuses and validates the existing record rather than overwriting it.
+- If the R2 write fails, the Worker returns a service-unavailable response and does not start the D1 anonymization batch.
+- If the R2 intent is written but D1 later fails, the intent remains. Treat it as a deletion request that must be reconciled during recovery; it may be replayed even if the original D1 transaction did not complete.
+- The module includes paginated listing and checksum validation, but automated D1 replay/reconciliation is **not yet implemented**. During recovery, do not reopen traffic until a controlled procedure has reconciled every intent against the restored D1 and re-anonymized affected rows.
+
+The ledger is pseudonymous, not anonymous: the user ID remains linkable to an account in older backups. Restrict bucket access to named recovery operators, do not attach a public domain, and retain the bucket separately from D1 Time Travel. R2's create-once behavior is an application control; it is not protection against an operator or account-level deletion of objects.
+
 ## 5. Retention and launch gates
 
 The organization must decide and publish, before launch:
