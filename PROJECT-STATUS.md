@@ -1,6 +1,6 @@
 # 项目状态
 
-最后更新：2026-11-18
+最后更新：2026-11-25
 
 ## 已提交
 - Cloudflare Pages/Worker 域名与 D1 配置。
@@ -12,6 +12,7 @@
 - 管理员独立登录/登出/会话校验，独立 HttpOnly Cookie，登录 IP/用户名摘要限流。
 - owner/admin/viewer RBAC；名单分页、关键词/省份/大学/年级/类别筛选；最多 5000 行公式安全 CSV/XLSX；审计查询；owner 创建/停用 admin/viewer。
 - 管理员名单和 CSV/XLSX 不包含手机号与个人备注；viewer 仅可查看汇总统计。
+- 高校目录已具备 owner-only staging/finalize Worker API；默认由 `UNIVERSITY_CATALOG_IMPORT_ENABLED` 关闭，需显式启用；服务端重验目录证据与 D1 目标身份，最终 batch 不修改 users/teams。
 
 ## 本次里程碑（2026-11-13）
 - 新增 backend/migrations/0006_admin_rbac.sql：管理员生命周期字段、大小写不敏感用户名唯一索引、会话/审计索引和最后一个 active owner 保护。
@@ -22,7 +23,7 @@
 - 新增管理员登录/RBAC/CSV/审计测试与迁移约束测试。
 
 ## 未完成 / 阻塞
-- 远程 D1 迁移状态尚未读取；部署前需核对仓库当前 0001–0011 与远程记录，按序应用缺失迁移。
+- 远程 D1 迁移状态尚未读取；当前 PR 分支包含 0001–0014，部署前需核对目标 D1 的 0001–0014 与远程记录，按序应用缺失迁移。
 - 尚未初始化首位 owner；需在用户终端运行脚本并用 Wrangler 写入管理员摘要。
 - 用户自助删除/匿名化 API 已提交，隔离测试覆盖登录态、模拟 Turnstile/PNVS 和原子性；尚未在真实 D1/PNVS 环境联调。正式保留期限、删除申请邮箱/负责人尚待组织方确定。
 - 备份恢复方案已形成操作建议，但未执行备份或恢复演练；组织方尚未确认保留期限与申请邮箱。
@@ -147,3 +148,180 @@
 - PNVS 核验成功后再次原子检查过期/覆盖/消费状态，避免验证码在外部网络往返期间过期或被新验证码覆盖后仍然完成业务操作。
 - 新增 OTP 核验竞态测试，覆盖过期前置拦截、核验期间过期、核验期间被覆盖、并发五次尝试上限和并发单次消费。
 - 本次仅提交代码与本地/CI 测试；未应用远程 D1 迁移、发送真实短信或部署 Worker。远程上线前需先按顺序应用 0012。
+
+
+## 本次增量里程碑（2026-11-19）：高校目录 JSON 数据契约
+
+- 新增 `data/university-catalog.schema.json` 与空模板，一级分类统一为 `mainland`、`hmt`、`overseas`；内地只收本科层次，特殊办学类型作为标签。
+- 地域约束：内地精确到省（城市可选）；港澳台精确到地区；海外只到国家，校区位置遵循同样粒度。
+- 单独区分多校区结构和是否存在正式分校；未核实使用 null/unknown，不允许把多校区直接推断成分校。
+- 新增无外部依赖的目录校验器和 smoke tests，覆盖分类、地区、985/211/双一流标签、重复 ID/学校代码/规范化名称、校区完整度、来源与核验状态。
+- GitHub Actions 已通过当前 PR 提交的全量检查；本次没有录入真实高校名单、修改 D1 迁移、执行远程数据库操作或部署。
+- 当前高校目录数据契约 PR：待审核；合并后仍需由本地 AI/人工按官方来源填充目录，再设计 D1 兼容迁移与 dry-run 导入器。
+
+
+## 本次增量里程碑（2026-11-20）：高校目录字段级证据约束
+
+- 加强目录校验器：学校 ID 前缀必须与 mainland/HMT/overseas 分类及地区代码一致。
+- 来源 supports_fields 限定为已定义的高校事实字段；HTTPS 来源 URL 禁止嵌入用户名/密码。
+- verification.status=verified 不再仅凭“存在官方来源”通过：每个 verified_fields 必须被官方来源逐字段覆盖；名称、分类、学历层次、地域为最低必核字段；学校代码、项目标签、双一流学科和完整校区声明按实际填写情况增加核验要求。
+- 扩充目录测试，覆盖字段覆盖不足、伪造字段名、凭据型 URL、ID 分类/地区错配和重复学校代码。
+- 本次仅更新高校目录契约 PR；未导入真实高校数据、修改 D1 迁移、操作远程 D1 或部署。
+
+
+## 本次增量里程碑（2026-11-20）：高校目录 D1 兼容关系型结构
+
+- 新增 \`backend/migrations/0013_university_catalog_relational.sql\`：为 \`universities\` 增加稳定目录 ID、国家/省市、英文名、学校代码、学历层次、办学性质、校区完整度、核验状态等字段。
+- 新增高校别名、标签、校区、来源和导入批次五张关系表；为目录 ID、国家感知规范化名称、学校代码、标签检索和主校区设置索引/约束。
+- \`catalog_id IS NOT NULL\` 才代表正式目录记录；旧 \`normalized_name\` 和旧分类字段保留兼容，不自动合并 \`sino_foreign\`/\`unclassified\` 记录。
+- 扩展 \`backend/tests/schema-smoke.py\`：按顺序执行全部迁移，在 0013 前插入旧中外合作高校、用户和队伍，验证迁移后原 ID/FK 不变；并测试目录唯一性、JSON 校验、标签、别名、校区、来源、导入批次和外键约束。
+- 本次仅修改开发分支和 PR #6；未执行远程 D1 迁移、导入真实高校、读取用户数据或部署 Worker/Pages。生产 D1 是否已应用 0012/0013 仍需在用户终端核验。
+- 下一步：只读 dry-run 规划器已在 2026-11-21 完成；后续先设计测试 D1 写入器、批次原子性/回滚和审计方案，不得直接连接生产库。
+
+## 本次增量里程碑（2026-11-21）：高校目录只读导入计划器
+
+- 新增 `scripts/plan-university-catalog-import.mjs`：先调用现有目录校验器，再读取严格白名单的高校快照，按 catalog_id、学校代码和国家感知规范化名称生成 insert/update/link_existing/skip/manual_review/conflict 计划。
+- 旧记录仅同名时进入 manual_review；匹配依据指向不同记录、分类不一致或 dataset_version 复用但 checksum 改变时进入 conflict，不自动合并。
+- 对已标记 merged 的记录，将 merged_into 解析为实际 D1 universities.id；目标无法安全解析时要求人工审核。
+- 新增只读快照 SQL 与 JSON 模板；快照仅含高校目录字段和导入批次元数据，严格拒绝 phone 等未白名单字段。
+- 规划器只输出 JSON，不连接 D1、不生成可执行 SQL、不执行 INSERT/UPDATE/DELETE；计划显式声明不修改 users、teams 和成员外键。
+- 新增专项测试覆盖新增、精确 ID 更新、旧记录链接、同名人工审核、匹配分歧冲突、checksum 重放、合并目标主键映射和敏感字段拒绝。
+- 本次未读取远程 D1、未应用 0013、未导入高校数据、未部署 Worker/Pages。生产导入仍需在确认迁移状态、备份恢复和测试 D1 演练后单独设计。
+
+
+## 本次增量里程碑（2026-11-21）：高校目录导入对账安全加固
+
+- 快照校验现在限制为现有 D1 分类集合，并验证国家/地区代码为大写 ISO alpha-2 或 null；规范化快照必须提供非空学校名称。
+- 匹配时校验国家/地区代码，防止同一学校代码在不同国家/地区出现时被错误关联；旧记录缺少国家代码且仅凭学校代码命中时转人工审核。
+- 已应用批次的相同版本与 checksum 不再仅凭 record_count 就直接 skip：必须逐条确认 catalog_id 仍存在，且分类、国家代码、国家感知规范化名称和学校代码一致；快照缺行或身份字段改变时标记 conflict。
+- 新增回归测试覆盖跨国家学校代码冲突、缺少国家代码、目录 ID 国家不一致，以及已应用批次的缺行/身份变化。
+- 最新开发分支提交：`62fe654e9184a8cf18902f14141e54861c1a2c32`；GitHub Actions 全部步骤通过（run 44882289045）。
+- 本次只修改 GitHub 开发分支和 Draft PR #6；未执行远程 D1 查询/写入、迁移、真实短信、用户数据访问或 Worker/Pages 部署。
+
+## 本次增量里程碑（2026-11-22）：高校目录只读搜索 API
+
+- Worker 新增公开只读 GET /api/universities，供个人资料页按名称/别名/英文名/学校代码搜索规范化高校。
+- 查询只返回 catalog_id 非空、catalog_status='active'、verification_status='verified' 且有 verified_at 的目录记录；旧版自由文本、草稿、待核验、停用和合并记录不会进入选择结果。
+- 支持分类、国家代码、省份代码筛选；校验分类与国家/地区约束，省份筛选自动限定为内地/中国；限制 query 长度、limit（1–25）和 offset（0–1000）。
+- SQL 使用参数绑定和 instr；学校代码只做受限字面前缀匹配；返回字段固定白名单，不读取或输出手机号、用户、队伍或审计资料。
+- 新增 backend/tests/university-catalog-api-smoke.mjs，覆盖筛选、NFKC 规范化、分页、别名查询 SQL、畸形 JSON 安全降级、字段白名单和无效参数在访问 D1 前被拒绝。
+- 不新增 D1 迁移；本次仅提交到高校目录 Draft PR #6，未导入真实高校、访问远程 D1、部署 Worker/Pages 或读取个人数据。
+- 当前目录为空模板，因此搜索接口暂时返回空结果属于预期。高校目录搜索与 catalog_id 资料绑定已在 2026-11-22 的后续增量中完成，详见下文。
+
+
+## 本次增量里程碑（2026-11-22）：高校目录绑定个人资料
+
+- `GET /api/profile` 增加稳定 `universityCatalogId`，不暴露数据库内部 ID；在迁移 0013 尚未应用时回退读取旧字段，保持既有账号资料可读。
+- `PUT /api/profile` 只接受 active、verified 且具有 verified_at 的高校目录记录；内地记录必须包含 undergraduate，国家/地区代码必须与 mainland/HMT/overseas 分类一致；名称和类别均从 D1 目录记录派生，不信任客户端提交的学校名称/类别。
+- 新账号不能再通过自由文本创建 universities 记录；旧账号可继续保留原大学，只能更新个人字段，不能自行更换或重命名既有高校。
+- 用户大学绑定使用 D1 universities.id，公开 catalog_id 仅作为选择标识；写入增加 university_id compare-and-set 条件，避免并发首次登记时相互覆盖。
+- 前端高校类别收敛为 mainland/HMT/overseas，搜索 GET /api/universities 并从已核验结果选择；中外合作办学、军事、公安、民族、艺术、体育等本科高校归入内地目录。
+- 新增 `backend/tests/university-catalog-profile-smoke.mjs`，覆盖伪造学校名称/类别、未核验记录、自由文本新建拒绝、旧账号兼容、跨校更换拒绝、并发 compare-and-set，以及未应用 0013 时 GET 兼容。
+- 当前目录仍为空模板，因此新用户在目录填充并核验前无法完成高校资料提交；这是预期的 fail-closed 行为。没有导入高校、读取个人资料、执行远程 D1 迁移或生产部署。
+
+
+## 本次增量里程碑（2026-11-23）：同队手机号展示的当前授权校验
+
+- 修复 /api/directory 的手机号展示条件：不再仅依赖 phone_visible_to_team=1，还必须同时满足资料同意已勾选、资料同意时间存在、资料同意版本等于当前隐私说明版本，以及账号同意时间/版本有效。资料保存接口仅接受 JSON 布尔值 true 作为手机号展示授权；字符串 false、字符串 true、数字 1 均按关闭处理。
+- 所有条件在 D1 查询的 CASE 中执行，未授权、撤回、旧版本或不完整同意记录均返回 phone: null；省级队长列表仍不查询、不返回手机号。GET /api/profile 也仅在资料同意与账号同意均为当前版本且时间戳完整时返回 consentGiven=true，旧版本同意不会被前端自动预勾选，避免普通资料保存隐式续期旧授权。
+- 新增 backend/tests/directory-phone-consent-smoke.mjs，覆盖明确授权、关闭展示、旧版本、缺失同意时间、缺失账号同意和版本不匹配，并检查 SQL 侧强制执行隐私条件；扩展 university-catalog-profile-smoke.mjs 验证只有字面布尔值 true 可以开启手机号展示，且旧版/不完整同意不会在资料页被自动勾选。
+- 将专项测试接入 check:worker 与 test:worker。
+- 不新增 D1 迁移；不访问远程 D1、真实用户数据、短信服务或生产部署。该测试使用隔离 Worker/D1 mock，真实浏览器和云端联调仍待执行。
+
+
+## 本次增量里程碑（2026-11-23）：高校目录分阶段 D1 Writer 核心
+
+- 新增 backend/migrations/0014_university_catalog_import_staging.sql：为导入批次增加规范化 manifest SHA-256，并建立只存高校目录 payload 的 staging 表；staging 不包含 users、teams、手机号、Session、OTP 或审计详情。
+- 增加 staging 插入/更新/删除保护、导入元数据冻结、已应用批次不可回退，以及最终应用前的完整数量和 live university identity 检查。
+- 新增 backend/src/university-catalog-import.js：从已通过 dry-run 的 catalog + plan 生成逐条 payload SHA-256 和排序 manifest SHA-256；分 20 条 chunk 使用 DB.batch() 可重放地写 staging；最终用固定 13 条预编译语句组成一个 D1 batch，新增/更新 universities 并替换 aliases/tags/campuses/sources，最后标记 applied、清理 staging、写入最小化管理员审计。
+- 最终 batch 不修改 users、teams 或其外键；任一语句失败时，按 D1 batch 事务语义整体回滚，staging 保留用于排查/重试。
+- 新增 scripts/prepare-university-catalog-import.mjs 和 npm run prepare:universities，生成不可覆盖的 manifest 文件；该命令只生成高校目录 payload，不连接 D1。
+- 新增 backend/tests/university-catalog-writer-smoke.mjs，覆盖 manifest checksum、冲突计划拒绝、insert/update/link_existing 映射、分块重放、finalize 顺序、无用户/队伍写入、失败后保留 staging 和已应用批次幂等。
+- 扩展 backend/tests/schema-smoke.py，应用 0014 并验证 staging 完整性、目标映射、不可变性、重复目标拒绝和事务失败回滚。
+- 当前 writer 核心尚未接入 Worker HTTP 管理路由/上传 CLI；本轮没有读取远程 D1、应用迁移、导入高校数据、读取真实用户数据、发送短信或部署。必须先完成 owner-only 路由、服务端重验、独立测试 D1 演练和恢复测试。
+
+
+## 本次增量里程碑（2026-11-24）：高校目录 owner-only D1 导入路由
+
+- 将 `backend/src/university-catalog-import.js` 的 writer 核心连接到 Worker：新增 `POST /api/admin/universities/import/stage` 与 `POST /api/admin/universities/import/finalize`。
+- 两个端点默认关闭，只有环境变量 `UNIVERSITY_CATALOG_IMPORT_ENABLED=true` 时才启用；要求独立管理员会话、owner 角色、`universities:import` 权限及严格匹配的 APP_ORIGIN。普通 admin、viewer、未登录请求均不能调用。
+- staging 请求限制为 JSON、8 MiB、最多 5,000 条；finalize 必须同时提交 dataset_version、manifest SHA-256 和完全相同的二次确认摘要。
+- 新增服务端重验：manifest/payload 摘要、唯一目标映射、insert/update/link_existing 当前 D1 主表身份字段、合并目标映射；只读取 universities 的安全身份字段，不读取 users、teams、手机号、Session、OTP 或审计详情。
+- 服务端拒绝未核验高校：verification.status 必须为 verified，必要字段必须同时出现在 verified_fields 和政府/教育主管部门/高校 HTTPS 来源 supports_fields 中；限制 payload key 白名单，避免把任意个人信息塞入 staging。
+- staging 前写入最小化 `admin.university_catalog.stage_requested` 审计；finalize 的成功审计仍在同一个 13 语句 D1 batch 中完成。
+- 新增 `backend/tests/university-catalog-admin-import-smoke.mjs`，覆盖未登录、非 owner、功能开关关闭、Origin 错误、陈旧目标冲突、未核验数据拒绝、staging、二次摘要确认、finalize 和幂等重放；检查最终 batch 不触及 users/teams。
+- 不新增 D1 迁移（继续使用 0014）；本次没有设置线上 feature flag、调用导入路由、读取/写入远程 D1、导入真实高校、读取真实个人数据、发送短信或部署 Worker/Pages。测试使用合成高校记录与 mock D1，真实测试 D1 导入/备份恢复演练仍待执行。
+
+- 2026-11-24 测试补充：在 staging 与 finalize 两个阶段分别模拟 D1 高校身份记录漂移；finalize 前发现目标已变化时返回 409，保留 validated 批次和 staging，不执行最终 13 语句 batch。
+
+
+## 本次增量里程碑（2026-11-24）：高校目录导入状态只读接口
+
+- 新增 owner-only `GET /api/admin/universities/import/status?datasetVersion=YYYY-MM-DD`；继续受 `UNIVERSITY_CATALOG_IMPORT_ENABLED=true` feature flag、独立管理员 Session、owner 角色和 `universities:import` 权限保护。
+- 仅返回导入批次摘要、记录数量、各操作计数、staging 数量及 staging 完整性；不返回高校 payload、手机号、用户、队伍、Session、OTP 或审计正文。
+- 对 datasetVersion 做严格日期格式校验；批次不存在返回 404；状态读取使用参数绑定，响应继承 `Cache-Control: no-store`。
+- 扩展 `backend/tests/university-catalog-admin-import-smoke.mjs`：覆盖未登录、普通 admin、feature flag 关闭、非法版本、批次不存在、validated staging 完整和 applied staging 清空状态。
+- GitHub Actions run #194 已对代码/测试提交 `babf296f5596b6897fd64c259f3b51782255a65e` 执行完整检查，13 个工作流步骤全部成功：https://github.com/FrancisAMD/qd58-zhuoyue-2026/actions/runs/45349736022。
+- 本次只修改开发分支和 Draft PR；未开启线上 feature flag、未调用线上导入接口、未读取或写入远程 D1、未导入真实高校、未读取个人数据或部署。
+
+
+## 本次增量里程碑（2026-11-25）：D1 导出备份恢复校验与删除隐私复核
+
+- 新增 \`scripts/verify-d1-export.py\`：本地读取 Wrangler D1 SQL export，在临时 SQLite 数据库中执行恢复校验；检查 SQLite integrity、外键、关键业务表、可选的 d1_migrations 目标版本，以及已匿名化账号 tombstone 不再含手机号/密码/姓名/学校/地区/备注/授权字段。
+- 校验器限制 SQL 导入能力：拒绝 ATTACH/DETACH、虚拟表、load_extension 和危险 PRAGMA；只输出 SHA-256、文件大小及聚合校验结果，不输出行内容。
+- 新增 \`backend/tests/d1-backup-restore-smoke.py\`，使用合成用户、合成高校和仓库全部 0001–0014 迁移生成 SQL dump；覆盖正常恢复、摘要不匹配、缺失迁移、损坏 SQL、外键断裂、删除账号残留个人信息及缺失关键表。
+- 新增 \`docs/d1-backup-restore.md\`，区分 D1 Time Travel 与 Cloudflare 账户外的加密导出备份；记录只读检查、导出、加密、隔离测试库恢复和回归验证流程。
+- \`.gitignore\` 增加 private-backups、D1 SQL 导出和 SQLite 文件规则，避免把包含个人信息的备份提交到 Git。
+- 增加 `npm run test:backup`，GitHub Actions 通过该命令运行备份恢复校验；测试不连接 Cloudflare，不导出真实数据，不创建测试 D1，不执行任何 restore。
+- 重要隐私发现：D1 恢复到早于账号删除时间的 bookmark，可能重新带回已匿名化的个人信息；同一 D1 中的 \`account.deleted\` 审计记录也会随旧 bookmark 一起回退，不能作为跨恢复的独立删除台账。正式开放前必须建立 D1 恢复域之外、独立权限保护的删除 tombstone 台账，并在恢复后、重新开放流量前重放删除事件。
+- 不把此前建议的 30 天作为已批准备份政策。账号资料、审计和外部备份保留期限、隐私联系邮箱、控制者信息仍需组织方确认。
+- 本次没有新增 D1 迁移，没有执行远程 D1 查询/导出/写入/恢复，没有发送短信、访问真实个人数据或部署 Worker/Pages。
+
+
+## 本次增量里程碑（2026-11-25）：高校目录 Owner CLI
+
+- 新增 `scripts/university-catalog-admin-cli.mjs`，提供批次 status、stage、finalize 三个命令；必须显式指定 API Base 与 App Origin，防止误操作目标环境。
+- CLI 在上传前验证 Manifest 格式、单条 payload SHA-256、目录/目标 ID 唯一性、规范化 Manifest SHA-256，并限制请求体不超过 Worker 8 MiB。
+- 管理员用户名可见输入，密码采用交互式不回显输入；不接受命令行密码参数，不将 Session Cookie 或密码写入文件。结束时尽力调用管理员注销接口。
+- stage 后读取 Worker 状态并核对 checksum、manifest SHA-256、记录数和完整暂存标记；finalize 前要求批次完整且 SHA-256 一致，并要求输入完整的 APPLY 确认词；提交后再查询状态，仅在 applied 且 staging 清空时报告成功。
+- 新增 `backend/tests/university-catalog-admin-cli-smoke.mjs`，使用 mock fetch 覆盖 stage、finalize、状态验证、确认词、logout 和损坏 Manifest 拒绝；接入 check:worker 与 test:catalog。
+- GitHub Actions Run #205 已全部通过：依赖安装、Worker 检查、Worker/目录测试、目录模板校验、Dry-run、前端 HTML、D1 SQLite 迁移测试、备份恢复 smoke 和 XLSX 测试。https://github.com/FrancisAMD/qd58-zhuoyue-2026/actions/runs/45570369554
+- 新增使用说明 `data/UNIVERSITY-CATALOG-CLI.md`。CLI 的真实 Cloudflare 联调尚未执行；功能开关默认关闭，仍需独立测试 D1、备份和恢复演练。
+- 本次未应用远程 D1 迁移、读取/写入真实用户数据、发送真实短信、启用导入功能开关或部署 Worker/Pages。
+
+
+## 本次增量里程碑（2026-11-26）：账号删除的 D1 外部 R2 意图台账
+
+- 新增 `backend/src/account-deletion-ledger.js`：以用户随机 ID 为键，在私有 R2 中使用条件写入创建一次性删除意图；记录 schema version、随机 event ID、时间和 SHA-256，不包含手机号、姓名、学校、密码或其他资料字段。已存在记录会被校验并复用，不覆盖。
+- 新增分页枚举/读取/校验接口；校验对象键、结构、时间、事件 ID 与摘要，损坏或缺失条目会 fail closed。
+- 账号删除 Worker 在短信验证通过后、D1 匿名化事务开始前先写 R2；R2 写入失败返回 503 且不执行 D1 batch。若 R2 已写、D1 事务失败，意图仍保留并必须在恢复/重试时进行核对。
+- Wrangler 增加 `DELETE_LEDGER` R2 binding（拟定 bucket 名 `qd58-account-deletion-ledger`），需在部署前由授权操作者创建私有 bucket；本次没有创建 R2 bucket 或部署。
+- 新增 `backend/tests/account-deletion-ledger-smoke.mjs`，覆盖 create-once、重试复用、校验摘要、分页、损坏拒绝和输入校验；扩展账号删除测试，覆盖 ledger 写入顺序、R2 写入失败阻止 D1 batch、以及 D1 事务冲突时 ledger 意图仍存在。
+- 将 ledger smoke 加入 `check:worker` / `test:worker`。
+- 自动恢复重放工具尚未完成：本次仅实现意图记录和分页读取，不能声称已解决旧快照恢复后的删除重放。正式上线仍需完成恢复重放工具、隔离 D1 演练、R2 权限/保留策略及远程 D1 核对。
+- 本次未创建 bucket、未访问远程 D1/R2、未导出或恢复备份、未发送短信、未读取真实个人数据、未部署 Worker/Pages。
+
+
+## 本次增量里程碑（2026-11-26）：账号删除意图与 D1 审计事件关联
+
+- 复核独立 R2 删除意图台账和账号删除 D1 batch，发现此前 R2 的 eventId 与 D1 audit_logs.id 各自随机生成，无法精确关联。
+- 现在复用 R2 intent 的 eventId 作为 D1 的 account.deleted audit ID；失败事务不会留下审计行，重试读取 create-once intent 后使用同一 ID，形成跨存储可核验关联。
+- 修正 account-deletion smoke 的 R2 conditional-put mock，使其按 Worker R2 API 的 If-None-Match 语义模拟 create-once；增加事务冲突后重试并验证事件 ID一致、意图未被覆盖的回归测试。
+- 本次仅修改 Worker 与隔离测试；未访问 R2/D1、未导出/恢复备份、未发送短信或部署。远程环境及恢复重放仍待授权操作和隔离演练。
+
+
+## 验证状态补充（2026-11-26）：删除重试回归测试未通过
+
+- Worker 关联 R2 intent eventId 与 D1 account.deleted audit ID 的代码提交已通过 CI run #214。
+- 后续新增的“D1 冲突后重新申请验证码并重试”测试在 run #215/#216 失败：模拟短信冷却仍保留，重试验证码请求返回 429，而测试预期 200。当前判断是测试 fixture 的冷却隔离问题；生产 Worker 修改本身在 run #214 已通过。
+- 修复测试 fixture 前不宣称全套 CI 通过；PR #6 仍 Draft。未操作远程 R2/D1、未部署。
+
+
+## 2026-11-26 — Admin login diagnosis and account retry regression
+
+- Fixed the account-deletion retry smoke test to advance only the simulated SMS cooldown window before retrying; daily-phone and hourly-IP quotas remain intact. The earlier HTTP 429 was a test-clock/cooldown setup issue, not an account-deletion transaction failure.
+- Improved admin console error messages for invalid credentials, missing `RATE_LIMIT_HMAC_SECRET`, `APP_ORIGIN` mismatch, and Worker internal errors.
+- Added admin-auth regression coverage for a bootstrap-generated PBKDF2-SHA256 hash, successful owner login, secure `__Host-qd58_admin` cookie issuance, `/api/admin/me` session validation, and fail-closed behavior when the rate-limit secret is absent.
+- Added operator instructions for read-only inspection of `admin_users`, first-owner bootstrap, and checking Worker Secret names. No passwords, SQL files, cookie values, or secret values are stored in the repository.
+- Remote Cloudflare D1 and Worker Secrets remain unverified because no Cloudflare runtime/authorization is available in this session. No password reset, remote SQL, secret change, or deployment was performed.
+- CI verification is pending for the latest test corrections.

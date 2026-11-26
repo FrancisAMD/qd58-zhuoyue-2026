@@ -1,18 +1,17 @@
 name = "zhuoyue-2026-api"
 main = "src/worker.js"
 compatibility_date = "2026-11-01"
-
-# Bind the public API hostname to this Worker (Custom Domain).
 [[routes]]
 pattern = "api.58er.eon21.space"
 custom_domain = true
-
 [[d1_databases]]
 binding = "DB"
 database_name = "qd58-zhuoyue-db"
 database_id = "3d32e597-57e9-4e52-833b-98bdec7ffb0b"
 migrations_dir = "migrations"
-
+[[r2_buckets]]
+binding = "DELETE_LEDGER"
+bucket_name = "qd58-account-deletion-ledger"
 [vars]
 APP_ORIGIN = "https://58er.eon21.space"
 SESSION_TTL_SECONDS = "604800"
@@ -20,16 +19,13 @@ OTP_TTL_SECONDS = "300"
 OTP_MAX_ATTEMPTS = "5"
 OTP_SEND_COOLDOWN_SECONDS = "60"
 TRANSFER_TTL_SECONDS = "604800"
-
 # Set these non-secret PNVS values only after checking the approved console configuration:
 # ALIBABA_SIGN_NAME = "恒创联众"
 # ALIBABA_TEMPLATE_CODE = "100001"
-
 # Configure as Worker secrets only; never commit secret values:
 # wrangler secret put RATE_LIMIT_HMAC_SECRET
 # wrangler secret put TURNSTILE_SECRET_KEY
 # wrangler secret put ALIBABA_ACCESS_KEY_ID
 # wrangler secret put ALIBABA_ACCESS_KEY_SECRET
-
 [triggers]
 crons = ["*/15 * * * *"]

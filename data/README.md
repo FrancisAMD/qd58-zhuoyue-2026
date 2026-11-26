@@ -1,0 +1,293 @@
+# 高校目录数据契约（v1）
+
+本目录定义“卓越·2026”高校主数据的唯一 JSON 格式。它是**数据源**，不是运行时查询接口；正式运行时由导入器将经核验的数据写入 Cloudflare D1。当前提交只建立格式和校验规则，不导入高校名单、不改动现有 D1。
+
+## 文件
+
+- `university-catalog.schema.json`：JSON Schema 2020-12，约束字段形状和枚举。
+- `university-catalog.template.json`：可复制的空目录模板。
+- 完整数据文件建议命名为 `university-catalog.json`，不要覆盖模板。
+
+## 三种一级分类
+
+| category | 范围 | 地域粒度 |
+| --- | --- | --- |
+| `mainland` | 中国内地本科高校；普通、民办、职业本科、军事、公安、民族、艺术、体育、中外合作等均放在这里 | 省级必填，城市可选 |
+| `hmt` | 香港、澳门、台湾高校 | 只记录香港/澳门/台湾 |
+| `overseas` | 其他国家和地区的高校 | 只记录国家，不记录州、省、城市 |
+
+内地“中外合作办学”不再是一级分类，使用 `school_type_tags: ["sino_foreign_cooperative"]`。内地记录必须在 `degree_levels` 中包含 `undergraduate`；专科层次但不具有本科层次的院校不纳入本目录。职业本科属于本科范围，可纳入并标记 `vocational`。
+
+## 单条记录示意
+
+以下仅展示字段结构，名称、代码、标签和来源均为占位说明，**不能作为真实高校数据导入**：
+
+```json
+{
+  "id": "mainland:CN-00000",
+  "official_school_code": null,
+  "name_zh": "学校官方中文全称",
+  "name_en": null,
+  "aliases": ["常用简称"],
+  "category": "mainland",
+  "degree_levels": ["undergraduate", "postgraduate"],
+  "ownership": "public",
+  "school_type_tags": ["comprehensive"],
+  "project_tags": ["project_985_legacy", "project_211_legacy", "double_first_class_round2"],
+  "double_first_class_disciplines": [],
+  "location": {
+    "country_code": "CN",
+    "country_name_zh": "中国",
+    "country_name_en": "China",
+    "province_code": "CN-37",
+    "province_name_zh": "山东省",
+    "city_name_zh": "青岛市"
+  },
+  "campus_structure": "multiple",
+  "has_branch_campus": null,
+  "campus_info_status": "partial",
+  "campuses": [
+    {
+      "id": "main",
+      "name_zh": "主校区名称",
+      "name_en": null,
+      "is_main_campus": true,
+      "is_branch_campus": false,
+      "location": {
+        "country_code": "CN",
+        "country_name_zh": "中国",
+        "country_name_en": "China",
+        "province_code": "CN-37",
+        "province_name_zh": "山东省",
+        "city_name_zh": "青岛市"
+      }
+    }
+  ],
+  "source_records": [],
+  "verification": {
+    "status": "needs_review",
+    "verified_at": null,
+    "verified_fields": [],
+    "notes": "待按官方来源核验"
+  },
+  "status": "active",
+  "merged_into": null
+}
+```
+
+## 字段规则
+
+### 身份与名称
+
+- `id` 是稳定主键，建议格式：`mainland:<教育部学校标识码>`、`hmt:<HK|MO|TW>:<slug>`、`overseas:<ISO-3166-1 alpha-2>:<slug>`。一经进入 D1 不要因改名而改变 ID。
+- `official_school_code` 只填可核验的官方学校标识码；没有可靠代码就填 `null`，不要自行编造。
+- `name_zh`、`name_en` 至少填写一个；`aliases` 只放确实使用过的简称、旧称或常见译名。
+- 同一所大学的不同校区放在同一条记录里。具有独立学校身份/独立招生主体的学校分别建档，不把它们当作校区。
+
+### 标签
+
+- `school_type_tags` 描述办学类型，可多选；`ownership` 单独描述公办/民办等属性。
+- `project_tags` 只表示建设项目沿革：985、211 使用 `*_legacy`；双一流明确区分第一轮和第二轮。
+- 985/211/双一流不是学校类型，不要写入 `school_type_tags`。
+- 港澳台和海外高校的 `project_tags` 应为空数组。不要把其他国家的排名或认证映射成中国的 985/211/双一流。
+- `double_first_class_disciplines` 只填写有可靠依据的学科名称；未核实不要推测。
+
+### 地域
+
+- `location` 是学校主体所在地；每个校区的 `location` 是该校区所在地。
+- 内地：`country_code=CN`，必须填写省代码和省名称；城市可选。省代码建议使用 ISO 3166-2:CN 格式。
+- 港澳台：`country_code` 分别使用 `HK`、`MO`、`TW`，省/市字段必须为 `null`。
+- 海外：`country_code` 使用 ISO 3166-1 alpha-2；省/州和城市字段必须为 `null`，严格只到国家层级。
+- 不要把“校区多”误写成“分校”。`campus_structure` 描述校区数量；独立法人或独立招生高校应另建记录。
+
+### 校区完整度与分校
+
+- `campus_structure` 记录单校区/多校区/未知；`has_branch_campus` 单独记录是否存在正式分校：`true`、`false` 或 `null`（未核实）。多校区不等于有分校。
+- 每个校区用 `is_branch_campus` 标记；主校区不能同时标记为分校。
+- 只有校区清单完整核验后，才能把 `has_branch_campus` 设为 `false`；若为 `true`，至少要有一条校区记录标记为分校。
+- `complete`：已核实校区列表，至少一个校区，且恰好一个主校区。
+- `partial`：只掌握部分校区；不得声称完整。
+- `not_collected`：尚未采集校区，`campuses` 必须为空。
+- `unknown`：无法判断。
+- 不确定是否有分校/多个校区时使用 `unknown`，不要根据搜索摘要推断。
+
+### 来源与核验
+
+- 每个来源记录都应有发布机构、标题、URL、访问日期和支持的字段。
+- 优先使用教育主管部门、高校官网和正式招生章程；百科、论坛、搜索摘要只可作为线索，不能单独支持 `verified`。
+- `verification.status=verified` 只能在关键字段已由可信来源逐项核验后使用；否则使用 `draft` 或 `needs_review`。
+- 不允许 AI 补造 URL、学校代码、校区名称、985/211/双一流资格或学科名单。无法确认就留空、标记待核验。
+- `status=merged` 时必须填写 `merged_into`，表示合并到的记录 ID；其他状态下设为 `null`。
+
+## 证据字段与 verified 状态
+
+source_records[].supports_fields 只能引用目录中的事实字段：official_school_code、name_zh、name_en、aliases、category、degree_levels、ownership、school_type_tags、project_tags、double_first_class_disciplines、location、campus_structure、has_branch_campus、campus_info_status、campuses。
+
+verification.status=verified 不再只检查“存在一个官方来源”：每个 verified_fields 都必须被至少一条政府、教育主管部门或高校官方来源明确覆盖；并且必须核验名称、分类、学历层次和地域。若填了学校代码、项目标签、双一流学科或声明校区清单完整，也必须有相应字段级来源支持。来源 URL 必须为 HTTPS，且不得嵌入用户名或密码。
+
+高校 ID 前缀必须与分类及地区一致：内地 mainland:，港澳台 hmt:HK|MO|TW:，海外 overseas:<ISO 国家代码>:。这有助于目录导入和排查数据错配；正式导入仍以稳定 ID 为准，不按名称重建主键。
+## 生成与校验
+
+复制模板为 `data/university-catalog.json`，更新 `dataset_version`，再逐条填入高校记录。校验命令：
+
+```powershell
+npm run validate:universities -- data/university-catalog.json
+npm run test:catalog
+```
+
+校验器检查 JSON 结构、枚举、分类与地域约束、重复 ID/学校代码/规范化名称、校区完整度和来源核验要求。校验通过只代表格式和内部规则通过，不代表官方事实已被独立审查。
+
+## D1 关系型结构（迁移 0013）
+
+迁移 \`0013_university_catalog_relational.sql\` 是**只增不改的兼容迁移**，不重建 \`universities\`，不修改现有 \`universities.id\`，也不更新 \`users.university_id\` 或 \`teams.university_id\`。
+
+| JSON 字段 | D1 存储 |
+| --- | --- |
+| \`id\` | \`universities.catalog_id\`（稳定目录 ID） |
+| 规范化名称 | \`universities.catalog_normalized_name\`（包含分类和国家代码，与旧 \`normalized_name\` 分离） |
+| \`official_school_code\`、中英文名 | \`universities\` 主表 |
+| \`location\` | \`universities\` 的国家、省、市字段 |
+| \`degree_levels\` | \`universities.degree_levels_json\`，同时写入 \`university_tags\` |
+| \`ownership\`、校区完整度、分校状态 | \`universities\` 主表 |
+| \`school_type_tags\`、\`project_tags\`、双一流学科 | \`university_tags\`，分别使用 \`school_type\`、\`project\`、\`double_first_class_discipline\` 分组 |
+| \`aliases\` | \`university_aliases\` |
+| \`campuses\` | \`university_campuses\` |
+| \`source_records\` | \`university_sources\` |
+| \`verification\`、\`status\`、合并目标 | \`universities\` 主表 |
+| 导入批次 | \`university_catalog_imports\` |
+
+旧 \`normalized_name\` 的唯一规则早于国际高校目录，不能承担“同名学校按国家区分”的新语义；目录查询应使用 \`catalog_normalized_name\`。\`catalog_id IS NOT NULL\` 是目录正式记录的识别条件。旧的 \`sino_foreign\` 和 \`unclassified\` 行会保留原样，待后续显式对账，不在迁移时自动合并。
+
+本迁移只扩展结构，不导入高校名单、不改变现有队伍、不触碰生产 D1。生产应用前仍需先备份并确认 0012 已按序应用；迁移执行状态以目标 D1 的 \`d1_migrations\` 为准。
+
+## 导入原则（后续里程碑）
+
+1. 先在本地运行校验器，失败时禁止导入。
+2. 导入器使用 `id` 做 upsert，不以学校名称作为主键。
+3. 标签、别名、校区和来源分别存入关联表；不要把整个 JSON 字符串塞进单一 D1 字段供查询。
+4. 导入必须提供 dry-run、变更摘要和事务/批次保护；默认不得删除 JSON 中暂时缺席的学校。
+5. 先导入测试 D1 并检查注册搜索、同校分组和现有用户的 `university_id` 映射，再考虑生产 D1。
+6. 目录导入不应自动修改现有用户的大学归属，也不应创建或合并用户队伍。
+
+
+## 只读导入计划（dry-run）
+
+迁移 0013 只建立关系型结构，不会自动把 JSON 写入 D1。下一步先使用 dry-run 规划器对账；当前没有任何 D1 写入器。
+
+### 生成不含个人信息的现有高校快照
+
+只有在目标 D1 已按顺序应用 `0013_university_catalog_relational.sql` 后，才执行 `university-catalog-snapshot.sql` 中的两个只读 SELECT。它们只读取 `universities` 与 `university_catalog_imports`，不读取 users、teams、手机号、Session、验证码或审计详情。将第一组结果映射到 `universities`，第二组结果映射到 `imports`（包含 `dataset_version`、`checksum_sha256`、`record_count`、`status`），整理到 `data/university-catalog-existing.snapshot.json`，结构参考 `university-catalog-existing.snapshot.template.json`。
+
+快照行只允许包含：`id`、`catalog_id`、`catalog_normalized_name`、`official_school_code`、`category`、`canonical_name`、`normalized_name`、`country_code`。规划器会拒绝多余字段，防止把个人信息误带入快照。
+
+### 生成计划
+
+```powershell
+npm run validate:universities -- data/university-catalog.json
+npm run plan:universities -- --catalog data/university-catalog.json --existing data/university-catalog-existing.snapshot.json --out data/university-catalog-import-plan.json
+```
+
+输出文件使用独占创建模式，不覆盖已有计划。若出现 `manual_review` 或 `conflict`，命令返回非零状态，必须先人工处理。当前规划器只输出 JSON 计划，不连接 D1、不生成可执行 SQL、不执行插入/更新/删除。
+
+### 匹配与保护规则
+
+1. 依次按稳定 `catalog_id`、唯一学校代码、国家感知规范化名称查找。
+2. 精确目录 ID 命中时计划为 `update`，保留原有 `universities.id`。
+3. 仅通过唯一学校代码或目录规范化名称命中旧行时计划为 `link_existing`，保留原有主键及 users/teams 外键。
+4. 仅凭旧 `canonical_name` 同名命中时一律 `manual_review`，不自动合并，也不贸然插入重复学校。
+5. 不同匹配依据指向不同旧行、分类冲突、国家/地区代码冲突、批次版本复用但 checksum 不同，均标记 `conflict`。
+6. 仅凭学校代码命中、且旧记录缺少国家/地区代码时，转为 `manual_review`；不能假定学校代码在不同国家之间全局唯一。
+7. 已应用的相同 dataset_version + checksum 只有在快照中每条目录 ID 都存在、且分类、国家代码、规范化名称和学校代码仍与目录一致时才计划为 `skip`；缺行或身份字段变化均标记 `conflict`。
+8. 新增记录的计划主键采用稳定目录 ID（`universities.id = catalog.id`）；链接旧记录时始终保留其原有 D1 主键及用户/队伍外键。
+9. 不计划删除记录；不修改用户、队伍或成员外键；目录中暂时缺席的高校不会被推断为应删除。
+10. 对 `merged_into`，计划器会把目录 ID 解析为实际 D1 主键；目标无法解析时转人工审核。
+
+规划器的“可进入人工审核”不等于生产导入授权。真正的 D1 写入器、测试库导入、事务批次与回滚演练仍是独立后续里程碑。
+
+## 只读高校搜索 API（2026-11-22）
+
+Worker 提供 GET /api/universities，供个人资料页选择规范化高校。接口只读取 universities 与 university_aliases，不要求登录，因为高校目录本身不是个人信息；返回字段采用固定白名单。
+
+示例：
+
+    GET /api/universities?q=青岛大学&category=mainland&provinceCode=CN-37&limit=10&offset=0
+    GET /api/universities?category=hmt&countryCode=HK
+    GET /api/universities?q=11065
+
+安全与查询规则：
+
+- 仅返回 catalog_id IS NOT NULL、catalog_status='active'、verification_status='verified' 且具有 verified_at 的记录；旧版自由文本大学、草稿、待核验、停用和合并记录不会出现在选择结果中。
+- 支持 q、category、countryCode、provinceCode；至少提供一个非空筛选条件，避免无条件全表枚举。
+- q 最多 80 个字符，按 NFKC 规范化后匹配目录规范化名称、别名和英文名称；学校代码只支持字面前缀匹配，不把用户输入拼入 SQL。
+- provinceCode 只接受 CN-xx，并自动限定为 mainland / CN；分类与国家代码冲突时拒绝请求。
+- limit 默认为 10，范围 1–25；offset 默认为 0，最大 1000；通过多取一条返回 hasMore。
+- 响应不包含手机号、用户、队伍、成员、管理员、来源备注或审计字段；畸形 degree_levels_json 以空数组返回，不回显原始内容。
+- 目录尚未导入真实且已核验的高校时，接口会返回空数组。这是预期的 fail-closed 行为，不应回退到任意自由文本自动建校。
+
+**当前边界：**本次只增加只读搜索 API。现有 PUT /api/profile 仍沿用旧版自由文本高校字段，尚未切换为 catalog_id。下一步必须让资料保存只接受有效、active、verified 的目录 ID，并明确处理旧账号映射；在该集成完成前，目录搜索结果还不能视为完整的注册闭环。
+
+
+## 分阶段 D1 写入核心（迁移 0014）
+
+迁移 0014_university_catalog_import_staging.sql 增加了导入 staging 表和最终应用保护：
+
+- university_catalog_imports.manifest_sha256 保存按目录 ID 排序的规范化清单摘要，与原始 JSON 文件 SHA-256 分开。
+- university_catalog_import_staging 只存高校目录记录、目标 D1 高校 ID、计划动作、payload JSON 和单条摘要；不包含用户、手机号、队伍、Session、OTP 或审计详情。
+- 每个 staging chunk 最多 20 条，使用 D1 batch() 原子写入 staging；同一 chunk 可安全重放，摘要不一致会拒绝。
+- staging 行不可更新；只有导入批次处于 validated 且 checksum/manifest 一致时才能插入。
+- 最终应用前必须满足 staging 数量完整、目标 D1 主键唯一、每条目标高校的目录 ID/分类/国家/规范化名称/学校代码/状态与 payload 一致。
+- 最终应用由 13 条预编译语句组成一个 DB.batch()：新增/更新高校、替换别名/标签/校区/来源、将批次标记为 applied、清理 staging、写入不含个人资料的管理员审计。任一语句失败时，整个最终 batch 回滚，staging 保留以便排查或重试。
+- 不删除高校，不修改 users.university_id、teams.university_id，不自动迁移用户或队伍。
+
+### 生成不可变导入清单
+
+在已完成 dry-run 且不存在 manual_review / conflict 后运行：
+
+npm run prepare:universities -- --catalog data/university-catalog.json --plan data/university-catalog-import-plan.json --out data/university-catalog-import-manifest.json
+
+输出文件使用独占创建模式，不覆盖已有清单。它包含高校目录 payload、每条记录 SHA-256、整份规范化 manifest SHA-256 和原始 JSON 文件 SHA-256。修改任何高校记录后，必须提升 dataset_version 并重新生成 dry-run 与 manifest；不能复用旧版本。
+
+### 当前安全边界
+
+backend/src/university-catalog-import.js 已实现 manifest 构建、staging chunk 写入和最终 D1 batch 核心，并由隔离测试覆盖。**目前尚未接入 Worker HTTP 管理路由或上传 CLI**，因此生成 manifest 不会连接或写入 D1；不要手动把 manifest 当作 SQL 执行。下一步应增加仅 owner 可用的管理端点，重新在服务端核验目标映射，并在独立测试 D1 上完成 staging、finalize、失败重试和恢复演练后，才考虑生产导入。
+
+
+## Owner-only D1 catalog import API (2026-11-24)
+
+The staged writer is now connected to two owner-only Worker routes. Both routes are disabled unless the Worker environment explicitly sets `UNIVERSITY_CATALOG_IMPORT_ENABLED=true`; the default and production-safe state is disabled.
+
+### Stage a prepared manifest
+
+1. Run the local catalog validator and dry-run planner against a university-only D1 snapshot.
+2. Resolve every `manual_review` / `conflict`; do not generate a manifest while any remain.
+3. Generate the immutable manifest with `npm run prepare:universities`.
+4. Authenticate through the independent admin session as the `owner` role.
+5. POST the manifest to `/api/admin/universities/import/stage` as JSON: `{"manifest": ...}`.
+
+The stage route requires the exact configured app Origin, a live admin session, owner role plus `universities:import` permission, the import feature flag, JSON content type, an 8 MiB request limit, and at most 5,000 records. Before staging, the Worker rechecks the manifest hashes and re-reads only the safe university identity columns (`id`, `catalog_id`, country-aware normalized name, official school code, category and country code). It rejects stale or ambiguous target mappings.
+
+The server also revalidates the importable record shape and official evidence: no unknown payload keys, only supported category/location combinations, mainland undergraduate scope, `verification.status=verified`, required verified fields, and official HTTPS sources covering those fields. This prevents a caller from bypassing the offline catalog validator by hand-editing a manifest.
+
+Staging writes only the import batch and immutable university staging rows. A minimal `admin.university_catalog.stage_requested` audit entry is written before staging; metadata contains only dataset version, checksums and record count.
+
+### Finalize an explicitly confirmed manifest
+
+After reviewing the stage response, POST to `/api/admin/universities/import/finalize`:
+
+```json
+{
+  "datasetVersion": "YYYY-MM-DD",
+  "manifestSha256": "<64 lowercase hex characters>",
+  "confirmManifestSha256": "<the exact same 64-character hash>"
+}
+```
+
+The Worker loads the staged manifest from D1, validates every row hash and the whole manifest digest, rechecks live university target mappings immediately before finalization, then invokes the existing single 13-statement D1 batch. The final batch only mutates universities and the university alias/tag/campus/source/import tables; it does not update or delete users, teams, or membership foreign keys. The same batch marks the import applied, clears staging, and writes the minimal admin audit. Replaying an already-applied version is idempotent.
+
+### Safety boundary
+
+- Both endpoints return `catalog_import_disabled` unless `UNIVERSITY_CATALOG_IMPORT_ENABLED=true` is deliberately configured.
+- Only the independent owner admin session can stage or finalize; admin and viewer roles are denied.
+- No production environment variable was changed and no endpoint was called in this development run.
+- No remote D1 migration, read, write, catalog import, personal-data access, SMS send, or Worker/Pages deployment was performed.
+- The isolated route smoke test uses synthetic university data and a mock D1. Before any real import, apply migrations 0013 and 0014 to an isolated test D1, run a backup/restore rehearsal, and compare the staged/finalized university-only snapshot.

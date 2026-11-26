@@ -4,10 +4,30 @@ import worker, { createRateLimitKey, derivePassword, PBKDF2_ITERATIONS } from ".
 const ORIGIN = "https://58er.eon21.space";
 const API = "https://api.58er.eon21.space";
 const PHONE = "13800000000";
-const USER_ID = "user-account-delete-001";
+const USER_ID = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const TEAM_ID = "team-account-delete-001";
 const PASSWORD = "Test-Account-Password-2026!";
 const COOKIE = "__Host-qd58_session=" + "a".repeat(64);
+
+function fakeR2Bucket({ failPut = false } = {}) {
+  const objects = new Map();
+  return {
+    objects,
+    async put(key, value, options = {}) {
+      if (failPut) throw new Error("simulated_r2_failure");
+      const createOnly = options.onlyIf instanceof Headers
+        ? options.onlyIf.get("If-None-Match") === "*"
+        : options.onlyIf?.etagDoesNotMatch === "*";
+      if (createOnly && objects.has(key)) return null;
+      objects.set(key, String(value));
+      return { key };
+    },
+    async get(key) {
+      const value = objects.get(key);
+      return value === undefined ? null : { text: async () => value };
+    }
+  };
+}
 
 async function passwordHash(password) {
   const salt = Uint8Array.from({ length: 16 }, (_, i) => i + 1);
@@ -203,9 +223,9 @@ function makeDb({ hash, otherMembers = 0, forceDeleteConflict = false } = {}) {
   return { db, state };
 }
 
-function envFor(DB) {
+function envFor(DB, DELETE_LEDGER = fakeR2Bucket()) {
   return {
-    APP_ORIGIN: ORIGIN, DB,
+    APP_ORIGIN: ORIGIN, DB, DELETE_LEDGER,
     RATE_LIMIT_HMAC_SECRET: "account-delete-rate-limit-secret-0123456789abcdef",
     TURNSTILE_SECRET_KEY: "turnstile-test-secret",
     ALIBABA_ACCESS_KEY_ID: "test-access-key-id",
@@ -268,7 +288,8 @@ try {
 
   const hash = await passwordHash(PASSWORD);
   const { db, state } = makeDb({ hash });
-  const env = envFor(db);
+  const ledger = fakeR2Bucket();
+  const env = envFor(db,ledger);
 
   turnstileMode = "reject";
   const rejected = await worker.fetch(request("/api/account/delete/request-code", {
@@ -321,6 +342,12 @@ try {
   }
   assert.equal(state.audit?.targetId, USER_ID);
   assert.equal(state.audit?.metadata.includes(PHONE), false);
+  const deletionIntent = JSON.parse(ledger.objects.get("account-deletion-intents/v1/"+USER_ID+".json"));
+  assert.equal(deletionIntent.userId,USER_ID);
+  assert.equal(deletionIntent.schemaVersion,1);
+  assert.equal(state.audit?.id,deletionIntent.eventId,"D1 audit ID must correlate with the independent R2 intent event ID");
+  assert.equal(JSON.stringify(deletionIntent).includes(PHONE),false);
+  assert.equal(JSON.stringify(deletionIntent).includes("Example Student"),false);
   assert.equal(state.audit?.metadata.includes("Example Student"), false);
 
   const afterDeleteProfile = await worker.fetch(new Request(API + "/api/profile", {
@@ -353,7 +380,8 @@ try {
   // If the guarded user update affects zero rows, migration 0009 makes the
   // final audit insert fail; D1 batch then rolls back all earlier cleanup.
   const conflictDb = makeDb({ hash, forceDeleteConflict: true });
-  const conflictEnv = envFor(conflictDb.db);
+  const conflictLedger = fakeR2Bucket();
+  const conflictEnv = envFor(conflictDb.db,conflictLedger);
   const conflictCode = await worker.fetch(request("/api/account/delete/request-code", {
     turnstileToken: "turnstile-valid"
   }), conflictEnv);
@@ -368,6 +396,48 @@ try {
   assert.equal(conflictDb.state.leaderReleased, false);
   assert.equal(conflictDb.state.pendingTransfersExpired, false);
   assert.equal(conflictDb.state.audit, null);
+  assert.equal(conflictLedger.objects.has("account-deletion-intents/v1/"+USER_ID+".json"),true,
+    "the independent deletion intent survives a D1 transaction conflict");
+  const conflictIntent = JSON.parse(conflictLedger.objects.get("account-deletion-intents/v1/"+USER_ID+".json"));
+  assert.equal(conflictDb.state.audit,null,"failed D1 transaction must not leave a deletion audit row");
+  conflictDb.state.forceDeleteConflict = false;
+
+  // The first delete request already sent an SMS and consumed this account's
+  // 60-second cooldown. Simulate the cooldown elapsing before requesting a
+  // fresh one-time code for the retry; keep the daily-phone and hourly-IP
+  // counters intact so this still exercises the production limit buckets.
+  const retryCooldownKey = await createRateLimitKey(
+    conflictEnv.RATE_LIMIT_HMAC_SECRET,"sms:cooldown",PHONE
+  );
+  const retryCooldown = conflictDb.state.rateLimits.get(retryCooldownKey);
+  assert.ok(retryCooldown,"the initial SMS must have reserved its cooldown bucket");
+  retryCooldown.window_started_at -= 61;
+
+  const retryCode = await worker.fetch(request("/api/account/delete/request-code", {
+    turnstileToken: "turnstile-valid"
+  }), conflictEnv);
+  assert.equal(retryCode.status,200);
+  const retryDelete = await worker.fetch(request("/api/account/delete", {
+    confirmText: "DELETE", password: PASSWORD, code: "246810"
+  }), conflictEnv);
+  assert.equal(retryDelete.status,200,"a retry after the failed transaction should complete");
+  assert.equal(conflictDb.state.audit?.id,conflictIntent.eventId,
+    "the retry must correlate its D1 audit row with the original create-once R2 event");
+  assert.equal(conflictLedger.objects.size,1,"retry must reuse, not replace, the create-once intent");
+
+  const ledgerFailureDb = makeDb({ hash });
+  const ledgerFailureEnv = envFor(ledgerFailureDb.db,fakeR2Bucket({failPut:true}));
+  const ledgerFailureCode = await worker.fetch(request("/api/account/delete/request-code", {
+    turnstileToken: "turnstile-valid"
+  }), ledgerFailureEnv);
+  assert.equal(ledgerFailureCode.status,200);
+  const ledgerFailure = await worker.fetch(request("/api/account/delete", {
+    confirmText: "DELETE", password: PASSWORD, code: "246810"
+  }), ledgerFailureEnv);
+  assert.equal(ledgerFailure.status,503);
+  assert.equal((await ledgerFailure.json()).error,"deletion_ledger_unavailable");
+  assert.equal(ledgerFailureDb.state.batchCount,0,"D1 anonymization must not start when the external ledger write fails");
+  assert.equal(ledgerFailureDb.state.active,true);
 
   console.log("Account lifecycle tests: PASS (session binding, Turnstile, mocked PNVS send/check, password gate, leadership guard, anonymization, session revocation and atomic conflict handling).");
 } finally {

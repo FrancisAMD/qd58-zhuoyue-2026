@@ -1,4 +1,11 @@
 import { buildXlsxWorkbook } from "./xlsx.js";
+import { recordDeletionIntent } from "./account-deletion-ledger.js";
+import {
+  stageCatalogImport,
+  finalizeCatalogImport,
+  revalidateCatalogImportTargets,
+  loadStagedCatalogImportManifest
+} from "./university-catalog-import.js";
 const encoder = new TextEncoder();
 export const PBKDF2_ITERATIONS = 100000;
 const PBKDF2_KEY_BYTES = 32;
@@ -66,6 +73,15 @@ function getCookie(request) {
 }
 async function body(request) {
   try { return await request.json(); } catch { throw new Error("invalid_json"); }
+}
+async function limitedJsonBody(request, maxBytes) {
+  const contentType = String(request.headers.get("content-type") || "").toLowerCase();
+  if (!contentType.includes("application/json")) throw err("json_required", 415);
+  const declaredLength = Number(request.headers.get("content-length") || 0);
+  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) throw err("payload_too_large", 413);
+  const raw = await request.text();
+  if (encoder.encode(raw).byteLength > maxBytes) throw err("payload_too_large", 413);
+  try { return JSON.parse(raw); } catch { throw err("invalid_json", 400); }
 }
 function err(message, status = 400, meta = {}) { return { error: message, status, ...meta }; }
 async function turnstile(token, action, request, env) {
@@ -198,7 +214,7 @@ async function currentAdmin(request, env) {
     .bind(digest, now()).first();
 }
 const ADMIN_PERMISSIONS = {
-  owner: ["overview", "people:read", "people:export", "audit:read", "admins:manage"],
+  owner: ["overview", "people:read", "people:export", "audit:read", "admins:manage", "universities:import"],
   admin: ["overview", "people:read", "people:export", "audit:read"],
   viewer: ["overview"]
 };
@@ -474,7 +490,108 @@ async function route(request, env) {
   const url=new URL(request.url), path=url.pathname, method=request.method, origin=request.headers.get("Origin");
   if(method==="OPTIONS") return new Response(null,{status:204,headers:corsHeaders(origin,env)});
   if(origin && origin!==env.APP_ORIGIN) return response({error:"origin_forbidden"},403,origin,env);
-  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"otp-lifecycle-20261119",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
+  if(path==="/api/health" && method==="GET") return response({ok:true,service:"zhuoyue-2026-api",build:"university-catalog-import-owner-20261124",passwordKdf:"pbkdf2-sha256-100000"},200,origin,env);
+  if(path==="/api/universities" && method==="GET") {
+    // Public, read-only catalog lookup for profile selection. Never expose
+    // draft/unverified, inactive, merged, or legacy free-form university rows.
+    const rawQuery=(url.searchParams.get("q")||"").trim();
+    if(rawQuery.length>80) return response({error:"query_too_long"},400,origin,env);
+    const normalizedQuery=rawQuery.normalize("NFKC").replace(/[\s\p{P}\p{S}]+/gu,"").toLowerCase();
+    if(rawQuery && !normalizedQuery) return response({error:"invalid_query"},400,origin,env);
+
+    let category=(url.searchParams.get("category")||"").trim().toLowerCase();
+    let countryCode=(url.searchParams.get("countryCode")||"").trim().toUpperCase();
+    let provinceCode=(url.searchParams.get("provinceCode")||"").trim().toUpperCase();
+    if(category && !["mainland","hmt","overseas"].includes(category)) return response({error:"invalid_category"},400,origin,env);
+    if(countryCode && !/^[A-Z]{2}$/.test(countryCode)) return response({error:"invalid_country_code"},400,origin,env);
+    if(provinceCode && !/^CN-\d{2}$/.test(provinceCode)) return response({error:"invalid_province_code"},400,origin,env);
+    if(category==="mainland") {
+      if(countryCode && countryCode!=="CN") return response({error:"catalog_filter_conflict"},400,origin,env);
+      countryCode="CN";
+    }
+    if(category==="hmt" && countryCode && !["HK","MO","TW"].includes(countryCode)) return response({error:"catalog_filter_conflict"},400,origin,env);
+    if(category==="overseas" && ["CN","HK","MO","TW"].includes(countryCode)) return response({error:"catalog_filter_conflict"},400,origin,env);
+    if(provinceCode) {
+      if(category && category!=="mainland") return response({error:"catalog_filter_conflict"},400,origin,env);
+      if(countryCode && countryCode!=="CN") return response({error:"catalog_filter_conflict"},400,origin,env);
+      category="mainland";
+      countryCode="CN";
+    }
+    if(!rawQuery && !category && !countryCode && !provinceCode) return response({error:"catalog_filter_required"},400,origin,env);
+
+    const parseQueryInteger=(value,fallback,min,max)=>{
+      if(value===null) return fallback;
+      if(!/^(0|[1-9]\d*)$/.test(value)) return null;
+      const parsed=Number(value);
+      return Number.isSafeInteger(parsed) && parsed>=min && parsed<=max ? parsed : null;
+    };
+    const limit=parseQueryInteger(url.searchParams.get("limit"),10,1,25);
+    const offset=parseQueryInteger(url.searchParams.get("offset"),0,0,1000);
+    if(limit===null || offset===null) return response({error:"invalid_pagination"},400,origin,env);
+
+    const where=[
+      "u.catalog_id IS NOT NULL",
+      "u.catalog_status='active'",
+      "u.verification_status='verified'",
+      "u.verified_at IS NOT NULL",
+      "trim(u.verified_at)<>''"
+    ];
+    const bindings=[];
+    if(category) { where.push("u.category=?"); bindings.push(category); }
+    if(countryCode) { where.push("u.country_code=?"); bindings.push(countryCode); }
+    if(provinceCode) { where.push("u.province_code=?"); bindings.push(provinceCode); }
+    if(rawQuery) {
+      const searchParts=[
+        "instr(u.catalog_normalized_name,?)>0",
+        "instr(lower(coalesce(u.name_en,'')),lower(?))>0",
+        "EXISTS (SELECT 1 FROM university_aliases ua WHERE ua.university_id=u.id AND instr(ua.normalized_alias,?)>0)"
+      ];
+      bindings.push(normalizedQuery,rawQuery,normalizedQuery);
+      // School codes are searched by a literal prefix only; user input is
+      // never interpolated into a LIKE pattern containing wildcards.
+      if(/^[A-Za-z0-9-]{1,24}$/.test(rawQuery)) {
+        searchParts.push("u.official_school_code LIKE ?");
+        bindings.push(rawQuery+"%");
+      }
+      where.push("("+searchParts.join(" OR ")+")");
+    }
+    const sql=[
+      "SELECT u.catalog_id,u.canonical_name,u.name_en,u.category,",
+      "u.country_code,u.country_name_zh,u.country_name_en,u.province_code,u.province_name_zh,",
+      "u.city_name_zh,u.official_school_code,u.degree_levels_json,u.ownership,u.verified_at",
+      "FROM universities u",
+      "WHERE "+where.join(" AND "),
+      "ORDER BY u.category,u.canonical_name,u.catalog_id",
+      "LIMIT ? OFFSET ?"
+    ].join(" ");
+    const result=await env.DB.prepare(sql).bind(...bindings,limit+1,offset).all();
+    const rows=result.results||[];
+    const hasMore=rows.length>limit;
+    const universities=rows.slice(0,limit).map(row=>{
+      let degreeLevels=[];
+      try {
+        const parsed=JSON.parse(row.degree_levels_json||"[]");
+        if(Array.isArray(parsed)) degreeLevels=parsed.filter(value=>typeof value==="string");
+      } catch { /* malformed legacy data is never reflected as raw JSON */ }
+      return {
+        id:row.catalog_id,
+        name:row.canonical_name,
+        nameEn:row.name_en||null,
+        category:row.category,
+        countryCode:row.country_code,
+        countryName:row.country_name_zh,
+        countryNameEn:row.country_name_en||null,
+        provinceCode:row.province_code||null,
+        provinceName:row.province_name_zh||null,
+        cityName:row.city_name_zh||null,
+        schoolCode:row.official_school_code||null,
+        degreeLevels,
+        ownership:row.ownership,
+        verifiedAt:row.verified_at
+      };
+    });
+    return response({universities,pagination:{limit,offset,hasMore}},200,origin,env);
+  }
   if(path==="/api/auth/register/request-code" && method==="POST") {
     try { const d=await body(request); if(d.accountConsent !== true) return response({error:"consent_required"},400,origin,env); return response(await sendCode(String(d.phone||""),"register",d.turnstileToken,request,env),200,origin,env); }
     catch(e) {
@@ -607,6 +724,7 @@ async function route(request, env) {
       if(leadership && Number(leadership.other_members||0)>0) return response({error:"leader_transfer_required"},409,origin,env);
       await verifyCode(user.phone,d.code,"account_delete",env);
       const timestamp=new Date().toISOString();
+      const deletionIntent=await recordDeletionIntent(env.DELETE_LEDGER,user.id,timestamp,randomHex(16));
       const phoneRateLimitKeys=await Promise.all([
         rateLimitKey(env,"sms:cooldown",user.phone),
         rateLimitKey(env,"sms:phone",user.phone),
@@ -625,7 +743,7 @@ async function route(request, env) {
           AND NOT EXISTS(SELECT 1 FROM teams WHERE leader_user_id=users.id)
           AND NOT EXISTS(SELECT 1 FROM leader_transfers WHERE status='pending' AND (from_user_id=users.id OR to_user_id=users.id))`).bind(timestamp,timestamp,user.id,account.password_hash,Number(account.auth_version)),
         env.DB.prepare("INSERT INTO audit_logs(id,actor_type,actor_id,action,target_type,target_id,metadata_json) VALUES(?,'system',NULL,'account.deleted','user',?,?)")
-          .bind(randomHex(16),user.id,JSON.stringify({method:"password_and_sms_anonymization"}))
+          .bind(deletionIntent.record.eventId,user.id,JSON.stringify({method:"password_and_sms_anonymization"}))
       ];
       const results=await env.DB.batch(statements);
       if((results[5]?.meta?.changes||0)!==1) return response({error:"account_delete_conflict"},409,origin,env);
@@ -634,7 +752,7 @@ async function route(request, env) {
       const known=String(e.error||e.message||"account_delete_failed");
       const conflict=["account_delete_conflict","account_deletion_requires_team_transfer","account_deletion_requires_no_pending_transfer"].find(code=>known.includes(code));
       const error=conflict==="account_deletion_requires_team_transfer"?"leader_transfer_required":conflict?"account_delete_conflict":known;
-      const status=e.status||(conflict?409:400);
+      const status=e.status||(error==="deletion_ledger_unavailable"?503:conflict?409:400);
       return response({error},status,origin,env);
     }
   }
@@ -644,17 +762,25 @@ async function route(request, env) {
   }
   if(path==="/api/profile" && method==="GET") {
     const user=await currentUser(request,env); if(!user) return response({error:"unauthorized"},401,origin,env);
-    const uni = user.university_id ? await env.DB.prepare("SELECT canonical_name,category,region_name,education_level,partner_name,project_tags_json FROM universities WHERE id=?").bind(user.university_id).first() : null;
+    let uni=null;
+    if(user.university_id) {
+      try {
+        uni=await env.DB.prepare("SELECT canonical_name,category,region_name,education_level,partner_name,project_tags_json,catalog_id FROM universities WHERE id=?").bind(user.university_id).first();
+      } catch {
+        // Keep existing profiles readable until additive migration 0013 is applied.
+        uni=await env.DB.prepare("SELECT canonical_name,category,region_name,education_level,partner_name,project_tags_json FROM universities WHERE id=?").bind(user.university_id).first();
+      }
+    }
     return response({profile:{
       name:user.name,className:user.class_name,highSchool:user.high_school,
-      university:uni?.canonical_name || "",universityCategory:uni?.category || "",
+      university:uni?.canonical_name || "",universityCatalogId:uni?.catalog_id || null,universityCategory:uni?.category || "",
       regionName:uni?.region_name || "",educationLevel:uni?.education_level || "",
       partnerName:uni?.partner_name || "",projectTags:uni?.project_tags_json || "[]",
       grade:user.grade,province:user.province,city:user.city,bio:user.bio,
       phoneVisible:!!user.phone_visible_to_team,
-      consentGiven:!!user.consent_given && !!user.account_consent_at,
+      consentGiven:!!user.consent_given && !!user.consent_at && user.consent_version===PRIVACY_NOTICE_VERSION && !!user.account_consent_at && user.account_consent_version===PRIVACY_NOTICE_VERSION,
       consentAt:user.consent_at||"",consentVersion:user.consent_version||"",
-      accountConsentGiven:!!user.account_consent_at
+      accountConsentGiven:!!user.account_consent_at && user.account_consent_version===PRIVACY_NOTICE_VERSION
     }},200,origin,env);
   }
   if(path==="/api/profile" && method==="PUT") {
@@ -663,52 +789,69 @@ async function route(request, env) {
       const d=await body(request);
       if(d.consent !== true) return response({error:"consent_required"},400,origin,env);
       const name=String(d.name||"").trim(), className=String(d.className||"").trim();
-      const rawUniversity=String(d.university||"").trim().replace(/\s+/g," ");
-      const category=String(d.universityCategory||"");
       const grade=String(d.grade||"").trim(), province=String(d.province||"").trim();
-      const regionName=String(d.regionName||"").trim(), partnerName=String(d.partnerName||"").trim();
-      const educationLevel=String(d.educationLevel||"");
-      const allowedCategories=["mainland","hmt","sino_foreign","overseas"];
-      if(!name || !className || !rawUniversity || !grade || !province || !allowedCategories.includes(category)) return response({error:"profile_incomplete"},400,origin,env);
-      if(name.length>80 || className.length>80 || rawUniversity.length>120 || grade.length>40 || province.length>80 || String(d.city||"").length>80 || String(d.bio||"").length>500 || regionName.length>80 || partnerName.length>120) return response({error:"profile_field_too_long"},400,origin,env);
-      if(category==="mainland" && !["undergraduate","vocational"].includes(educationLevel)) return response({error:"education_level_required"},400,origin,env);
-      if(category==="hmt" && !["香港","澳门","台湾"].includes(regionName)) return response({error:"university_region_required"},400,origin,env);
-      if(category==="sino_foreign" && (!partnerName || !["undergraduate","vocational"].includes(educationLevel))) return response({error:"cooperation_details_required"},400,origin,env);
-      if(category==="overseas" && !regionName) return response({error:"university_region_required"},400,origin,env);
-      const normalized=rawUniversity.normalize("NFKC").replace(/[\s\p{P}\p{S}]+/gu,"").toLowerCase();
-      if(!normalized) return response({error:"invalid_university"},400,origin,env);
-      const identityKey=category+":"+normalized;
-      const existingProfile=await env.DB.prepare("SELECT university_id FROM users WHERE id=?").bind(user.id).first();
-      let uni=await env.DB.prepare("SELECT id,category FROM universities WHERE normalized_name=?").bind(identityKey).first();
-      if(!uni) {
-        // Adopt a pre-classification university row rather than splitting existing
-        // members into a duplicate team when the first member classifies it.
-        const legacy=await env.DB.prepare("SELECT id FROM universities WHERE normalized_name=? AND category='unclassified'").bind("unclassified:"+normalized).first();
-        if(legacy) {
-          await env.DB.prepare("UPDATE universities SET canonical_name=?,normalized_name=?,category=?,region_name=?,education_level=?,partner_name=? WHERE id=? AND category='unclassified'")
-            .bind(rawUniversity,identityKey,category,regionName,educationLevel,partnerName,legacy.id).run();
-          uni=await env.DB.prepare("SELECT id,category FROM universities WHERE id=?").bind(legacy.id).first();
-        }
+      const city=String(d.city||"").trim(), bio=String(d.bio||"").trim();
+      if(!name || !className || !grade || !province) return response({error:"profile_incomplete"},400,origin,env);
+      if(name.length>80 || className.length>80 || grade.length>40 || province.length>80 || city.length>80 || bio.length>500) return response({error:"profile_field_too_long"},400,origin,env);
+
+      const hasCatalogId=d.universityCatalogId!==undefined && d.universityCatalogId!==null && d.universityCatalogId!=="";
+      if(hasCatalogId && typeof d.universityCatalogId!=="string") return response({error:"invalid_university_catalog_id"},400,origin,env);
+      let uni=null,rawUniversity="",category="",regionName="",educationLevel="",partnerName="";
+      if(hasCatalogId) {
+        const catalogId=d.universityCatalogId.trim();
+        if(!catalogId || catalogId.length>120 || /[\u0000-\u001f]/.test(catalogId)) return response({error:"invalid_university_catalog_id"},400,origin,env);
+        uni=await env.DB.prepare("SELECT id,catalog_id,canonical_name,category,region_name,education_level,partner_name,country_code,country_name_zh,province_name_zh,degree_levels_json FROM universities WHERE catalog_id=? AND catalog_status='active' AND verification_status='verified' AND verified_at IS NOT NULL AND ((category='mainland' AND country_code='CN' AND province_name_zh IS NOT NULL AND length(trim(province_name_zh))>0) OR (category='hmt' AND country_code IN ('HK','MO','TW')) OR (category='overseas' AND country_code NOT IN ('CN','HK','MO','TW')))")
+          .bind(catalogId).first();
+        if(!uni || !["mainland","hmt","overseas"].includes(uni.category)) return response({error:"university_not_selectable"},400,origin,env);
+        rawUniversity=String(uni.canonical_name||"").trim();
+        if(!rawUniversity || rawUniversity.length>120) return response({error:"university_not_selectable"},400,origin,env);
+        let degreeLevels=[];
+        try {
+          const parsed=JSON.parse(uni.degree_levels_json||"[]");
+          if(Array.isArray(parsed)) degreeLevels=parsed.filter(value=>typeof value==="string");
+        } catch { return response({error:"university_not_selectable"},400,origin,env); }
+        if(uni.category==="mainland" && !degreeLevels.includes("undergraduate")) return response({error:"university_not_selectable"},400,origin,env);
+        category=uni.category;
+        regionName=category==="mainland" ? String(uni.region_name||"") : String(uni.country_name_zh||"").trim();
+        if(category!=="mainland" && !regionName) return response({error:"university_not_selectable"},400,origin,env);
+        educationLevel=category==="mainland" ? "undergraduate" : String(uni.education_level||"");
+        partnerName=String(uni.partner_name||"");
+      } else {
+        // Legacy accounts may keep their existing university while editing other
+        // profile fields. New profiles cannot create free-form university rows.
+        if(!user.university_id) return response({error:"university_catalog_selection_required"},400,origin,env);
+        uni=await env.DB.prepare("SELECT id,canonical_name,category,region_name,education_level,partner_name FROM universities WHERE id=?").bind(user.university_id).first();
+        if(!uni) return response({error:"university_change_requires_support"},409,origin,env);
+        rawUniversity=String(uni.canonical_name||"").trim();
+        const submittedUniversity=String(d.university||"").trim().replace(/\s+/g," ");
+        const normalizeName=value=>String(value||"").normalize("NFKC").replace(/[\s\p{P}\p{S}]+/gu,"").toLowerCase();
+        if(submittedUniversity && normalizeName(submittedUniversity)!==normalizeName(rawUniversity)) return response({error:"university_change_requires_support"},409,origin,env);
+        const requestedCategory=String(d.universityCategory||"");
+        if(requestedCategory && requestedCategory!==uni.category) return response({error:"university_change_requires_support"},409,origin,env);
+        category=String(uni.category||"");
+        regionName=String(uni.region_name||"");
+        educationLevel=String(uni.education_level||"");
+        partnerName=String(uni.partner_name||"");
+        if(!["mainland","hmt","sino_foreign","overseas"].includes(category)) return response({error:"university_change_requires_support"},409,origin,env);
+        if(category==="mainland" && !["undergraduate","vocational"].includes(educationLevel)) return response({error:"education_level_required"},400,origin,env);
+        if(category==="hmt" && !["香港","澳门","台湾"].includes(regionName)) return response({error:"university_region_required"},400,origin,env);
+        if(category==="sino_foreign" && (!partnerName || !["undergraduate","vocational"].includes(educationLevel))) return response({error:"cooperation_details_required"},400,origin,env);
+        if(category==="overseas" && !regionName) return response({error:"university_region_required"},400,origin,env);
       }
-      if(!uni) {
-        const candidateId=randomHex(16);
-        await env.DB.prepare("INSERT OR IGNORE INTO universities(id,canonical_name,normalized_name,category,region_name,education_level,partner_name) VALUES(?,?,?,?,?,?,?)")
-          .bind(candidateId,rawUniversity,identityKey,category,regionName,educationLevel,partnerName).run();
-        uni=await env.DB.prepare("SELECT id,category FROM universities WHERE normalized_name=?").bind(identityKey).first();
-      }
-      if(!uni || uni.category!==category) return response({error:"university_normalization_conflict"},409,origin,env);
-      if(existingProfile?.university_id && existingProfile.university_id!==uni.id) return response({error:"university_change_requires_support"},409,origin,env);
-      const existingUniversity=await env.DB.prepare("SELECT region_name,education_level,partner_name FROM universities WHERE id=?").bind(uni.id).first();
-      if(existingUniversity && ((existingUniversity.region_name && regionName && existingUniversity.region_name!==regionName) || (existingUniversity.education_level && educationLevel && existingUniversity.education_level!==educationLevel) || (existingUniversity.partner_name && partnerName && existingUniversity.partner_name!==partnerName))) return response({error:"university_metadata_conflict"},409,origin,env);
+      if(!uni || !rawUniversity || !category) return response({error:"university_not_selectable"},400,origin,env);
+      if(user.university_id && user.university_id!==uni.id) return response({error:"university_change_requires_support"},409,origin,env);
+      if((uni.region_name && regionName && uni.region_name!==regionName) || (uni.education_level && educationLevel && uni.education_level!==educationLevel) || (uni.partner_name && partnerName && uni.partner_name!==partnerName)) return response({error:"university_metadata_conflict"},409,origin,env);
+
       const savedAt=new Date().toISOString();
-      await env.DB.batch([
-        env.DB.prepare("UPDATE universities SET region_name=CASE WHEN region_name='' THEN ? ELSE region_name END,education_level=CASE WHEN education_level='' THEN ? ELSE education_level END,partner_name=CASE WHEN partner_name='' THEN ? ELSE partner_name END WHERE id=? AND category=?")
-          .bind(regionName,educationLevel,partnerName,uni.id,category),
-        env.DB.prepare("UPDATE users SET name=?,class_name=?,high_school=?,university_id=?,grade=?,province=?,city=?,bio=?,phone_visible_to_team=?,consent_given=1,consent_at=CASE WHEN consent_given=0 OR consent_version<>? THEN ? ELSE consent_at END,consent_version=?,account_consent_at=CASE WHEN account_consent_at='' OR account_consent_version<>? THEN ? ELSE account_consent_at END,account_consent_version=?,updated_at=? WHERE id=?")
-          .bind(name,className,String(d.highSchool||"青岛五十八中").trim(),uni.id,grade,province,String(d.city||"").trim(),String(d.bio||"").trim(),d.phoneVisible?1:0,PRIVACY_NOTICE_VERSION,savedAt,PRIVACY_NOTICE_VERSION,PRIVACY_NOTICE_VERSION,savedAt,PRIVACY_NOTICE_VERSION,savedAt,user.id),
+      const results=await env.DB.batch([
+        env.DB.prepare("UPDATE universities SET region_name=CASE WHEN region_name='' THEN ? ELSE region_name END,education_level=CASE WHEN education_level='' THEN ? ELSE education_level END,partner_name=CASE WHEN partner_name='' THEN ? ELSE partner_name END WHERE id=? AND category=? AND EXISTS(SELECT 1 FROM users WHERE id=? AND (university_id IS NULL OR university_id=?))")
+          .bind(regionName,educationLevel,partnerName,uni.id,category,user.id,uni.id),
+        env.DB.prepare("UPDATE users SET name=?,class_name=?,high_school=?,university_id=?,grade=?,province=?,city=?,bio=?,phone_visible_to_team=?,consent_given=1,consent_at=CASE WHEN consent_given=0 OR consent_version<>? THEN ? ELSE consent_at END,consent_version=?,account_consent_at=CASE WHEN account_consent_at='' OR account_consent_version<>? THEN ? ELSE account_consent_at END,account_consent_version=?,updated_at=? WHERE id=? AND deleted_at='' AND (university_id IS NULL OR university_id=?)")
+          .bind(name,className,String(d.highSchool||"青岛五十八中").trim(),uni.id,grade,province,city,bio,d.phoneVisible===true?1:0,PRIVACY_NOTICE_VERSION,savedAt,PRIVACY_NOTICE_VERSION,PRIVACY_NOTICE_VERSION,savedAt,PRIVACY_NOTICE_VERSION,savedAt,user.id,uni.id),
         env.DB.prepare("UPDATE teams SET leader_user_id=? WHERE university_id=? AND leader_user_id IS NULL AND (SELECT COUNT(*) FROM users WHERE university_id=? AND deleted_at='')=1 AND EXISTS(SELECT 1 FROM users WHERE id=? AND university_id=? AND deleted_at='')").bind(user.id,uni.id,uni.id,user.id,uni.id),
         env.DB.prepare("INSERT OR IGNORE INTO teams(id,university_id,leader_user_id) SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM users WHERE id=? AND university_id=? AND deleted_at='')").bind(randomHex(16),uni.id,user.id,user.id,uni.id)
       ]);
+      if(!results?.[1]?.meta || Number(results[1].meta.changes||0)<1) return response({error:"university_change_requires_support"},409,origin,env);
       return response({ok:true},200,origin,env);
     }catch(e){return response({error:e.error||"profile_save_failed"},400,origin,env);}
   }
@@ -796,9 +939,132 @@ async function route(request, env) {
   if(path==="/api/directory" && method==="GET") {
     const user=await currentUser(request,env); if(!user) return response({error:"unauthorized"},401,origin,env);
     const own=await env.DB.prepare("SELECT university_id,province FROM users WHERE id=?").bind(user.id).first();
-    const members=own.university_id?await env.DB.prepare("SELECT u.name,u.class_name AS className,u.grade,u.province,uni.canonical_name AS university,uni.category AS universityCategory,uni.region_name AS universityRegion,uni.education_level AS educationLevel,uni.project_tags_json AS projectTags,CASE WHEN u.phone_visible_to_team=1 THEN u.phone ELSE NULL END AS phone FROM users u JOIN universities uni ON uni.id=u.university_id WHERE u.university_id=? AND u.id<>? AND u.deleted_at='' ORDER BY u.created_at").bind(own.university_id,user.id).all():{results:[]};
+    const members=own.university_id?await env.DB.prepare("SELECT u.name,u.class_name AS className,u.grade,u.province,uni.canonical_name AS university,uni.category AS universityCategory,uni.region_name AS universityRegion,uni.education_level AS educationLevel,uni.project_tags_json AS projectTags,CASE WHEN u.phone_visible_to_team=1 AND u.consent_given=1 AND u.consent_at<>'' AND u.consent_version=? AND u.account_consent_at<>'' AND u.account_consent_version=? THEN u.phone ELSE NULL END AS phone FROM users u JOIN universities uni ON uni.id=u.university_id WHERE u.university_id=? AND u.id<>? AND u.deleted_at='' ORDER BY u.created_at").bind(PRIVACY_NOTICE_VERSION,PRIVACY_NOTICE_VERSION,own.university_id,user.id).all():{results:[]};
     const leaders=await env.DB.prepare("SELECT u.name,u.grade,u.province,uni.canonical_name AS university,uni.category AS universityCategory,uni.region_name AS universityRegion,uni.education_level AS educationLevel,uni.project_tags_json AS projectTags FROM teams t JOIN users u ON u.id=t.leader_user_id JOIN universities uni ON uni.id=t.university_id WHERE u.province=? AND u.deleted_at='' ORDER BY uni.canonical_name").bind(own.province||"").all();
     return response({members:members.results||[],provinceLeaders:leaders.results||[]},200,origin,env);
+  }
+
+  if (path === "/api/admin/universities/import/status" && method === "GET") {
+    if (env.UNIVERSITY_CATALOG_IMPORT_ENABLED !== "true") {
+      return response({error:"catalog_import_disabled"},503,origin,env);
+    }
+    const admin = await currentAdmin(request,env);
+    if (!admin) return response({error:"unauthorized"},401,origin,env);
+    if (admin.role !== "owner" || !hasAdminPermission(admin,"universities:import")) {
+      return response({error:"forbidden"},403,origin,env);
+    }
+    const datasetVersion = url.searchParams.get("datasetVersion") || "";
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(datasetVersion)) {
+      return response({error:"catalog_import_version_invalid"},400,origin,env);
+    }
+    try {
+      const batch = await env.DB.prepare(
+        "SELECT dataset_version,checksum_sha256,manifest_sha256,imported_at,record_count," +
+        "inserted_count,updated_count,linked_existing_count,skipped_count,status " +
+        "FROM university_catalog_imports WHERE dataset_version=?"
+      ).bind(datasetVersion).first();
+      if (!batch) return response({error:"catalog_import_not_found"},404,origin,env);
+      const staged = await env.DB.prepare(
+        "SELECT COUNT(*) AS staged_count FROM university_catalog_import_staging WHERE dataset_version=?"
+      ).bind(datasetVersion).first();
+      const recordCount = Number(batch.record_count || 0);
+      const stagedCount = Number(staged?.staged_count || 0);
+      const stagingComplete = batch.status === "applied"
+        ? stagedCount === 0
+        : batch.status === "validated" && recordCount > 0 && stagedCount === recordCount;
+      return response({
+        import: {
+          datasetVersion: batch.dataset_version,
+          checksumSha256: batch.checksum_sha256,
+          manifestSha256: batch.manifest_sha256 || null,
+          importedAt: batch.imported_at,
+          recordCount,
+          insertedCount: Number(batch.inserted_count || 0),
+          updatedCount: Number(batch.updated_count || 0),
+          linkedExistingCount: Number(batch.linked_existing_count || 0),
+          skippedCount: Number(batch.skipped_count || 0),
+          status: batch.status,
+          stagedCount,
+          stagingComplete
+        }
+      },200,origin,env);
+    } catch (error) {
+      console.error("University catalog import status failed",error?.message || "unknown");
+      return response({error:"catalog_import_status_failed"},500,origin,env);
+    }
+  }
+
+  if ((path === "/api/admin/universities/import/stage" ||
+       path === "/api/admin/universities/import/finalize") && method === "POST") {
+    if (origin !== env.APP_ORIGIN) return response({error:"origin_forbidden"},403,origin,env);
+    if (env.UNIVERSITY_CATALOG_IMPORT_ENABLED !== "true") {
+      return response({error:"catalog_import_disabled"},503,origin,env);
+    }
+    const admin = await currentAdmin(request,env);
+    if (!admin) return response({error:"unauthorized"},401,origin,env);
+    if (admin.role !== "owner" || !hasAdminPermission(admin,"universities:import")) {
+      return response({error:"forbidden"},403,origin,env);
+    }
+
+    try {
+      if (path.endsWith("/stage")) {
+        const data = await limitedJsonBody(request,8*1024*1024);
+        if (!data || typeof data !== "object" || Array.isArray(data) ||
+            Object.keys(data).some(key => key !== "manifest") ||
+            !data.manifest || typeof data.manifest !== "object") {
+          return response({error:"invalid_import_request"},400,origin,env);
+        }
+        if (!Number.isInteger(data.manifest.record_count) || data.manifest.record_count > 5000) {
+          return response({error:"catalog_import_record_limit"},413,origin,env);
+        }
+        const checked = await revalidateCatalogImportTargets(env.DB,data.manifest);
+        if (checked.already_applied) {
+          return response({ok:true,alreadyApplied:true,stagedCount:0},200,origin,env);
+        }
+        await writeAudit(env.DB,"admin",admin.id,"admin.university_catalog.stage_requested",
+          "university_catalog_import",data.manifest.dataset_version,{
+            datasetVersion:data.manifest.dataset_version,
+            checksumSha256:data.manifest.checksum_sha256,
+            manifestSha256:data.manifest.manifest_sha256,
+            recordCount:data.manifest.record_count
+          });
+        const staged = await stageCatalogImport(env.DB,data.manifest);
+        return response({
+          ok:true,
+          datasetVersion:data.manifest.dataset_version,
+          manifestSha256:data.manifest.manifest_sha256,
+          stagedCount:staged.staged_count,
+          alreadyApplied:staged.already_applied===true
+        },202,origin,env);
+      }
+
+      const data = await limitedJsonBody(request,4096);
+      if (!data || typeof data !== "object" || Array.isArray(data) ||
+          Object.keys(data).some(key => !["datasetVersion","manifestSha256","confirmManifestSha256"].includes(key)) ||
+          typeof data.datasetVersion !== "string" ||
+          typeof data.manifestSha256 !== "string" ||
+          data.confirmManifestSha256 !== data.manifestSha256) {
+        return response({error:"explicit_manifest_confirmation_required"},400,origin,env);
+      }
+      const loaded = await loadStagedCatalogImportManifest(env.DB,data.datasetVersion,data.manifestSha256);
+      if (loaded.already_applied) {
+        return response({ok:true,alreadyApplied:true,datasetVersion:data.datasetVersion},200,origin,env);
+      }
+      const checked = await revalidateCatalogImportTargets(env.DB,loaded.manifest);
+      if (checked.already_applied) {
+        return response({ok:true,alreadyApplied:true,datasetVersion:data.datasetVersion},200,origin,env);
+      }
+      const result = await finalizeCatalogImport(env.DB,loaded.manifest,admin.id);
+      return response({ok:true,...result},200,origin,env);
+    } catch (error) {
+      if (error?.error) return response({error:error.error},error.status||400,origin,env);
+      const code = String(error?.message || "catalog_import_failed");
+      const conflict = /target_changed|target_unmatched|target_already_linked|batch_mismatch|version_conflict|not_resumable|not_finalizable|staging_incomplete|replay_conflict|manifest_immutable|manifest_mismatch|live_identity/i.test(code);
+      const invalid = /invalid|checksum|verified|evidence|source_|undergraduate|required|normalized_identity|merge_target|manifest_|plan_|record_/i.test(code);
+      console.error("University catalog import request failed",code);
+      return response({error:conflict?"catalog_import_conflict":invalid?"catalog_import_invalid":"catalog_import_failed"},
+        conflict?409:invalid?400:500,origin,env);
+    }
   }
 
   if (path === "/api/admin/login" && method === "POST") {

@@ -34,6 +34,36 @@
 
 脚本只生成 PBKDF2-SHA256(100000) 密码摘要，不连接数据库，也不会创建远程账号。请在独立终端操作；不要把密码、SQL 摘要或管理员凭据提交到 GitHub。admin-bootstrap.sql 已加入 .gitignore。
 
+### 管理员登录故障快速检查
+
+首位管理员不会由迁移自动创建：迁移 0001 只创建空的 `admin_users` 表；`scripts/create-admin.mjs` 只在本地生成一条含 PBKDF2-SHA256 摘要的 INSERT SQL，不会连接或写入 Cloudflare D1。因此，若当前数据库没有 `active=1` 的管理员记录，登录必定返回通用 `invalid_credentials`。
+
+先只读检查远程目标库（不会修改数据）：
+
+```powershell
+npx wrangler d1 execute qd58-zhuoyue-db --remote --config backend/wrangler.toml --command "SELECT username, role, active, last_login_at FROM admin_users ORDER BY created_at;"
+```
+
+若没有记录，按上面的“首位 owner 账号引导”生成 SQL，并在核对目标数据库与 SQL 后由有权限的运维人员执行。若记录存在，确认用户名、`active=1`、角色为 `owner`（首位账号），并确认输入的是该记录创建时设置的密码；系统不提供默认管理员口令，也不会在登录失败时自动重置密码。
+
+管理员登录还依赖 Worker Secret `RATE_LIMIT_HMAC_SECRET`。该值缺失或短于 32 字符时，登录会在读取账号/验证密码之前 fail-closed，返回 HTTP 503 `rate_limit_secret_not_configured`，并不会建立 Session。只查看 Secret 名称，不查看或复制其值：
+
+```powershell
+npx wrangler secret list --config backend/wrangler.toml
+```
+
+如列表中没有 `RATE_LIMIT_HMAC_SECRET`，先在本机生成随机值，再通过 Wrangler 的交互提示设置；不要将值发到聊天或写入仓库：
+
+```powershell
+$rateLimitSecret = node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+$rateLimitSecret | npx wrangler secret put RATE_LIMIT_HMAC_SECRET --config backend/wrangler.toml
+Remove-Variable rateLimitSecret
+```
+
+后台页面现在会分别提示无效凭据、限流密钥缺失、`APP_ORIGIN` 不匹配和 Worker 内部错误。若登录 POST 返回 200、但随后 `GET /api/admin/me` 返回 401，应在浏览器开发者工具的 Network 面板检查登录响应是否有 `Set-Cookie`、后续请求是否携带 `__Host-qd58_admin`；不要复制或分享 Cookie 值。前端来源必须精确为 `https://58er.eon21.space`，Worker 的 `APP_ORIGIN` 也必须精确匹配。
+
+以上只用于故障定位；执行远程查询、Secret 配置或 D1 写入前，必须确认当前 Wrangler 登录身份、目标账户、目标数据库及生产变更授权。不要在诊断时清空或重建 `admin_users`。
+
 ## 备份建议（尚未执行）
 
 - 正式收集数据后，建议每天导出一次 D1，并启用 Cloudflare D1 Time Travel（按当前账户套餐和数据库设置确认可用性）。
