@@ -41,7 +41,7 @@ for(const university of hmt.universities){
   assert.equal((university.campuses[0].branches||[]).length,0,"HMT entries use school-name-only selection");
 }
 const broadGroups=new Set(majors.categories.map(item=>item.legacyGroup).filter(Boolean));
-assert.deepEqual([...broadGroups].sort(),["农科","医学","工科","文科","理科"].sort());
+assert.deepEqual([...broadGroups].sort(),["农科","医科","工科","文科","理科"].sort());
 const military=majors.categories.find(item=>item.code==="11");
 assert.ok(military&&military.name==="军事学"&&military.legacyGroup===null);
 const totalTypes=admissions.categories.reduce((total,category)=>total+(category.types||[]).length,0);
