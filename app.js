@@ -45,19 +45,50 @@ async function sendCode(v){
     if(e.message==="rate_limited"){cooldown(b,details.retryAfter||60);cooling=true}
   }finally{if(!cooling){b.disabled=false;b.textContent="获取验证码"}}
 }
-const universityCategories={mainland:"中国内地本科高校",hmt:"港澳台高校",overseas:"海外高校",sino_foreign:"历史中外合作办学高校",unclassified:"历史未分类高校"};
-let universitySearchTimer=null,universitySearchSequence=0,universityResults=[];
+const universityCategories={mainland:"中国内地本科高校",hmt:"港澳台高校",overseas:"海外高校"};
+let universitySearchTimer=null,universitySearchSequence=0,universityResults=[],selectedUniversity=null;
+let profileReferenceData=null,profileReferencePromise=null;
+async function loadProfileReferenceData(){
+  if(profileReferenceData)return profileReferenceData;
+  if(!profileReferencePromise)profileReferencePromise=Promise.all([
+    "mainland-universities.json","hmt-universities.json","major-disciplines.json","admission-types.json"
+  ].map(async name=>{
+    const response=await fetch("data/profile-sources/"+name,{cache:"force-cache"});
+    if(!response.ok)throw new Error("reference_data_load_failed");
+    return response.json();
+  })).then(([mainland,hmt,majors,admissions])=>{
+    if(!Array.isArray(mainland.universities)||!Array.isArray(hmt.universities)||!Array.isArray(majors.categories)||!Array.isArray(admissions.categories))throw new Error("reference_data_invalid");
+    profileReferenceData={mainland,hmt,majors,admissions};
+    return profileReferenceData;
+  });
+  return profileReferencePromise;
+}
+function normalizeSearch(value){return String(value||"").normalize("NFKC").replace(/[\\s\\p{P}\\p{S}]+/gu,"").toLowerCase()}
 function selectUniversityCategory(category){
-  if(!universityCategories[category])return;
+  if(!universityCategories[category]||categoryLocked)return;
   universitySearchSequence++;clearTimeout(universitySearchTimer);
+  selectedUniversity=null;universityResults=[];
   $("universityCategoryValue").value=category;
+  $("universityCategoryField").value=category;
+  $("profileUniversityId").value="";
   $("universityCatalogId").value="";
   $("universityName").value="";
   $("selectedUniversityName").textContent="尚未选择高校";
-  $("universitySelectionMsg").textContent="请从已核验高校目录中选择，不支持手动创建学校记录。";
+  $("universitySelectionMsg").textContent=category==="overseas"?"海外高校由你自行填写，提交后进入审核。":"请从项目内高校目录中选择。";
   $("universitySearch").value="";
   $("universitySearchResults").innerHTML="";
-  document.querySelectorAll("[data-university-category]").forEach(b=>b.classList.toggle("selected",b.dataset.universityCategory===category));
+  $("campusSelectionWrap").hidden=true;
+  $("campusSelect").required=false;
+  $("campusSelect").innerHTML='<option value="">请先选择高校</option>';
+  $("catalogSearchWrap").hidden=category==="overseas";
+  $("overseasUniversityWrap").hidden=category!=="overseas";
+  $("admissionFields").hidden=category!=="mainland";
+  $("admissionCategoryId").required=category==="mainland";
+  $("admissionTypeId").required=category==="mainland";
+  $("overseasUniversityName").value="";
+  $("profileProvince").value=category==="overseas"?"海外":"";
+  $("profileCity").value="";
+  document.querySelectorAll("[data-university-category]").forEach(button=>button.classList.toggle("selected",button.dataset.universityCategory===category));
   $("universityNext").disabled=false;
   $("selectedUniversityType").textContent=universityCategories[category];
 }
@@ -69,7 +100,7 @@ function showUniversityCategoryStep(){
   $("stepOneLabel").classList.add("current");
   $("stepTwoLabel").classList.remove("current");
 }
-function openUniversityDetails(){
+async function openUniversityDetails(){
   const category=$("universityCategoryValue").value;
   if(!universityCategories[category])return msg("universityCategoryMsg","请先选择高校类别",true);
   $("universityTypeStep").hidden=true;
@@ -80,47 +111,147 @@ function openUniversityDetails(){
   $("universityBack").hidden=categoryLocked;
   $("universityBackBottom").hidden=categoryLocked;
   $("universitySearch").disabled=categoryLocked;
-  if(!categoryLocked)searchUniversities();
+  $("catalogSearchWrap").hidden=category==="overseas";
+  $("overseasUniversityWrap").hidden=category!=="overseas";
+  $("admissionFields").hidden=category!=="mainland";
+  $("admissionCategoryId").required=category==="mainland";
+  $("admissionTypeId").required=category==="mainland";
+  try{
+    const refs=await loadProfileReferenceData();
+    populateMajorGroups(refs,selectedUniversity?.tags||[]);
+    populateAdmissionCategories(refs);
+    if(category!=="overseas"&&!categoryLocked)searchUniversities();
+  }catch(error){
+    $("universitySearchResults").innerHTML='<p class="university-search-empty">高校数据文件加载失败，请检查 Pages 中 data/profile-sources/ 目录。</p>';
+    msg("profileMsg","登记数据暂时无法加载，请刷新页面后重试。",true);
+  }
 }
 function renderUniversitySearchResults(rows){
   const container=$("universitySearchResults");
   if(!rows.length){
-    container.innerHTML='<p class="university-search-empty">当前目录没有符合条件的已核验高校。请联系组织者补充官方目录，暂不支持手动创建学校。</p>';
+    container.innerHTML='<p class="university-search-empty">没有找到匹配高校，请检查名称或换一个关键词。</p>';
     return;
   }
   container.innerHTML=rows.map((item,index)=>{
-    const location=item.category==="mainland"?[item.provinceName,item.cityName].filter(Boolean).join(" · "):(item.countryName||item.countryCode||"");
-    const meta=[location,item.schoolCode?"代码 "+item.schoolCode:""].filter(Boolean).join(" · ");
+    const location=item._category==="mainland"?[item.province_or_state,item.city].filter(Boolean).join(" · "):(item.region||"");
+    const tags=(item.tags||[]).slice(0,3).join(" / ");
+    const meta=[location,tags].filter(Boolean).join(" · ");
     return '<button type="button" class="university-result" data-university-index="'+index+'"><span><strong>'+safe(item.name)+'</strong><small>'+safe(meta)+'</small></span><span class="university-result-action">选择</span></button>';
   }).join("");
 }
 async function searchUniversities(){
   const category=$("universityCategoryValue").value;
-  if(!["mainland","hmt","overseas"].includes(category))return;
+  if(!["mainland","hmt"].includes(category))return;
   const query=$("universitySearch").value.trim();
+  if(!query){
+    $("universitySearchResults").innerHTML='<p class="university-search-empty">输入学校名称开始搜索。内地目录含在用异地校区和境外校区信息。</p>';
+    universityResults=[];
+    return;
+  }
   const sequence=++universitySearchSequence;
-  $("universitySearchResults").innerHTML='<p class="university-search-empty">正在查询已核验高校目录…</p>';
-  const params=new URLSearchParams({category,limit:"10"});
-  if(query)params.set("q",query);
   try{
-    const data=await call("/universities?"+params.toString(),undefined,{timeoutMs:10000});
+    const refs=await loadProfileReferenceData();
     if(sequence!==universitySearchSequence)return;
-    universityResults=data.universities||[];
+    const source=category==="mainland"?refs.mainland.universities:refs.hmt.universities;
+    const q=normalizeSearch(query);
+    const rows=source.filter(item=>{
+      const candidates=[item.name,item.id,item.province_or_state,item.city,item.region,...(item.aliases||[])];
+      return candidates.some(value=>normalizeSearch(value).includes(q));
+    }).map(item=>({...item,_category:category}));
+    rows.sort((a,b)=>{
+      const an=normalizeSearch(a.name),bn=normalizeSearch(b.name);
+      return Number(!an.startsWith(q))-Number(!bn.startsWith(q))||a.name.localeCompare(b.name,"zh-CN");
+    });
+    universityResults=rows.slice(0,30);
     renderUniversitySearchResults(universityResults);
   }catch(error){
     if(sequence!==universitySearchSequence)return;
-    $("universitySearchResults").innerHTML='<p class="university-search-empty">高校目录查询失败，请检查网络后重试。</p>';
+    $("universitySearchResults").innerHTML='<p class="university-search-empty">高校数据加载失败，请刷新页面后重试。</p>';
   }
 }
-function selectUniversity(item){
+function campusesFor(item){
+  const campuses=[];
+  for(const campus of item?.campuses||[]){
+    campuses.push({id:campus.campus_id,name:"主校区",tag:campus.tag||"主校区",country:item.country||"中国",province:campus.province_or_state||item.province_or_state||"",city:campus.city||item.city||""});
+    for(const branch of campus.branches||[])if((branch.status||"active")==="active")campuses.push({id:branch.campus_id,name:branch.name||"校区",tag:branch.tag||"异地校区",country:branch.country||"中国",province:branch.province_or_state||"",city:branch.city||""});
+  }
+  return campuses;
+}
+function updateCampusFromSelection(){
+  if(!selectedUniversity)return;
+  const campus=campusesFor(selectedUniversity).find(item=>item.id===$("campusSelect").value);
+  if(!campus)return;
+  $("campusName").value=campus.name;
+  $("campusTag").value=campus.tag;
+  $("profileProvince").value=campus.province||"";
+  $("profileCity").value=campus.city||"";
+  $("universitySelectionMsg").textContent="已选择 "+campus.name+" · "+[campus.province,campus.city].filter(Boolean).join(" · ")+"。同一所大学所有校区属于同一团队。";
+}
+function populateCampusOptions(item,selectedId=""){
+  const campuses=campusesFor(item);
+  $("campusSelectionWrap").hidden=false;
+  $("campusSelect").required=true;
+  $("campusSelect").innerHTML='<option value="">请选择就读校区</option>'+campuses.map(c=>{
+    const label=c.name+"（"+[c.tag,c.province,c.city].filter(Boolean).join(" · ")+"）";
+    return '<option value="'+safe(c.id)+'">'+safe(label)+'</option>';
+  }).join("");
+  $("campusSelect").value=selectedId||campuses[0]?.id||"";
+  updateCampusFromSelection();
+}
+function selectUniversity(item,selectedCampusId=""){
   if(!item||!item.id)return;
   universitySearchSequence++;clearTimeout(universitySearchTimer);
-  $("universityCatalogId").value=item.id;
+  selectedUniversity=item;
+  const category=item._category||$("universityCategoryValue").value;
+  $("profileUniversityId").value=item.id;
+  $("universityCatalogId").value="";
   $("universityName").value=item.name;
+  $("universityCategoryValue").value=category;
+  $("universityCategoryField").value=category;
   $("selectedUniversityName").textContent=item.name;
-  const location=item.category==="mainland"?[item.provinceName,item.cityName].filter(Boolean).join(" · "):(item.countryName||item.countryCode||"");
-  $("universitySelectionMsg").textContent="已选择已核验高校"+(location?" · "+location:"")+(item.schoolCode?" · 学校代码 "+item.schoolCode:"");
   $("universitySearchResults").innerHTML="";
+  if(category==="mainland"){
+    $("campusHelp").textContent="主校区及异地校区均属于 "+item.name+" 的同一支团队，不会按校区拆分。";
+    populateCampusOptions(item,selectedCampusId);
+    populateMajorGroups(profileReferenceData,item.tags||[]);
+    $("admissionFields").hidden=false;
+    $("admissionCategoryId").required=true;
+    $("admissionTypeId").required=true;
+  }else{
+    $("campusSelectionWrap").hidden=true;
+    $("campusSelect").required=false;
+    $("campusSelect").value="";
+    $("campusName").value="";
+    $("campusTag").value="";
+    $("profileProvince").value=item.region||"";
+    $("profileCity").value=item.city||"";
+    $("universitySelectionMsg").textContent="已选择 "+item.name+" · "+[item.region,item.city].filter(Boolean).join(" · ");
+    $("admissionFields").hidden=true;
+    $("admissionCategoryId").required=false;
+    $("admissionTypeId").required=false;
+    populateMajorGroups(profileReferenceData,item.tags||[]);
+  }
+}
+function populateMajorGroups(refs,tags=[]){
+  if(!refs)return;
+  const groups=[...new Set(refs.majors.categories.map(item=>item.legacyGroup).filter(Boolean))];
+  if((tags||[]).includes("military_academy"))groups.push("军事学");
+  const current=$("majorGroup").value;
+  $("majorGroup").innerHTML='<option value="">请选择专业大类</option>'+groups.map(group=>'<option value="'+safe(group)+'">'+safe(group)+'</option>').join("");
+  if(groups.includes(current))$("majorGroup").value=current;
+}
+function populateAdmissionCategories(refs){
+  const select=$("admissionCategoryId");
+  const current=select.value;
+  select.innerHTML='<option value="">请选择招生大类</option>'+refs.admissions.categories.map(item=>'<option value="'+safe(item.id)+'">'+safe(item.name)+'</option>').join("");
+  if(refs.admissions.categories.some(item=>item.id===current))select.value=current;
+  populateAdmissionTypes(refs.admissions.categories,select.value,$("admissionTypeId").value);
+}
+function populateAdmissionTypes(categories,categoryId,selectedType=""){
+  const category=categories.find(item=>item.id===categoryId);
+  const select=$("admissionTypeId");
+  select.innerHTML='<option value="">请选择具体招生途径</option>'+(category?.types||[]).filter(type=>(type.status||"active")==="active").map(type=>'<option value="'+safe(type.id)+'">'+safe(type.name)+'</option>').join("");
+  if((category?.types||[]).some(type=>type.id===selectedType))select.value=selectedType;
 }
 function safe(s){return String(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
 function showAuthStage(){
@@ -139,79 +270,96 @@ function setJourneyStep(step){
   document.querySelectorAll("[data-journey-step]").forEach(el=>el.classList.toggle("active",el.dataset.journeyStep===step));
 }
 function showProfileStage(){
-  $("join").hidden=false;
-  $("groups").hidden=true;
-  setJourneyStep("profile");
-  window.scrollTo({top:0,behavior:"smooth"});
+  $("join").hidden=false;$("groups").hidden=true;$("reviewPending").hidden=true;
+  setJourneyStep("profile");window.scrollTo({top:0,behavior:"smooth"});
 }
 function showDirectoryStage(){
-  $("join").hidden=true;
-  $("groups").hidden=false;
+  $("join").hidden=true;$("groups").hidden=false;$("reviewPending").hidden=true;
   setJourneyStep("directory");
-  const p=$("profile");
-  const school=p.elements.university.value.trim();
-  $("directorySchoolTitle").textContent=school||"尚未填写高校";
-  window.scrollTo({top:0,behavior:"smooth"});
-  loadDirectory();
+  $("directorySchoolTitle").textContent=$("universityName").value.trim()||"尚未填写高校";
+  window.scrollTo({top:0,behavior:"smooth"});loadDirectory();
 }
 function showAppStage(profile={}){
-  document.body.classList.remove("session-checking");
-  $("bootScreen").hidden=true;
-  $("mainContent").hidden=false;
-  $("authStage").hidden=true;
-  $("appStage").hidden=false;
-  $("mainNav").hidden=false;
-  $("pageFooter").hidden=false;
-  $("openAuth").hidden=true;
-  $("changePassword").hidden=false;
-  $("logout").hidden=false;
-  $("gate").hidden=true;
+  document.body.classList.remove("session-checking");$("bootScreen").hidden=true;$("mainContent").hidden=false;
+  $("authStage").hidden=true;$("appStage").hidden=false;$("mainNav").hidden=false;$("pageFooter").hidden=false;
+  $("openAuth").hidden=true;$("changePassword").hidden=false;$("logout").hidden=false;$("gate").hidden=true;
   $("profile").hidden=false;
-  $("goDirectory").hidden=!(profile.university&&universityCategories[profile.universityCategory]);
-  $("join").hidden=false;
-  $("groups").hidden=true;
+  const pending=profile.profileReviewStatus==="pending";
+  $("reviewPending").hidden=!pending;$("join").hidden=pending;$("groups").hidden=true;
+  if(pending){
+    $("reviewUniversityName").textContent=profile.overseasUniversityName||profile.university||"海外高校";
+    msg("reviewMsg","审核完成后，刷新本页即可进入同校团队。");
+  }
+  $("goDirectory").hidden=!(profile.university&&["mainland","hmt","overseas"].includes(profile.universityCategory)&&!pending);
   setJourneyStep("profile");
 }
 async function load(){
   try{
-    const d=await call("/profile",undefined,{timeoutMs:12000});
-    const p=d.profile||{};
-    for(const k of ["name","className","highSchool","grade","province","city","bio"])$("profile").elements[k].value=p[k]||"";
-    $("profile").elements.university.value=p.university||"";
-    $("universityCatalogId").value=p.universityCatalogId||"";
-    $("profile").elements.phoneVisible.checked=!!p.phoneVisible;$("consent").checked=!!p.consentGiven;
-    categoryLocked=!!p.university;
-    if(categoryLocked){
-      const category=universityCategories[p.universityCategory]?p.universityCategory:"unclassified";
-      selectUniversityCategory(category);
-      $("universityCategoryValue").value=p.universityCategory||category;
+    const d=await call("/profile",undefined,{timeoutMs:12000}),p=d.profile||{};
+    await loadProfileReferenceData();
+    for(const key of ["name","className","highSchool","grade","province","city","bio","secondaryPhone","wechatId","gender","majorGroup"]) {
+      const field=$("profile").elements[key];if(field)field.value=p[key]||"";
+    }
+    $("consent").checked=!!p.consentGiven;
+    $("universityName").value=p.university||"";
+    $("overseasUniversityName").value=p.overseasUniversityName||"";
+    $("admissionCategoryId").value=p.admissionCategoryId||"";
+    $("admissionTypeId").value=p.admissionTypeId||"";
+    populateAdmissionCategories(profileReferenceData);
+    categoryLocked=!!p.university||p.profileReviewStatus==="pending";
+    if(p.profileReviewStatus==="pending"){
+      $("universityCategoryValue").value="overseas";$("universityCategoryField").value="overseas";
+      $("selectedUniversityName").textContent=p.overseasUniversityName||p.university||"审核中";
+      $("universitySelectionMsg").textContent="资料已提交，等待组织者审核。";
+      showAppStage(p);return;
+    }
+    if(p.profileUniversityId){
+      categoryLocked=false;
+      selectUniversityCategory(p.universityCategory);
+      await openUniversityDetails();
+      const rows=p.universityCategory==="mainland"?profileReferenceData.mainland.universities:profileReferenceData.hmt.universities;
+      const source=rows.find(item=>item.id===p.profileUniversityId);
+      if(source){
+        selectUniversity({...source,_category:p.universityCategory},p.campusId||"");
+        $("profileUniversityId").value=p.profileUniversityId;
+        $("universityName").value=source.name;
+        $("universityCategoryValue").value=p.universityCategory;
+        $("universityCategoryField").value=p.universityCategory;
+        $("campusSelect").disabled=false;
+        if(p.campusId&&p.universityCategory==="mainland")$("campusSelect").value=p.campusId;
+        if(p.universityCategory==="mainland")updateCampusFromSelection();
+      }
+      categoryLocked=true;
+      $("universitySearch").disabled=true;$("universityBack").hidden=true;$("universityBackBottom").hidden=true;
+    }else if(p.university){
+      // Keep pre-catalog and legacy profiles readable without silently changing their school.
+      categoryLocked=true;
+      const category=universityCategories[p.universityCategory]?p.universityCategory:"mainland";
+      $("universityCategoryValue").value=category;$("universityCategoryField").value=category;
+      $("universityTypeStep").hidden=true;$("universityDetailsStep").hidden=false;
+      $("catalogSearchWrap").hidden=true;$("overseasUniversityWrap").hidden=category!=="overseas";
+      $("selectedUniversityType").textContent=universityCategories[category];
+      $("selectedUniversityName").textContent=p.university;
+      $("universityName").value=p.university;
+      $("profileUniversityId").value="";
       $("universityCatalogId").value=p.universityCatalogId||"";
-      $("universityName").value=p.university||"";
-      $("selectedUniversityName").textContent=p.university||"历史高校记录";
-      $("universitySelectionMsg").textContent=p.universityCatalogId?"已关联正式高校目录，当前账号不能自行更换高校。":"历史高校记录暂不支持自行更换；如需更正请联系组织者。";
-      openUniversityDetails();
-      $("universitySearch").disabled=true;
-      $("universityBack").hidden=true;
-      $("universityBackBottom").hidden=true;
+      $("universitySelectionMsg").textContent="这是历史登记的高校记录。如需更改学校，请联系组织者。";
+      $("universityBack").hidden=true;$("universityBackBottom").hidden=true;
+      $("admissionFields").hidden=category!=="mainland";
     }else{
       categoryLocked=false;
       showUniversityCategoryStep();
-      $("universityBack").hidden=false;
-      $("universityBackBottom").hidden=false;
+      $("universityBack").hidden=false;$("universityBackBottom").hidden=false;
+      $("catalogSearchWrap").hidden=false;$("overseasUniversityWrap").hidden=true;
     }
     showAppStage(p);
-  }catch(e){
-    if(e.message==="unauthorized"){
-      showAuthStage();
-    }else{
-      console.warn(e);
-      document.body.classList.remove("session-checking");
-      $("bootMessage").textContent=e.message==="request_timeout"?"服务器在 12 秒内没有响应，请检查 API 服务或网络后重试。":"暂时无法确认登录状态，请检查网络后重新尝试。";
-      $("retrySession").hidden=false;
-    }
+  }catch(error){
+    if(error.message==="unauthorized"){showAuthStage();return;}
+    console.warn(error);document.body.classList.remove("session-checking");
+    $("bootMessage").textContent=error.message==="request_timeout"?"服务器在 12 秒内没有响应，请检查 API 服务或网络后重试。":"暂时无法确认登录状态或加载高校数据，请检查网络后重试。";
+    $("retrySession").hidden=false;
   }
 }
-$("retrySession").onclick=async()=>{$("retrySession").hidden=true;$("bootMessage").textContent="正在重新确认登录状态…";await load()};
 async function loadDirectory(){
   $("directoryMsg").textContent="";
   $("directoryCount").textContent="正在加载同学资料…";
@@ -264,5 +412,55 @@ $("resetForm").onsubmit=async e=>{e.preventDefault();if($("resetPass").value!==$
 $("deleteAccountForm").onsubmit=async e=>{e.preventDefault();if($("deleteConfirm").value.trim()!=="DELETE")return msg("deleteMsg","请输入 DELETE 完成二次确认",true);try{await call("/account/delete",{password:$("deletePassword").value,code:$("deleteCode").value.trim(),confirmText:"DELETE"});msg("deleteMsg","账号资料已匿名化，正在退出…");$("deleteAccountForm").reset();location.replace("index.html")}catch(x){msg("deleteMsg",errorText(x),true);if(x.message==="unauthorized")setTimeout(()=>auth("login"),900)}};
 $("changePasswordForm").onsubmit=async e=>{e.preventDefault();const currentPassword=$("currentPassword").value,newPassword=$("newPassword").value;if(newPassword!==$("confirmNewPassword").value)return msg("changePassMsg","两次新密码不一致",true);if(newPassword.length<10)return msg("changePassMsg","新密码至少需要 10 位",true);try{await call("/auth/password/change",{currentPassword,newPassword});msg("changePassMsg","密码修改成功，其他设备已退出登录");$("changePasswordForm").reset();document.querySelectorAll("#changePasswordForm .password-toggle").forEach(b=>{const input=$(b.dataset.togglePassword);input.type="password";b.textContent="显示"});setTimeout(()=>$("modal").classList.remove("show"),1200)}catch(x){msg("changePassMsg",errorText(x),true);if(x.message==="unauthorized")setTimeout(()=>auth("login"),900)}};
 $("logout").onclick=async()=>{try{await fetch(API+"/auth/logout",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:"{}"})}finally{location.reload()}};
-$("profile").onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target),d=Object.fromEntries(f.entries());d.phoneVisible=f.has("phoneVisible");d.consent=$("consent").checked;if(!$("consent").checked)return msg("profileMsg","请先确认信息使用说明",true);if(!categoryLocked&&!d.universityCatalogId)return msg("profileMsg","请先从高校目录搜索并选择一所已核验高校",true);try{const r=await fetch(API+"/profile",{method:"PUT",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)});let result={};try{result=await r.json()}catch{}if(!r.ok)throw Error(result.error||"profile_save_failed");categoryLocked=true;$("universityBack").hidden=true;$("universityBackBottom").hidden=true;await load();msg("profileMsg","资料保存成功");$("goDirectory").hidden=false;showDirectoryStage()}catch(error){const errors={consent_required:"请先阅读隐私说明并勾选同意",profile_incomplete:"请完整填写必填资料",university_catalog_selection_required:"请从高校目录中选择一所已核验高校",university_not_selectable:"所选高校尚未核验或已停用，请重新搜索选择",education_level_required:"请选择本科或专科办学层次",university_region_required:"请选择或填写高校所在地区",cooperation_details_required:"请选择办学层次并填写境外合作院校",university_change_requires_support:"已登记高校暂不能自行更换，请联系组织者",university_metadata_conflict:"这所高校的地区或办学层次与已有资料不一致，请核对学校名称和类别"};msg("profileMsg",errors[error.message]||"保存失败，请检查资料后重试",true)}};
+$("profile").onsubmit=async event=>{
+  event.preventDefault();
+  const form=new FormData(event.target),data=Object.fromEntries(form.entries());
+  const category=$("universityCategoryValue").value;
+  data.universityCategory=category;
+  data.profileUniversityId=$("profileUniversityId").value;
+  data.university=category==="overseas"?$("overseasUniversityName").value.trim():$("universityName").value.trim();
+  data.campusId=category==="mainland"?$("campusSelect").value:"";
+  data.campusName=category==="mainland"?$("campusName").value:"";
+  data.campusTag=category==="mainland"?$("campusTag").value:"";
+  data.admissionCategoryId=category==="mainland"?$("admissionCategoryId").value:"";
+  data.admissionTypeId=category==="mainland"?$("admissionTypeId").value:"";
+  data.secondaryPhone=$("secondaryPhone").value.trim();
+  data.wechatId=$("wechatId").value.trim();
+  data.consent=$("consent").checked;
+  if(!data.consent)return msg("profileMsg","请先阅读并同意新版个人信息保护说明",true);
+  if(!["mainland","hmt","overseas"].includes(category))return msg("profileMsg","请选择高校类别",true);
+  if(category==="overseas"&&!data.university)return msg("profileMsg","请填写海外高校名称",true);
+  if(category!=="overseas"&&!data.profileUniversityId)return msg("profileMsg","请先从项目高校目录中选择学校",true);
+  if(category==="mainland"&&!data.campusId)return msg("profileMsg","请选择实际就读校区",true);
+  if(category==="mainland"&&(!data.admissionCategoryId||!data.admissionTypeId))return msg("profileMsg","请选择本科招生大类和具体招生途径",true);
+  if(!data.majorGroup)return msg("profileMsg","请选择专业大类",true);
+  if(data.secondaryPhone&&!phoneOK(data.secondaryPhone))return msg("profileMsg","第二手机号格式不正确",true);
+  if(!data.name||!data.className||!data.grade||!data.gender)return msg("profileMsg","请完整填写姓名、性别、高中班级和当前年级",true);
+  try{
+    const response=await fetch(API+"/profile",{method:"PUT",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});
+    let result={};try{result=await response.json()}catch{}
+    if(!response.ok)throw Error(result.error||"profile_save_failed");
+    await load();
+    if(result.reviewStatus==="pending")return;
+    msg("profileMsg","资料保存成功");
+    if(!$("goDirectory").hidden)showDirectoryStage();
+  }catch(error){
+    const errors={
+      consent_required:"请先阅读并同意新版个人信息保护说明",
+      profile_incomplete:"请完整填写必填资料",
+      profile_reference_invalid:"学校、校区或表单选项不在当前数据目录中，请重新选择",
+      university_catalog_selection_required:"请先从高校目录中选择学校",
+      university_not_selectable:"所选学校当前不可用，请重新选择",
+      campus_selection_required:"请选择实际就读校区",
+      admission_route_required:"内地高校学生必须填写招生途径",
+      major_group_required:"请选择专业大类",
+      gender_required:"请选择性别",
+      invalid_secondary_phone:"第二手机号格式不正确",
+      overseas_university_required:"请填写海外高校名称",
+      university_change_requires_support:"已登记高校暂不能自行更换，请联系组织者",
+      leader_transfer_required:"当前仍是团队组长，请先完成组长转让"
+    };
+    msg("profileMsg",errors[error.message]||"保存失败，请检查资料后重试",true);
+  }
+};
 document.querySelectorAll("[data-toggle-password]").forEach(b=>b.onclick=()=>{const input=$(b.dataset.togglePassword);const visible=input.type==="password";input.type=visible?"text":"password";b.textContent=visible?"隐藏":"显示"});document.querySelectorAll("[data-view]").forEach(x=>x.onclick=()=>{document.querySelectorAll("[data-view]").forEach(b=>b.classList.toggle("active",b===x));view=x.dataset.view;render()});$("search").oninput=render;if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",load,{once:true});else load();
