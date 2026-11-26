@@ -292,7 +292,7 @@ function showAppStage(profile={}){
     $("reviewUniversityName").textContent=profile.overseasUniversityName||profile.university||"海外高校";
     msg("reviewMsg","审核完成后，刷新本页即可进入同校团队。");
   }
-  $("goDirectory").hidden=!(profile.university&&["mainland","hmt","overseas"].includes(profile.universityCategory)&&!pending);
+  $("goDirectory").hidden=!(profile.university&&["mainland","hmt","overseas"].includes(profile.universityCategory)&&!pending&&profile.consentGiven===true);
   setJourneyStep("profile");
 }
 async function load(){
@@ -375,7 +375,7 @@ async function loadDirectory(){
     render();
   }catch(error){
     $("directoryCount").textContent="暂时无法加载";
-    $("directoryMsg").textContent=error.message==="unauthorized"?"登录状态已失效，请重新登录。":"同学资料加载失败，请稍后重试。";
+    $("directoryMsg").textContent=error.message==="unauthorized"?"登录状态已失效，请重新登录。":error.message==="consent_required"?"请先返回高校资料页，阅读并勾选新版隐私说明，然后保存资料，再查看同校通讯录。":"同学资料加载失败，请稍后重试。";
     if(error.message==="unauthorized")showAuthStage();
   }
 }
