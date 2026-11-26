@@ -33,7 +33,7 @@ function makeDb({
         if(sql.startsWith("SELECT source_id,university_id,category,canonical_name"))return catalog;
         if(sql.startsWith("SELECT id,canonical_name,category,region_name,education_level,partner_name FROM universities"))return uni;
         if(sql.startsWith("SELECT code FROM profile_option_codes WHERE option_type='major_group'"))return validMajor?{code:bindings[0]}:null;
-        if(sql.startsWith("SELECT code FROM profile_option_codes WHERE option_type='admission_type'"))return validAdmission?{code:bindings[0]}:null;
+        if(sql.startsWith("SELECT code FROM profile_option_codes WHERE option_type='admission_type'"))return validAdmission&&bindings[0]&&bindings[1]?{code:bindings[0]}:null;
         if(sql.startsWith("SELECT canonical_name,category,region_name,education_level,partner_name,project_tags_json,catalog_id FROM universities"))return uni;
         if(sql.startsWith("SELECT source_id FROM profile_university_catalog"))return catalog?{source_id:catalog.source_id}:null;
         return null;
