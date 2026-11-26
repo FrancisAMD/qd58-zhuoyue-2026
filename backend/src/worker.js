@@ -21,7 +21,7 @@ const OTP_SECONDS = 300;
 const COOLDOWN_SECONDS = 60;
 const ALI_HOST = "dypnsapi.aliyuncs.com";
 const ALI_VERSION = "2017-05-25";
-const PRIVACY_NOTICE_VERSION = "2026-11-15-v3";
+const PRIVACY_NOTICE_VERSION = "2026-11-26-v4";
 
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", ...headers } });
@@ -193,7 +193,7 @@ async function currentUser(request, env) {
   const token = getCookie(request);
   if (!token) return null;
   const digest = await sha256(token);
-  const row = await env.DB.prepare("SELECT u.id,u.phone,u.name,u.high_school,u.class_name,u.university_id,u.grade,u.province,u.city,u.bio,u.phone_visible_to_team,u.consent_given,u.consent_at,u.consent_version,u.account_consent_at,u.account_consent_version FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.deleted_at='' AND s.auth_version=u.auth_version").bind(digest,now()).first();
+  const row = await env.DB.prepare("SELECT u.id,u.phone,u.name,u.high_school,u.class_name,u.university_id,u.grade,u.province,u.city,u.bio,u.phone_visible_to_team,u.consent_given,u.consent_at,u.consent_version,u.account_consent_at,u.account_consent_version,u.gender,u.major_group,u.major_discipline_code,u.admission_category_id,u.admission_type_id,u.campus_id,u.campus_name,u.campus_tag,u.secondary_phone,u.wechat_id,u.profile_review_status,u.overseas_university_name,u.profile_review_submitted_at,u.profile_reviewed_at FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.deleted_at='' AND s.auth_version=u.auth_version").bind(digest,now()).first();
   return row || null;
 }
 
@@ -762,100 +762,135 @@ async function route(request, env) {
   }
   if(path==="/api/profile" && method==="GET") {
     const user=await currentUser(request,env); if(!user) return response({error:"unauthorized"},401,origin,env);
-    let uni=null;
+    let uni=null,profileCatalog=null;
     if(user.university_id) {
-      try {
-        uni=await env.DB.prepare("SELECT canonical_name,category,region_name,education_level,partner_name,project_tags_json,catalog_id FROM universities WHERE id=?").bind(user.university_id).first();
-      } catch {
-        // Keep existing profiles readable until additive migration 0013 is applied.
-        uni=await env.DB.prepare("SELECT canonical_name,category,region_name,education_level,partner_name,project_tags_json FROM universities WHERE id=?").bind(user.university_id).first();
-      }
+      uni=await env.DB.prepare("SELECT canonical_name,category,region_name,education_level,partner_name,project_tags_json,catalog_id FROM universities WHERE id=?").bind(user.university_id).first();
+      profileCatalog=await env.DB.prepare("SELECT source_id FROM profile_university_catalog WHERE university_id=?").bind(user.university_id).first();
     }
     return response({profile:{
       name:user.name,className:user.class_name,highSchool:user.high_school,
-      university:uni?.canonical_name || "",universityCatalogId:uni?.catalog_id || null,universityCategory:uni?.category || "",
-      regionName:uni?.region_name || "",educationLevel:uni?.education_level || "",
-      partnerName:uni?.partner_name || "",projectTags:uni?.project_tags_json || "[]",
+      university:user.profile_review_status==="pending"?(user.overseas_university_name||""):uni?.canonical_name||"",
+      universityCatalogId:uni?.catalog_id||null,profileUniversityId:profileCatalog?.source_id||null,
+      universityCategory:uni?.category||(user.profile_review_status==="pending"?"overseas":""),
+      regionName:uni?.region_name||"",educationLevel:uni?.education_level||"",
+      partnerName:uni?.partner_name||"",projectTags:uni?.project_tags_json||"[]",
       grade:user.grade,province:user.province,city:user.city,bio:user.bio,
-      phoneVisible:!!user.phone_visible_to_team,
-      consentGiven:!!user.consent_given && !!user.consent_at && user.consent_version===PRIVACY_NOTICE_VERSION && !!user.account_consent_at && user.account_consent_version===PRIVACY_NOTICE_VERSION,
+      gender:user.gender||"",majorGroup:user.major_group||"",majorDisciplineCode:user.major_discipline_code||"",
+      admissionCategoryId:user.admission_category_id||"",admissionTypeId:user.admission_type_id||"",
+      campusId:user.campus_id||"",campusName:user.campus_name||"",campusTag:user.campus_tag||"",
+      secondaryPhone:user.secondary_phone||"",wechatId:user.wechat_id||"",
+      profileReviewStatus:user.profile_review_status||"approved",
+      overseasUniversityName:user.overseas_university_name||"",
+      profileReviewSubmittedAt:user.profile_review_submitted_at||"",profileReviewedAt:user.profile_reviewed_at||"",
+      consentGiven:!!user.consent_given&&!!user.consent_at&&user.consent_version===PRIVACY_NOTICE_VERSION&&!!user.account_consent_at&&user.account_consent_version===PRIVACY_NOTICE_VERSION,
       consentAt:user.consent_at||"",consentVersion:user.consent_version||"",
-      accountConsentGiven:!!user.account_consent_at && user.account_consent_version===PRIVACY_NOTICE_VERSION
+      accountConsentGiven:!!user.account_consent_at&&user.account_consent_version===PRIVACY_NOTICE_VERSION
     }},200,origin,env);
   }
   if(path==="/api/profile" && method==="PUT") {
     const user=await currentUser(request,env); if(!user) return response({error:"unauthorized"},401,origin,env);
     try {
       const d=await body(request);
-      if(d.consent !== true) return response({error:"consent_required"},400,origin,env);
-      const name=String(d.name||"").trim(), className=String(d.className||"").trim();
-      const grade=String(d.grade||"").trim(), province=String(d.province||"").trim();
-      const city=String(d.city||"").trim(), bio=String(d.bio||"").trim();
-      if(!name || !className || !grade || !province) return response({error:"profile_incomplete"},400,origin,env);
-      if(name.length>80 || className.length>80 || grade.length>40 || province.length>80 || city.length>80 || bio.length>500) return response({error:"profile_field_too_long"},400,origin,env);
+      if(d.consent!==true) return response({error:"consent_required"},400,origin,env);
+      const name=String(d.name||"").trim(),className=String(d.className||"").trim();
+      const highSchool=String(d.highSchool||"青岛五十八中").trim();
+      const grade=String(d.grade||"").trim(),gender=String(d.gender||"").trim();
+      const bio=String(d.bio||"").trim(),secondaryPhone=String(d.secondaryPhone||"").trim();
+      const wechatId=String(d.wechatId||"").trim();
+      const requestedCategory=String(d.universityCategory||"").trim();
+      if(!name||!className||!grade||!gender||!highSchool) return response({error:"profile_incomplete"},400,origin,env);
+      if(!["male","female","undisclosed"].includes(gender)) return response({error:"gender_required"},400,origin,env);
+      if(name.length>80||className.length>80||highSchool.length>100||grade.length>40||bio.length>500||secondaryPhone.length>20||wechatId.length>80) return response({error:"profile_field_too_long"},400,origin,env);
+      if(secondaryPhone&&!validPhone(secondaryPhone)) return response({error:"invalid_secondary_phone"},400,origin,env);
 
-      const hasCatalogId=d.universityCatalogId!==undefined && d.universityCatalogId!==null && d.universityCatalogId!=="";
-      if(hasCatalogId && typeof d.universityCatalogId!=="string") return response({error:"invalid_university_catalog_id"},400,origin,env);
-      let uni=null,rawUniversity="",category="",regionName="",educationLevel="",partnerName="";
-      if(hasCatalogId) {
-        const catalogId=d.universityCatalogId.trim();
-        if(!catalogId || catalogId.length>120 || /[\u0000-\u001f]/.test(catalogId)) return response({error:"invalid_university_catalog_id"},400,origin,env);
-        uni=await env.DB.prepare("SELECT id,catalog_id,canonical_name,category,region_name,education_level,partner_name,country_code,country_name_zh,province_name_zh,degree_levels_json FROM universities WHERE catalog_id=? AND catalog_status='active' AND verification_status='verified' AND verified_at IS NOT NULL AND ((category='mainland' AND country_code='CN' AND province_name_zh IS NOT NULL AND length(trim(province_name_zh))>0) OR (category='hmt' AND country_code IN ('HK','MO','TW')) OR (category='overseas' AND country_code NOT IN ('CN','HK','MO','TW')))")
-          .bind(catalogId).first();
-        if(!uni || !["mainland","hmt","overseas"].includes(uni.category)) return response({error:"university_not_selectable"},400,origin,env);
-        rawUniversity=String(uni.canonical_name||"").trim();
-        if(!rawUniversity || rawUniversity.length>120) return response({error:"university_not_selectable"},400,origin,env);
-        let degreeLevels=[];
-        try {
-          const parsed=JSON.parse(uni.degree_levels_json||"[]");
-          if(Array.isArray(parsed)) degreeLevels=parsed.filter(value=>typeof value==="string");
-        } catch { return response({error:"university_not_selectable"},400,origin,env); }
-        if(uni.category==="mainland" && !degreeLevels.includes("undergraduate")) return response({error:"university_not_selectable"},400,origin,env);
-        category=uni.category;
-        regionName=category==="mainland" ? String(uni.region_name||"") : String(uni.country_name_zh||"").trim();
-        if(category!=="mainland" && !regionName) return response({error:"university_not_selectable"},400,origin,env);
-        educationLevel=category==="mainland" ? "undergraduate" : String(uni.education_level||"");
+      let uni=null,profileCatalog=null,universityId=null,category="",regionName="",educationLevel="",partnerName="";
+      let province="",city="",campusId="",campusName="",campusTag="",sourceTags=[];
+      let overseasUniversityName="",reviewStatus="approved";
+      const profileSourceId=String(d.profileUniversityId||"").trim();
+      if(profileSourceId) {
+        if(profileSourceId.length>80||/[\u0000-\u001f]/.test(profileSourceId)) return response({error:"profile_reference_invalid"},400,origin,env);
+        profileCatalog=await env.DB.prepare("SELECT source_id,university_id,category,canonical_name,region_name,province_name,city_name,tags_json,campuses_json FROM profile_university_catalog WHERE source_id=?").bind(profileSourceId).first();
+        if(!profileCatalog) return response({error:"profile_reference_invalid"},400,origin,env);
+        category=String(profileCatalog.category||"");
+        if(!["mainland","hmt"].includes(category)||requestedCategory!==category) return response({error:"profile_reference_invalid"},400,origin,env);
+        uni=await env.DB.prepare("SELECT id,canonical_name,category,region_name,education_level,partner_name FROM universities WHERE id=?").bind(profileCatalog.university_id).first();
+        if(!uni||uni.category!==category) return response({error:"profile_reference_invalid"},400,origin,env);
+        universityId=uni.id;regionName=String(profileCatalog.region_name||"");
+        educationLevel=category==="mainland"?"undergraduate":String(uni.education_level||"");
         partnerName=String(uni.partner_name||"");
+        try{sourceTags=JSON.parse(profileCatalog.tags_json||"[]");if(!Array.isArray(sourceTags))sourceTags=[];}catch{return response({error:"profile_reference_invalid"},400,origin,env);}
+        if(category==="mainland") {
+          try {
+            const campusGroups=JSON.parse(profileCatalog.campuses_json||"[]");
+            if(!Array.isArray(campusGroups)) return response({error:"profile_reference_invalid"},400,origin,env);
+            const choices=[];
+            for(const root of campusGroups){if(root&&root.id)choices.push(root);for(const branch of root?.branches||[])if((branch.status||"active")==="active")choices.push(branch);}
+            const chosen=choices.find(item=>item.id===String(d.campusId||""));
+            if(!chosen) return response({error:"campus_selection_required"},400,origin,env);
+            campusId=String(chosen.id);campusName=String(chosen.name||"校区");campusTag=String(chosen.tag||"");
+            province=String(chosen.province||profileCatalog.province_name||"");city=String(chosen.city||profileCatalog.city_name||"");
+            if(!province) return response({error:"profile_reference_invalid"},400,origin,env);
+          }catch(error){if(error?.error)return response({error:error.error},error.status||400,origin,env);return response({error:"profile_reference_invalid"},400,origin,env);}
+        } else {
+          if(String(d.campusId||"")) return response({error:"profile_reference_invalid"},400,origin,env);
+          province=regionName;city=String(profileCatalog.city_name||"");
+        }
+      } else if(requestedCategory==="overseas") {
+        if(user.university_id) return response({error:"university_change_requires_support"},409,origin,env);
+        overseasUniversityName=String(d.university||"").trim().replace(/\s+/g," ");
+        if(!overseasUniversityName||overseasUniversityName.length>160) return response({error:"overseas_university_required"},400,origin,env);
+        category="overseas";reviewStatus="pending";province="";city="";
       } else {
-        // Legacy accounts may keep their existing university while editing other
-        // profile fields. New profiles cannot create free-form university rows.
+        // Compatibility for accounts that were assigned before the source-ID catalog existed.
         if(!user.university_id) return response({error:"university_catalog_selection_required"},400,origin,env);
         uni=await env.DB.prepare("SELECT id,canonical_name,category,region_name,education_level,partner_name FROM universities WHERE id=?").bind(user.university_id).first();
         if(!uni) return response({error:"university_change_requires_support"},409,origin,env);
-        rawUniversity=String(uni.canonical_name||"").trim();
-        const submittedUniversity=String(d.university||"").trim().replace(/\s+/g," ");
+        const submitted=String(d.university||"").trim().replace(/\s+/g," ");
         const normalizeName=value=>String(value||"").normalize("NFKC").replace(/[\s\p{P}\p{S}]+/gu,"").toLowerCase();
-        if(submittedUniversity && normalizeName(submittedUniversity)!==normalizeName(rawUniversity)) return response({error:"university_change_requires_support"},409,origin,env);
-        const requestedCategory=String(d.universityCategory||"");
-        if(requestedCategory && requestedCategory!==uni.category) return response({error:"university_change_requires_support"},409,origin,env);
-        category=String(uni.category||"");
-        regionName=String(uni.region_name||"");
-        educationLevel=String(uni.education_level||"");
-        partnerName=String(uni.partner_name||"");
+        if(submitted&&normalizeName(submitted)!==normalizeName(uni.canonical_name)) return response({error:"university_change_requires_support"},409,origin,env);
+        if(requestedCategory&&requestedCategory!==uni.category) return response({error:"university_change_requires_support"},409,origin,env);
+        category=String(uni.category||"");universityId=uni.id;
+        regionName=String(uni.region_name||"");educationLevel=String(uni.education_level||"");partnerName=String(uni.partner_name||"");
+        province=String(d.province||"").trim();city=String(d.city||"").trim();
         if(!["mainland","hmt","sino_foreign","overseas"].includes(category)) return response({error:"university_change_requires_support"},409,origin,env);
-        if(category==="mainland" && !["undergraduate","vocational"].includes(educationLevel)) return response({error:"education_level_required"},400,origin,env);
-        if(category==="hmt" && !["香港","澳门","台湾"].includes(regionName)) return response({error:"university_region_required"},400,origin,env);
-        if(category==="sino_foreign" && (!partnerName || !["undergraduate","vocational"].includes(educationLevel))) return response({error:"cooperation_details_required"},400,origin,env);
-        if(category==="overseas" && !regionName) return response({error:"university_region_required"},400,origin,env);
       }
-      if(!uni || !rawUniversity || !category) return response({error:"university_not_selectable"},400,origin,env);
-      if(user.university_id && user.university_id!==uni.id) return response({error:"university_change_requires_support"},409,origin,env);
-      if((uni.region_name && regionName && uni.region_name!==regionName) || (uni.education_level && educationLevel && uni.education_level!==educationLevel) || (uni.partner_name && partnerName && uni.partner_name!==partnerName)) return response({error:"university_metadata_conflict"},409,origin,env);
+      if(user.university_id&&universityId&&user.university_id!==universityId) return response({error:"university_change_requires_support"},409,origin,env);
+
+      const majorGroup=String(d.majorGroup||"").trim();
+      const major=await env.DB.prepare("SELECT code FROM profile_option_codes WHERE option_type='major_group' AND code=? AND is_active=1").bind(majorGroup).first();
+      if(!major) return response({error:"major_group_required"},400,origin,env);
+      if(majorGroup==="军事学"&&!sourceTags.includes("military_academy")) return response({error:"profile_reference_invalid"},400,origin,env);
+      let admissionCategoryId="",admissionTypeId="";
+      if(category==="mainland") {
+        admissionCategoryId=String(d.admissionCategoryId||"").trim();
+        admissionTypeId=String(d.admissionTypeId||"").trim();
+        const admission=await env.DB.prepare("SELECT code FROM profile_option_codes WHERE option_type='admission_type' AND code=? AND parent_code=? AND is_active=1").bind(admissionTypeId,admissionCategoryId).first();
+        if(!admission) return response({error:"admission_route_required"},400,origin,env);
+      }
 
       const savedAt=new Date().toISOString();
-      const results=await env.DB.batch([
-        env.DB.prepare("UPDATE universities SET region_name=CASE WHEN region_name='' THEN ? ELSE region_name END,education_level=CASE WHEN education_level='' THEN ? ELSE education_level END,partner_name=CASE WHEN partner_name='' THEN ? ELSE partner_name END WHERE id=? AND category=? AND EXISTS(SELECT 1 FROM users WHERE id=? AND (university_id IS NULL OR university_id=?))")
-          .bind(regionName,educationLevel,partnerName,uni.id,category,user.id,uni.id),
-        env.DB.prepare("UPDATE users SET name=?,class_name=?,high_school=?,university_id=?,grade=?,province=?,city=?,bio=?,phone_visible_to_team=?,consent_given=1,consent_at=CASE WHEN consent_given=0 OR consent_version<>? THEN ? ELSE consent_at END,consent_version=?,account_consent_at=CASE WHEN account_consent_at='' OR account_consent_version<>? THEN ? ELSE account_consent_at END,account_consent_version=?,updated_at=? WHERE id=? AND deleted_at='' AND (university_id IS NULL OR university_id=?)")
-          .bind(name,className,String(d.highSchool||"青岛五十八中").trim(),uni.id,grade,province,city,bio,d.phoneVisible===true?1:0,PRIVACY_NOTICE_VERSION,savedAt,PRIVACY_NOTICE_VERSION,PRIVACY_NOTICE_VERSION,savedAt,PRIVACY_NOTICE_VERSION,savedAt,user.id,uni.id),
-        env.DB.prepare("UPDATE teams SET leader_user_id=? WHERE university_id=? AND leader_user_id IS NULL AND (SELECT COUNT(*) FROM users WHERE university_id=? AND deleted_at='')=1 AND EXISTS(SELECT 1 FROM users WHERE id=? AND university_id=? AND deleted_at='')").bind(user.id,uni.id,uni.id,user.id,uni.id),
-        env.DB.prepare("INSERT OR IGNORE INTO teams(id,university_id,leader_user_id) SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM users WHERE id=? AND university_id=? AND deleted_at='')").bind(randomHex(16),uni.id,user.id,user.id,uni.id)
-      ]);
-      if(!results?.[1]?.meta || Number(results[1].meta.changes||0)<1) return response({error:"university_change_requires_support"},409,origin,env);
-      return response({ok:true},200,origin,env);
-    }catch(e){return response({error:e.error||"profile_save_failed"},400,origin,env);}
+      const statements=[];
+      if(universityId) {
+        statements.push(env.DB.prepare("UPDATE universities SET region_name=CASE WHEN region_name='' THEN ? ELSE region_name END,education_level=CASE WHEN education_level='' THEN ? ELSE education_level END,partner_name=CASE WHEN partner_name='' THEN ? ELSE partner_name END WHERE id=?")
+          .bind(regionName,educationLevel,partnerName,universityId));
+      }
+      statements.push(env.DB.prepare("UPDATE users SET name=?,class_name=?,high_school=?,university_id=?,grade=?,province=?,city=?,bio=?,gender=?,major_group=?,major_discipline_code='',admission_category_id=?,admission_type_id=?,campus_id=?,campus_name=?,campus_tag=?,secondary_phone=?,wechat_id=?,phone_visible_to_team=1,profile_review_status=?,overseas_university_name=?,profile_review_submitted_at=CASE WHEN ?='pending' THEN ? ELSE '' END,profile_reviewed_at='',consent_given=1,consent_at=CASE WHEN consent_given=0 OR consent_version<>? THEN ? ELSE consent_at END,consent_version=?,account_consent_at=CASE WHEN account_consent_at='' OR account_consent_version<>? THEN ? ELSE account_consent_at END,account_consent_version=?,updated_at=? WHERE id=? AND deleted_at='' AND (university_id IS NULL OR university_id=?)")
+        .bind(name,className,highSchool,universityId,grade,province,city,bio,gender,majorGroup,admissionCategoryId,admissionTypeId,campusId,campusName,campusTag,secondaryPhone,wechatId,reviewStatus,overseasUniversityName,reviewStatus,savedAt,PRIVACY_NOTICE_VERSION,savedAt,PRIVACY_NOTICE_VERSION,PRIVACY_NOTICE_VERSION,savedAt,PRIVACY_NOTICE_VERSION,savedAt,user.id,universityId));
+      if(universityId) {
+        statements.push(env.DB.prepare("UPDATE teams SET leader_user_id=? WHERE university_id=? AND leader_user_id IS NULL AND (SELECT COUNT(*) FROM users WHERE university_id=? AND deleted_at='')=1 AND EXISTS(SELECT 1 FROM users WHERE id=? AND university_id=? AND deleted_at='')").bind(user.id,universityId,universityId,user.id,universityId));
+        statements.push(env.DB.prepare("INSERT OR IGNORE INTO teams(id,university_id,leader_user_id) SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM users WHERE id=? AND university_id=? AND deleted_at='')").bind(randomHex(16),universityId,user.id,user.id,universityId));
+      }
+      const results=await env.DB.batch(statements);
+      const userUpdateIndex=universityId?1:0;
+      if(!results?.[userUpdateIndex]?.meta||Number(results[userUpdateIndex].meta.changes||0)!==1) return response({error:"university_change_requires_support"},409,origin,env);
+      return response({ok:true,reviewStatus,profileReviewStatus:reviewStatus},200,origin,env);
+    }catch(error){
+      if(error?.error)return response({error:error.error},error.status||400,origin,env);
+      console.error("Profile save failed",error?.message||"unknown");
+      return response({error:"profile_save_failed"},400,origin,env);
+    }
   }
-  if(path==="/api/teams/transfer" && method==="POST") {
+if(path==="/api/teams/transfer" && method==="POST") {
     const user=await currentUser(request,env); if(!user) return response({error:"unauthorized"},401,origin,env);
     try {
       const d=await body(request), targetId=String(d.toUserId||"").trim();
@@ -939,9 +974,11 @@ async function route(request, env) {
   if(path==="/api/directory" && method==="GET") {
     const user=await currentUser(request,env); if(!user) return response({error:"unauthorized"},401,origin,env);
     const own=await env.DB.prepare("SELECT university_id,province FROM users WHERE id=?").bind(user.id).first();
-    const members=own.university_id?await env.DB.prepare("SELECT u.name,u.class_name AS className,u.grade,u.province,uni.canonical_name AS university,uni.category AS universityCategory,uni.region_name AS universityRegion,uni.education_level AS educationLevel,uni.project_tags_json AS projectTags,CASE WHEN u.phone_visible_to_team=1 AND u.consent_given=1 AND u.consent_at<>'' AND u.consent_version=? AND u.account_consent_at<>'' AND u.account_consent_version=? THEN u.phone ELSE NULL END AS phone FROM users u JOIN universities uni ON uni.id=u.university_id WHERE u.university_id=? AND u.id<>? AND u.deleted_at='' ORDER BY u.created_at").bind(PRIVACY_NOTICE_VERSION,PRIVACY_NOTICE_VERSION,own.university_id,user.id).all():{results:[]};
-    const leaders=await env.DB.prepare("SELECT u.name,u.grade,u.province,uni.canonical_name AS university,uni.category AS universityCategory,uni.region_name AS universityRegion,uni.education_level AS educationLevel,uni.project_tags_json AS projectTags FROM teams t JOIN users u ON u.id=t.leader_user_id JOIN universities uni ON uni.id=t.university_id WHERE u.province=? AND u.deleted_at='' ORDER BY uni.canonical_name").bind(own.province||"").all();
-    return response({members:members.results||[],provinceLeaders:leaders.results||[]},200,origin,env);
+    const members=own?.university_id?await env.DB.prepare("SELECT u.id,u.name,u.class_name AS className,u.grade,u.province,u.gender,u.major_group AS majorGroup,u.campus_name AS campusName,u.campus_tag AS campusTag,uni.canonical_name AS university,uni.category AS universityCategory,CASE WHEN u.consent_given=1 AND u.consent_at<>'' AND u.consent_version=? AND u.account_consent_at<>'' AND u.account_consent_version=? THEN u.phone ELSE NULL END AS phone,CASE WHEN u.consent_given=1 AND u.consent_at<>'' AND u.consent_version=? AND u.account_consent_at<>'' AND u.account_consent_version=? THEN u.secondary_phone ELSE NULL END AS secondaryPhone,CASE WHEN u.consent_given=1 AND u.consent_at<>'' AND u.consent_version=? AND u.account_consent_at<>'' AND u.account_consent_version=? THEN u.wechat_id ELSE NULL END AS wechatId FROM users u JOIN universities uni ON uni.id=u.university_id WHERE u.university_id=? AND u.id<>? AND u.deleted_at='' ORDER BY u.created_at")
+      .bind(PRIVACY_NOTICE_VERSION,PRIVACY_NOTICE_VERSION,PRIVACY_NOTICE_VERSION,PRIVACY_NOTICE_VERSION,PRIVACY_NOTICE_VERSION,PRIVACY_NOTICE_VERSION,own.university_id,user.id).all():{results:[]};
+    const team=own?.university_id?await env.DB.prepare("SELECT t.id,t.leader_user_id AS leaderUserId,leader.name AS leaderName,leader.grade AS leaderGrade,COUNT(member.id) AS memberCount,uni.canonical_name AS university FROM teams t JOIN universities uni ON uni.id=t.university_id LEFT JOIN users leader ON leader.id=t.leader_user_id AND leader.deleted_at='' LEFT JOIN users member ON member.university_id=t.university_id AND member.deleted_at='' WHERE t.university_id=? GROUP BY t.id").bind(own.university_id).first():null;
+    const leaders=await env.DB.prepare("SELECT u.name,u.grade,u.province,uni.canonical_name AS university,uni.category AS universityCategory,uni.region_name AS universityRegion,uni.education_level AS educationLevel,uni.project_tags_json AS projectTags FROM teams t JOIN users u ON u.id=t.leader_user_id JOIN universities uni ON uni.id=t.university_id WHERE u.province=? AND u.deleted_at='' ORDER BY uni.canonical_name").bind(own?.province||"").all();
+    return response({members:members.results||[],team:team||null,provinceLeaders:leaders.results||[]},200,origin,env);
   }
 
   if (path === "/api/admin/universities/import/status" && method === "GET") {
