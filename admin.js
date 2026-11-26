@@ -80,6 +80,7 @@ async function enter(options={}){
   $("peoplePanel").hidden=!has("people:read");
   $("auditPanel").hidden=!has("audit:read");
   $("managePanel").hidden=!has("admins:manage");
+  $("universityReviewPanel").hidden=!has("universities:review");
 
   // Authentication is complete at /admin/me. A later panel failure must not
   // send a valid administrator back to the login screen.
@@ -87,13 +88,14 @@ async function enter(options={}){
     ["overview",loadOverview,()=>setPanelFailure("summary","统计暂时无法加载。")],
     ["people",()=>has("people:read")?loadPeople():Promise.resolve(),()=>setPanelFailure("peopleMeta","名单加载失败，请检查 people:read 权限及接口响应。")],
     ["audit",()=>has("audit:read")?loadAudit():Promise.resolve(),()=>setPanelFailure("auditRows","审计记录加载失败，请稍后刷新。")],
-    ["admins",()=>has("admins:manage")?loadAdmins():Promise.resolve(),()=>setPanelFailure("createAdminMsg","管理员账户列表加载失败。")]
+    ["admins",()=>has("admins:manage")?loadAdmins():Promise.resolve(),()=>setPanelFailure("createAdminMsg","管理员账户列表加载失败。")],
+    ["universityReviews",()=>has("universities:review")?loadUniversityReviews():Promise.resolve(),()=>setPanelFailure("universityReviewMsg","海外高校审核队列加载失败。")]
   ];
   const results=await Promise.allSettled(jobs.map(job=>job[1]()));
   results.forEach((result,index)=>{
     if(result.status==="rejected"){
       jobs[index][2]();
-      const panelName={overview:"统计",people:"名单",audit:"审计",admins:"管理员列表"}[jobs[index][0]];
+      const panelName={overview:"统计",people:"名单",audit:"审计",admins:"管理员列表",universityReviews:"海外高校审核"}[jobs[index][0]];
       console.error("Admin panel load failed:",jobs[index][0],result.reason?.message||"unknown");
       const status=$("adminPanelStatus");
       if(status) status.textContent="已登录；部分面板加载失败："+panelName+"。这不影响当前登录会话。";
@@ -145,6 +147,21 @@ async function loadAudit(){
   $("auditRows").innerHTML=(data.items||[]).map(item=>
     '<tr><td>'+safe(item.createdAt)+'</td><td>'+safe(item.actorUsername||item.actorType)+'</td><td>'+safe(item.action)+'</td><td>'+safe(item.targetType)+' / '+safe(item.targetId)+'</td><td>'+safe(item.metadata)+'</td></tr>'
   ).join("")||'<tr><td colspan="5">暂无审计记录</td></tr>';
+}
+async function loadUniversityReviews(){
+  const data=await req("/admin/universities/review/pending");
+  const rows=data.items||[];
+  $("universityReviewRows").innerHTML=rows.map(item=>
+    '<article class="admin-review-card" data-review-card="'+safe(item.id)+'">'+
+      '<div class="admin-review-summary"><div><b>'+safe(item.name||"未填写姓名")+'</b><small>'+safe(item.highSchool||"")+' · '+safe(item.className||"")+' · '+safe(item.grade||"")+'</small></div>'+
+      '<span class="demo-status pending">待审核</span></div>'+
+      '<p>学生填写：<strong>'+safe(item.submittedName||"")+'</strong></p>'+
+      '<small>提交时间：'+safe(item.submittedAt||item.createdAt||"")+'</small>'+
+      '<label>规范后的学校名称<input data-review-name="'+safe(item.id)+'" maxlength="160" value="'+safe(item.submittedName||"")+'" placeholder="核对后填写标准校名"></label>'+
+      '<div class="admin-actions"><button type="button" class="btn" data-review-action="approve" data-review-id="'+safe(item.id)+'">审核通过并加入团队</button><button type="button" class="ghost" data-review-action="reject" data-review-id="'+safe(item.id)+'">拒绝</button></div>'+
+    '</article>'
+  ).join("")||'<div class="directory-empty"><strong>当前没有待审核高校</strong><p>新提交的海外高校资料会显示在这里。</p></div>';
+  $("universityReviewMsg").textContent="待审核 "+rows.length+" 条。批准时若存在规范名称相同的海外高校，将自动归并到已有团队。";
 }
 async function loadAdmins(){
   const data=await req("/admin/admins");
@@ -290,6 +307,39 @@ $("exportXlsx").onclick=()=>{
   location.href=API+"/admin/people?"+query;
 };
 $("refreshAudit").onclick=()=>loadAudit().catch(error=>showError("auditRows",error));
+$("refreshUniversityReviews").onclick=()=>loadUniversityReviews().catch(error=>showError("universityReviewMsg",error));
+$("universityReviewRows").addEventListener("click",async event=>{
+  const button=event.target.closest("[data-review-action]");
+  if(!button)return;
+  const userId=button.dataset.reviewId,action=button.dataset.reviewAction;
+  const card=button.closest("[data-review-card]");
+  const input=card?.querySelector("[data-review-name]");
+  const canonicalName=input?.value.trim()||"";
+  if(action==="approve"&&canonicalName.length<2){
+    $("universityReviewMsg").textContent="请先填写核对后的规范学校名称。";
+    input?.focus();return;
+  }
+  button.disabled=true;
+  const siblings=card?.querySelectorAll("button")||[];
+  siblings.forEach(item=>item.disabled=true);
+  try{
+    if(action==="approve"){
+      const result=await req("/admin/universities/review/"+encodeURIComponent(userId)+"/approve",{canonicalName});
+      $("universityReviewMsg").textContent=result.mergedExisting
+        ?"已批准并归并到现有海外高校团队。"
+        :"已批准，系统创建了高校记录并建立团队。";
+    }else{
+      await req("/admin/universities/review/"+encodeURIComponent(userId)+"/reject",{reason:"经组织者审核未通过"});
+      $("universityReviewMsg").textContent="已拒绝该条海外高校登记。";
+    }
+    await loadUniversityReviews();
+    await loadOverview();
+  }catch(error){
+    showError("universityReviewMsg",error);
+    siblings.forEach(item=>item.disabled=false);
+  }
+});
+
 $("createAdmin").onsubmit=async event=>{
   event.preventDefault();
   try {
