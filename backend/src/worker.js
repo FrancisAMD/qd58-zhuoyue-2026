@@ -214,8 +214,8 @@ async function currentAdmin(request, env) {
     .bind(digest, now()).first();
 }
 const ADMIN_PERMISSIONS = {
-  owner: ["overview", "people:read", "people:export", "audit:read", "admins:manage", "universities:import"],
-  admin: ["overview", "people:read", "people:export", "audit:read"],
+  owner: ["overview", "people:read", "people:export", "audit:read", "admins:manage", "universities:import", "universities:review"],
+  admin: ["overview", "people:read", "people:export", "audit:read", "universities:review"],
   viewer: ["overview"]
 };
 function hasAdminPermission(admin, permission) {
@@ -1242,6 +1242,85 @@ if(path==="/api/teams/transfer" && method==="POST") {
     const total = Number(count?.total||0);
     return response({items:rows.results||[],pagination:{page,pageSize,total,totalPages:Math.ceil(total/pageSize)}},200,origin,env);
   }
+  if(path==="/api/admin/universities/review/pending" && method==="GET") {
+    const admin=await currentAdmin(request,env);
+    if(!admin) return response({error:"unauthorized"},401,origin,env);
+    if(!hasAdminPermission(admin,"universities:review")) return response({error:"forbidden"},403,origin,env);
+    try {
+      const rows=await env.DB.prepare(`SELECT u.id,u.name,u.high_school AS highSchool,u.class_name AS className,u.grade,
+        u.overseas_university_name AS submittedName,u.profile_review_submitted_at AS submittedAt,u.created_at AS createdAt
+        FROM users u WHERE u.deleted_at='' AND u.profile_review_status='pending'
+        ORDER BY u.profile_review_submitted_at ASC,u.created_at ASC LIMIT 300`).all();
+      return response({items:rows.results||[]},200,origin,env);
+    } catch(error) {
+      console.error("Overseas university review queue failed",error?.message||"unknown");
+      return response({error:"university_review_queue_failed"},500,origin,env);
+    }
+  }
+
+  const universityReviewMatch=path.match(/^\\/api\\/admin\\/universities\\/review\\/([a-f0-9]{32})\\/(approve|reject)$/);
+  if(universityReviewMatch && method==="POST") {
+    const admin=await currentAdmin(request,env);
+    if(!admin) return response({error:"unauthorized"},401,origin,env);
+    if(!hasAdminPermission(admin,"universities:review")) return response({error:"forbidden"},403,origin,env);
+    const targetUserId=universityReviewMatch[1],action=universityReviewMatch[2];
+    try {
+      const d=await limitedJsonBody(request,4096);
+      const pending=await env.DB.prepare("SELECT id,name,overseas_university_name,profile_review_status FROM users WHERE id=? AND deleted_at=''").bind(targetUserId).first();
+      if(!pending) return response({error:"review_user_not_found"},404,origin,env);
+      if(pending.profile_review_status!=="pending") return response({error:"review_state_conflict"},409,origin,env);
+      const timestamp=new Date().toISOString();
+      if(action==="reject") {
+        const reason=String(d.reason||"").trim().slice(0,240);
+        const updated=await env.DB.prepare("UPDATE users SET profile_review_status='rejected',profile_reviewed_at=?,updated_at=? WHERE id=? AND deleted_at='' AND profile_review_status='pending'")
+          .bind(timestamp,timestamp,targetUserId).run();
+        if((updated.meta?.changes||0)!==1) return response({error:"review_state_conflict"},409,origin,env);
+        await writeAudit(env.DB,"admin",admin.id,"admin.overseas_university.rejected","user",targetUserId,{reason});
+        return response({ok:true,status:"rejected"},200,origin,env);
+      }
+
+      const canonicalName=String(d.canonicalName||"").trim().replace(/\\s+/g," ");
+      if(canonicalName.length<2||canonicalName.length>160||/[\\u0000-\\u001f]/.test(canonicalName)) {
+        return response({error:"review_canonical_name_required"},400,origin,env);
+      }
+      const normalized=value=>String(value||"").normalize("NFKC").replace(/[\\s\\p{P}\\p{S}]+/gu,"").toLowerCase();
+      const normalizedName=normalized(canonicalName);
+      if(!normalizedName) return response({error:"review_canonical_name_required"},400,origin,env);
+
+      // Canonicalize by reusing an existing overseas university with the same normalized name.
+      // Otherwise create a reviewed free-text overseas university record.
+      const candidates=await env.DB.prepare("SELECT id,canonical_name,normalized_name FROM universities WHERE category='overseas'").all();
+      const matched=(candidates.results||[]).find(row=>normalized(row.canonical_name)===normalizedName);
+      const universityId=matched?.id||randomHex(16);
+      const operations=[];
+      if(!matched) {
+        const normalizedKey="overseas:"+normalizedName;
+        operations.push(env.DB.prepare("INSERT INTO universities(id,canonical_name,normalized_name,category,region_name,education_level,project_tags_json,partner_name) VALUES(?,?,?,'overseas','海外','undergraduate','[]','')")
+          .bind(universityId,canonicalName,normalizedKey));
+      }
+      operations.push(env.DB.prepare(`UPDATE users SET university_id=?,province='海外',city='',overseas_university_name=?,
+        profile_review_status='approved',profile_reviewed_at=?,updated_at=?
+        WHERE id=? AND deleted_at='' AND profile_review_status='pending' AND university_id IS NULL`)
+        .bind(universityId,canonicalName,timestamp,timestamp,targetUserId));
+      operations.push(env.DB.prepare("UPDATE teams SET leader_user_id=? WHERE university_id=? AND leader_user_id IS NULL AND (SELECT COUNT(*) FROM users WHERE university_id=? AND deleted_at='')=1 AND EXISTS(SELECT 1 FROM users WHERE id=? AND university_id=? AND deleted_at='')")
+        .bind(targetUserId,universityId,universityId,targetUserId,universityId));
+      operations.push(env.DB.prepare("INSERT OR IGNORE INTO teams(id,university_id,leader_user_id) SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM users WHERE id=? AND university_id=? AND deleted_at='')")
+        .bind(randomHex(16),universityId,targetUserId,targetUserId,universityId));
+      const results=await env.DB.batch(operations);
+      const userUpdateIndex=matched?0:1;
+      if(!results?.[userUpdateIndex]?.meta||Number(results[userUpdateIndex].meta.changes||0)!==1) return response({error:"review_state_conflict"},409,origin,env);
+      await writeAudit(env.DB,"admin",admin.id,"admin.overseas_university.approved","user",targetUserId,{
+        universityId,canonicalName,mergedExisting:!!matched
+      });
+      return response({ok:true,status:"approved",universityId,canonicalName,mergedExisting:!!matched},200,origin,env);
+    } catch(error) {
+      if(error?.error) return response({error:error.error},error.status||400,origin,env);
+      const conflict=String(error?.message||"").toLowerCase().includes("unique")||String(error?.message||"").toLowerCase().includes("constraint");
+      console.error("Overseas university review action failed",error?.message||"unknown");
+      return response({error:conflict?"review_state_conflict":"university_review_action_failed"},conflict?409:500,origin,env);
+    }
+  }
+
   if (path === "/api/admin/admins" && (method === "GET" || method === "POST")) {
     const admin = await currentAdmin(request,env);
     if (!admin) return response({error:"unauthorized"},401,origin,env);
