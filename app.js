@@ -450,9 +450,8 @@ $("transferItems").addEventListener("click",async event=>{
   button.disabled=true;
   try{
     await call("/teams/transfer/"+encodeURIComponent(id)+"/"+action,{});
+    await loadDirectory();
     msg("teamSummaryMsg",action==="accept"?"你已接受组长转让，团队组长身份已更新。":"你已拒绝组长转让。");
-    await load();
-    if(!$("groups").hidden)await loadDirectory();
   }catch(error){
     const labels={transfer_expired:"该邀请已过期。",transfer_state_conflict:"该邀请状态已变化，请刷新列表。",transfer_forbidden:"你无权处理这条邀请。"};
     msg("teamSummaryMsg",labels[error.message]||"处理转让邀请失败，请刷新后重试。",true);
