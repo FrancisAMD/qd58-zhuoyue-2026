@@ -979,6 +979,10 @@ if(path==="/api/teams/transfer" && method==="POST") {
   }
   if(path==="/api/directory" && method==="GET") {
     const user=await currentUser(request,env); if(!user) return response({error:"unauthorized"},401,origin,env);
+    if(!user.consent_given||!user.consent_at||user.consent_version!==PRIVACY_NOTICE_VERSION||
+       !user.account_consent_at||user.account_consent_version!==PRIVACY_NOTICE_VERSION) {
+      return response({error:"consent_required"},403,origin,env);
+    }
     const own=await env.DB.prepare("SELECT university_id,province FROM users WHERE id=?").bind(user.id).first();
     const members=own?.university_id?await env.DB.prepare("SELECT u.id,u.name,u.class_name AS className,u.grade,u.province,u.major_group AS majorGroup,u.campus_name AS campusName,u.campus_tag AS campusTag,uni.canonical_name AS university,uni.category AS universityCategory,CASE WHEN u.consent_given=1 AND u.consent_at<>'' AND u.consent_version=? AND u.account_consent_at<>'' AND u.account_consent_version=? THEN u.phone ELSE NULL END AS phone,CASE WHEN u.consent_given=1 AND u.consent_at<>'' AND u.consent_version=? AND u.account_consent_at<>'' AND u.account_consent_version=? THEN u.secondary_phone ELSE NULL END AS secondaryPhone,CASE WHEN u.consent_given=1 AND u.consent_at<>'' AND u.consent_version=? AND u.account_consent_at<>'' AND u.account_consent_version=? THEN u.wechat_id ELSE NULL END AS wechatId FROM users u JOIN universities uni ON uni.id=u.university_id WHERE u.university_id=? AND u.id<>? AND u.deleted_at='' ORDER BY u.created_at")
       .bind(PRIVACY_NOTICE_VERSION,PRIVACY_NOTICE_VERSION,PRIVACY_NOTICE_VERSION,PRIVACY_NOTICE_VERSION,PRIVACY_NOTICE_VERSION,PRIVACY_NOTICE_VERSION,own.university_id,user.id).all():{results:[]};
