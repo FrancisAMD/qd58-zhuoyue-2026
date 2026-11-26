@@ -15,7 +15,10 @@ function fakeR2Bucket({ failPut = false } = {}) {
     objects,
     async put(key, value, options = {}) {
       if (failPut) throw new Error("simulated_r2_failure");
-      if (options.onlyIf?.etagDoesNotMatch === "*" && objects.has(key)) return null;
+      const createOnly = options.onlyIf instanceof Headers
+        ? options.onlyIf.get("If-None-Match") === "*"
+        : options.onlyIf?.etagDoesNotMatch === "*";
+      if (createOnly && objects.has(key)) return null;
       objects.set(key, String(value));
       return { key };
     },
@@ -342,6 +345,7 @@ try {
   const deletionIntent = JSON.parse(ledger.objects.get("account-deletion-intents/v1/"+USER_ID+".json"));
   assert.equal(deletionIntent.userId,USER_ID);
   assert.equal(deletionIntent.schemaVersion,1);
+  assert.equal(state.audit?.id,deletionIntent.eventId,"D1 audit ID must correlate with the independent R2 intent event ID");
   assert.equal(JSON.stringify(deletionIntent).includes(PHONE),false);
   assert.equal(JSON.stringify(deletionIntent).includes("Example Student"),false);
   assert.equal(state.audit?.metadata.includes("Example Student"), false);
@@ -394,6 +398,20 @@ try {
   assert.equal(conflictDb.state.audit, null);
   assert.equal(conflictLedger.objects.has("account-deletion-intents/v1/"+USER_ID+".json"),true,
     "the independent deletion intent survives a D1 transaction conflict");
+  const conflictIntent = JSON.parse(conflictLedger.objects.get("account-deletion-intents/v1/"+USER_ID+".json"));
+  assert.equal(conflictDb.state.audit,null,"failed D1 transaction must not leave a deletion audit row");
+  conflictDb.state.forceDeleteConflict = false;
+  const retryCode = await worker.fetch(request("/api/account/delete/request-code", {
+    turnstileToken: "turnstile-valid"
+  }), conflictEnv);
+  assert.equal(retryCode.status,200);
+  const retryDelete = await worker.fetch(request("/api/account/delete", {
+    confirmText: "DELETE", password: PASSWORD, code: "246810"
+  }), conflictEnv);
+  assert.equal(retryDelete.status,200,"a retry after the failed transaction should complete");
+  assert.equal(conflictDb.state.audit?.id,conflictIntent.eventId,
+    "the retry must correlate its D1 audit row with the original create-once R2 event");
+  assert.equal(conflictLedger.objects.size,1,"retry must reuse, not replace, the create-once intent");
 
   const ledgerFailureDb = makeDb({ hash });
   const ledgerFailureEnv = envFor(ledgerFailureDb.db,fakeR2Bucket({failPut:true}));
