@@ -101,7 +101,7 @@ const hmtUniversity={...university,id:"profile-HK-0001",canonical_name:"香港�
 const hmtDb=makeDb({catalog:hmtCatalog,uni:hmtUniversity});
 const hmt=await save(hmtDb.DB,{profileUniversityId:"HK-0001",universityCategory:"hmt",campusId:"",majorGroup:"文科",admissionCategoryId:"",admissionTypeId:""});
 assert.equal(hmt.status,200,"HMT schools use school name only and do not require campus/admission route");
-assert.ok(!hmtDb.state.statements.some(sql=>sql.includes("campus_id=?")));
+const hmtUserUpdate=hmtDb.state.batchBindings[hmtDb.state.statements.findIndex(sql=>sql.includes("UPDATE users SET"))];\nassert.equal(hmtUserUpdate[12],"","HMT school profiles must store no campus ID");\nassert.equal(hmtUserUpdate[13],"","HMT school profiles must store no campus name");\nassert.equal(hmtUserUpdate[14],"","HMT school profiles must store no campus tag");
 
 const overseasDb=makeDb();
 const overseas=await save(overseasDb.DB,{
