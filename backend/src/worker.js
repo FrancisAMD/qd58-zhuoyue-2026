@@ -978,7 +978,7 @@ if(path==="/api/teams/transfer" && method==="POST") {
       .bind(PRIVACY_NOTICE_VERSION,PRIVACY_NOTICE_VERSION,PRIVACY_NOTICE_VERSION,PRIVACY_NOTICE_VERSION,PRIVACY_NOTICE_VERSION,PRIVACY_NOTICE_VERSION,own.university_id,user.id).all():{results:[]};
     const team=own?.university_id?await env.DB.prepare("SELECT t.id,t.leader_user_id AS leaderUserId,leader.name AS leaderName,leader.grade AS leaderGrade,COUNT(member.id) AS memberCount,uni.canonical_name AS university FROM teams t JOIN universities uni ON uni.id=t.university_id LEFT JOIN users leader ON leader.id=t.leader_user_id AND leader.deleted_at='' LEFT JOIN users member ON member.university_id=t.university_id AND member.deleted_at='' WHERE t.university_id=? GROUP BY t.id").bind(own.university_id).first():null;
     const leaders=await env.DB.prepare("SELECT u.name,u.grade,u.province,uni.canonical_name AS university,uni.category AS universityCategory,uni.region_name AS universityRegion,uni.education_level AS educationLevel,uni.project_tags_json AS projectTags FROM teams t JOIN users u ON u.id=t.leader_user_id JOIN universities uni ON uni.id=t.university_id WHERE u.province=? AND u.deleted_at='' ORDER BY uni.canonical_name").bind(own?.province||"").all();
-    return response({members:members.results||[],team:team||null,provinceLeaders:leaders.results||[]},200,origin,env);
+    return response({members:members.results||[],team:team?{...team,isLeader:team.leaderUserId===user.id}:null,currentUserId:user.id,provinceLeaders:leaders.results||[]},200,origin,env);
   }
 
   if (path === "/api/admin/universities/import/status" && method === "GET") {
