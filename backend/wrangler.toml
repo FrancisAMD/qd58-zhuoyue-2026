@@ -13,6 +13,11 @@ database_name = "qd58-zhuoyue-db"
 database_id = "3d32e597-57e9-4e52-833b-98bdec7ffb0b"
 migrations_dir = "migrations"
 
+# Private, create-once account deletion intent ledger; provision this bucket before deployment.
+[[r2_buckets]]
+binding = "DELETE_LEDGER"
+bucket_name = "qd58-account-deletion-ledger"
+
 [vars]
 APP_ORIGIN = "https://58er.eon21.space"
 SESSION_TTL_SECONDS = "604800"
