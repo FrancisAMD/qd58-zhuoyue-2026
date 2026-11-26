@@ -39,14 +39,20 @@ export async function recordDeletionIntent(bucket, userId, requestedAt, eventId)
   const base = { schemaVersion: 1, userId, requestedAt, eventId };
   const record = { ...base, payloadSha256: await digest(JSON.stringify(base)) };
   const key = keyFor(userId);
-  const written = await bucket.put(key, JSON.stringify(record), {
-    onlyIf: { etagDoesNotMatch: "*" },
-    httpMetadata: { contentType: "application/json", cacheControl: "no-store" }
-  });
+  let written;
+  try {
+    written = await bucket.put(key, JSON.stringify(record), {
+      onlyIf: { etagDoesNotMatch: "*" },
+      httpMetadata: { contentType: "application/json", cacheControl: "no-store" }
+    });
+  } catch { fail("deletion_ledger_unavailable"); }
   if (written) return { record, created: true };
-  const existing = await bucket.get(key);
+  let existing;
+  try { existing = await bucket.get(key); } catch { fail("deletion_ledger_unavailable"); }
   if (!existing || typeof existing.text !== "function") fail("deletion_ledger_unavailable");
-  const stored = await validateStoredIntent(await existing.text(), key);
+  let storedText;
+  try { storedText = await existing.text(); } catch { fail("deletion_ledger_unavailable"); }
+  const stored = await validateStoredIntent(storedText, key);
   if (stored.userId !== userId) fail("deletion_ledger_conflict");
   return { record: stored, created: false };
 }
