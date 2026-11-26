@@ -1,0 +1,124 @@
+{
+  "schemaVersion": "1.0.0",
+  "title": "中国普通高等学校本科专业学科门类（一级分类）",
+  "description": "按教育部学科门类代码平铺分类，共 13 个门类。原通俗口径中的“文科”拆分为哲学、经济学、法学、教育学、文学、历史学、管理学、艺术学 8 个门类；理学、工学、农学、医学保持门类级不变；军事学单列，仅适用于军队院校。",
+  "standard": {
+    "name": "普通高等学校本科专业目录（2025年）",
+    "issuer": "教育部",
+    "level": "学科门类（第一级）",
+    "released": "2025-04"
+  },
+  "rules": {
+    "codeScheme": "沿用教育部官方两位门类代码，不重排为 1-12，便于与目录、学位授予信息、教育统计年报对接",
+    "militaryScience": "军事学门类（11）普通高等学校本科不设，仅军队院校按军队院校专业目录设置；打标时只用于军队院校及军事类专业，普通高校不应出现该门类",
+    "dualTrack": "艺术学、体育学（在 04 教育学门类下）在高考招生中另设艺术类、体育类批次；做招录统计时应在门类之外单独记录招生类别字段，不要与门类混用",
+    "borderline": "公安学类归 03 法学门类，公安技术类归 08 工学门类"
+  },
+  "count": 13,
+  "categories": [
+    {
+      "code": "01",
+      "name": "哲学",
+      "nameEn": "Philosophy",
+      "legacyGroup": "文科",
+      "enabled": true,
+      "note": null
+    },
+    {
+      "code": "02",
+      "name": "经济学",
+      "nameEn": "Economics",
+      "legacyGroup": "文科",
+      "enabled": true,
+      "note": null
+    },
+    {
+      "code": "03",
+      "name": "法学",
+      "nameEn": "Law",
+      "legacyGroup": "文科",
+      "enabled": true,
+      "note": "公安学类在此门类"
+    },
+    {
+      "code": "04",
+      "name": "教育学",
+      "nameEn": "Education",
+      "legacyGroup": "文科",
+      "enabled": true,
+      "note": "体育学类在此门类；高考招生另设体育类批次"
+    },
+    {
+      "code": "05",
+      "name": "文学",
+      "nameEn": "Literature",
+      "legacyGroup": "文科",
+      "enabled": true,
+      "note": null
+    },
+    {
+      "code": "06",
+      "name": "历史学",
+      "nameEn": "History",
+      "legacyGroup": "文科",
+      "enabled": true,
+      "note": null
+    },
+    {
+      "code": "07",
+      "name": "理学",
+      "nameEn": "Science",
+      "legacyGroup": "理科",
+      "enabled": true,
+      "note": null
+    },
+    {
+      "code": "08",
+      "name": "工学",
+      "nameEn": "Engineering",
+      "legacyGroup": "工科",
+      "enabled": true,
+      "note": "公安技术类在此门类"
+    },
+    {
+      "code": "09",
+      "name": "农学",
+      "nameEn": "Agriculture",
+      "legacyGroup": "农科",
+      "enabled": true,
+      "note": null
+    },
+    {
+      "code": "10",
+      "name": "医学",
+      "nameEn": "Medicine",
+      "legacyGroup": "医科",
+      "enabled": true,
+      "note": null
+    },
+    {
+      "code": "11",
+      "name": "军事学",
+      "nameEn": "Military Science",
+      "legacyGroup": null,
+      "enabled": true,
+      "note": "仅军队院校设置，普通高等学校本科不设；按军队院校专业目录执行"
+    },
+    {
+      "code": "12",
+      "name": "管理学",
+      "nameEn": "Management",
+      "legacyGroup": "文科",
+      "enabled": true,
+      "note": null
+    },
+    {
+      "code": "13",
+      "name": "艺术学",
+      "nameEn": "Art",
+      "legacyGroup": "文科",
+      "enabled": true,
+      "note": "高考招生另设艺术类批次"
+    }
+  ]
+}

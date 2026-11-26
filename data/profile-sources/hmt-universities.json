@@ -1,0 +1,1647 @@
+{
+  "schema_version": "1.1.0",
+  "dataset": {
+    "name": "中国港澳台的大学（结构化目录）",
+    "description": "中国香港、澳门、台湾地区本科层次高校结构化数据，共54所（香港15、澳门7、台湾32）；与《中国内地高校（含境外校区）》分属不同大类，不混入内地目录。",
+    "updated_at": "2026-11-26",
+    "source_notes": [
+      "范围：香港15所、澳门7所、台湾32所，均取自桌面《港澳台.txt》明确列名的院校；未列名的院校未擅自补充。",
+      "大类边界：本目录仅含港澳台高校，region 分别为中国香港/中国澳门/中国台湾；中国内地见《中国内地高校（含境外校区）》，海外另列。",
+      "id 规则：HK-四位序号、MO-四位序号、TW-四位序号；主校区 id 为 {id}-MAIN。",
+      "主管部门 department：香港特别行政区政府教育局、澳门特别行政区政府教育及青年发展局、台湾地区教育主管部门。",
+      "校区层级：campuses 仅含一个主校区对象；主校区不设名称，无异地校区，branches 为空数组。",
+      "地域：香港、澳门不设 province_or_state，city 分别为香港、澳门；台湾 province_or_state 为台湾，city 为校本部所在县市。",
+      "办学层次：仅收录可颁授学士及以上学位的本科层次院校，不含专科/高级文凭/副学位课程院校。",
+      "分类属性统一使用 tags；本目录暂用 public/private，未使用内地 985/211/双一流/军校标签。",
+      "来源：香港教育局认可的可颁授学位院校名单、澳门特别行政区政府教育及青年发展局高等院校名单、台湾地区教育主管部门大专院校名单；以《港澳台.txt》汇总。"
+    ]
+  },
+  "tag_definitions": {
+    "public": "公办/公营",
+    "private": "民办/私营"
+  },
+  "campus_tag_definitions": {
+    "主校区": "校本部所在地"
+  },
+  "universities": [
+    {
+      "id": "HK-0001",
+      "name": "香港大学",
+      "aliases": [],
+      "institution_type": "hong_kong",
+      "country": "中国",
+      "region": "中国香港",
+      "province_or_state": "",
+      "city": "香港",
+      "department": "香港特别行政区政府教育局",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "HK-0001-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "",
+          "city": "香港",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "public"
+      ],
+      "status": "active",
+      "source": {
+        "name": "香港教育局认可的可颁授学位院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "HK-0002",
+      "name": "香港中文大学",
+      "aliases": [],
+      "institution_type": "hong_kong",
+      "country": "中国",
+      "region": "中国香港",
+      "province_or_state": "",
+      "city": "香港",
+      "department": "香港特别行政区政府教育局",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "HK-0002-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "",
+          "city": "香港",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "public"
+      ],
+      "status": "active",
+      "source": {
+        "name": "香港教育局认可的可颁授学位院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "HK-0003",
+      "name": "香港科技大学",
+      "aliases": [],
+      "institution_type": "hong_kong",
+      "country": "中国",
+      "region": "中国香港",
+      "province_or_state": "",
+      "city": "香港",
+      "department": "香港特别行政区政府教育局",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "HK-0003-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "",
+          "city": "香港",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "public"
+      ],
+      "status": "active",
+      "source": {
+        "name": "香港教育局认可的可颁授学位院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "HK-0004",
+      "name": "香港理工大学",
+      "aliases": [],
+      "institution_type": "hong_kong",
+      "country": "中国",
+      "region": "中国香港",
+      "province_or_state": "",
+      "city": "香港",
+      "department": "香港特别行政区政府教育局",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "HK-0004-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "",
+          "city": "香港",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "public"
+      ],
+      "status": "active",
+      "source": {
+        "name": "香港教育局认可的可颁授学位院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "HK-0005",
+      "name": "香港城市大学",
+      "aliases": [],
+      "institution_type": "hong_kong",
+      "country": "中国",
+      "region": "中国香港",
+      "province_or_state": "",
+      "city": "香港",
+      "department": "香港特别行政区政府教育局",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "HK-0005-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "",
+          "city": "香港",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "public"
+      ],
+      "status": "active",
+      "source": {
+        "name": "香港教育局认可的可颁授学位院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "HK-0006",
+      "name": "香港浸会大学",
+      "aliases": [],
+      "institution_type": "hong_kong",
+      "country": "中国",
+      "region": "中国香港",
+      "province_or_state": "",
+      "city": "香港",
+      "department": "香港特别行政区政府教育局",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "HK-0006-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "",
+          "city": "香港",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "public"
+      ],
+      "status": "active",
+      "source": {
+        "name": "香港教育局认可的可颁授学位院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "HK-0007",
+      "name": "岭南大学",
+      "aliases": [],
+      "institution_type": "hong_kong",
+      "country": "中国",
+      "region": "中国香港",
+      "province_or_state": "",
+      "city": "香港",
+      "department": "香港特别行政区政府教育局",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "HK-0007-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "",
+          "city": "香港",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "public"
+      ],
+      "status": "active",
+      "source": {
+        "name": "香港教育局认可的可颁授学位院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "HK-0008",
+      "name": "香港教育大学",
+      "aliases": [],
+      "institution_type": "hong_kong",
+      "country": "中国",
+      "region": "中国香港",
+      "province_or_state": "",
+      "city": "香港",
+      "department": "香港特别行政区政府教育局",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "HK-0008-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "",
+          "city": "香港",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "public"
+      ],
+      "status": "active",
+      "source": {
+        "name": "香港教育局认可的可颁授学位院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "HK-0009",
+      "name": "香港都会大学",
+      "aliases": [],
+      "institution_type": "hong_kong",
+      "country": "中国",
+      "region": "中国香港",
+      "province_or_state": "",
+      "city": "香港",
+      "department": "香港特别行政区政府教育局",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "HK-0009-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "",
+          "city": "香港",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "public"
+      ],
+      "status": "active",
+      "source": {
+        "name": "香港教育局认可的可颁授学位院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "HK-0010",
+      "name": "香港树仁大学",
+      "aliases": [],
+      "institution_type": "hong_kong",
+      "country": "中国",
+      "region": "中国香港",
+      "province_or_state": "",
+      "city": "香港",
+      "department": "香港特别行政区政府教育局",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "HK-0010-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "",
+          "city": "香港",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "private"
+      ],
+      "status": "active",
+      "source": {
+        "name": "香港教育局认可的可颁授学位院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "HK-0011",
+      "name": "香港恒生大学",
+      "aliases": [],
+      "institution_type": "hong_kong",
+      "country": "中国",
+      "region": "中国香港",
+      "province_or_state": "",
+      "city": "香港",
+      "department": "香港特别行政区政府教育局",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "HK-0011-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "",
+          "city": "香港",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "private"
+      ],
+      "status": "active",
+      "source": {
+        "name": "香港教育局认可的可颁授学位院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "HK-0012",
+      "name": "香港演艺学院",
+      "aliases": [],
+      "institution_type": "hong_kong",
+      "country": "中国",
+      "region": "中国香港",
+      "province_or_state": "",
+      "city": "香港",
+      "department": "香港特别行政区政府教育局",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "HK-0012-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "",
+          "city": "香港",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "public"
+      ],
+      "status": "active",
+      "source": {
+        "name": "香港教育局认可的可颁授学位院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "HK-0013",
+      "name": "香港珠海学院",
+      "aliases": [],
+      "institution_type": "hong_kong",
+      "country": "中国",
+      "region": "中国香港",
+      "province_or_state": "",
+      "city": "香港",
+      "department": "香港特别行政区政府教育局",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "HK-0013-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "",
+          "city": "香港",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "private"
+      ],
+      "status": "active",
+      "source": {
+        "name": "香港教育局认可的可颁授学位院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "HK-0014",
+      "name": "东华学院",
+      "aliases": [],
+      "institution_type": "hong_kong",
+      "country": "中国",
+      "region": "中国香港",
+      "province_or_state": "",
+      "city": "香港",
+      "department": "香港特别行政区政府教育局",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "HK-0014-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "",
+          "city": "香港",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "private"
+      ],
+      "status": "active",
+      "source": {
+        "name": "香港教育局认可的可颁授学位院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "HK-0015",
+      "name": "香港高等教育科技学院",
+      "aliases": [],
+      "institution_type": "hong_kong",
+      "country": "中国",
+      "region": "中国香港",
+      "province_or_state": "",
+      "city": "香港",
+      "department": "香港特别行政区政府教育局",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "HK-0015-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "",
+          "city": "香港",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "public"
+      ],
+      "status": "active",
+      "source": {
+        "name": "香港教育局认可的可颁授学位院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "MO-0001",
+      "name": "澳门大学",
+      "aliases": [],
+      "institution_type": "macau",
+      "country": "中国",
+      "region": "中国澳门",
+      "province_or_state": "",
+      "city": "澳门",
+      "department": "澳门特别行政区政府教育及青年发展局",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "MO-0001-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "",
+          "city": "澳门",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "public"
+      ],
+      "status": "active",
+      "source": {
+        "name": "澳门特别行政区政府教育及青年发展局高等院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "MO-0002",
+      "name": "澳门理工大学",
+      "aliases": [],
+      "institution_type": "macau",
+      "country": "中国",
+      "region": "中国澳门",
+      "province_or_state": "",
+      "city": "澳门",
+      "department": "澳门特别行政区政府教育及青年发展局",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "MO-0002-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "",
+          "city": "澳门",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "public"
+      ],
+      "status": "active",
+      "source": {
+        "name": "澳门特别行政区政府教育及青年发展局高等院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "MO-0003",
+      "name": "澳门旅游大学",
+      "aliases": [],
+      "institution_type": "macau",
+      "country": "中国",
+      "region": "中国澳门",
+      "province_or_state": "",
+      "city": "澳门",
+      "department": "澳门特别行政区政府教育及青年发展局",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "MO-0003-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "",
+          "city": "澳门",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "public"
+      ],
+      "status": "active",
+      "source": {
+        "name": "澳门特别行政区政府教育及青年发展局高等院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "MO-0004",
+      "name": "澳门科技大学",
+      "aliases": [],
+      "institution_type": "macau",
+      "country": "中国",
+      "region": "中国澳门",
+      "province_or_state": "",
+      "city": "澳门",
+      "department": "澳门特别行政区政府教育及青年发展局",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "MO-0004-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "",
+          "city": "澳门",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "private"
+      ],
+      "status": "active",
+      "source": {
+        "name": "澳门特别行政区政府教育及青年发展局高等院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "MO-0005",
+      "name": "澳门城市大学",
+      "aliases": [],
+      "institution_type": "macau",
+      "country": "中国",
+      "region": "中国澳门",
+      "province_or_state": "",
+      "city": "澳门",
+      "department": "澳门特别行政区政府教育及青年发展局",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "MO-0005-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "",
+          "city": "澳门",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "private"
+      ],
+      "status": "active",
+      "source": {
+        "name": "澳门特别行政区政府教育及青年发展局高等院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "MO-0006",
+      "name": "圣若瑟大学",
+      "aliases": [],
+      "institution_type": "macau",
+      "country": "中国",
+      "region": "中国澳门",
+      "province_or_state": "",
+      "city": "澳门",
+      "department": "澳门特别行政区政府教育及青年发展局",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "MO-0006-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "",
+          "city": "澳门",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "private"
+      ],
+      "status": "active",
+      "source": {
+        "name": "澳门特别行政区政府教育及青年发展局高等院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "MO-0007",
+      "name": "澳门镜湖护理学院",
+      "aliases": [],
+      "institution_type": "macau",
+      "country": "中国",
+      "region": "中国澳门",
+      "province_or_state": "",
+      "city": "澳门",
+      "department": "澳门特别行政区政府教育及青年发展局",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "MO-0007-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "",
+          "city": "澳门",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "private"
+      ],
+      "status": "active",
+      "source": {
+        "name": "澳门特别行政区政府教育及青年发展局高等院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "TW-0001",
+      "name": "国立台湾大学",
+      "aliases": [],
+      "institution_type": "taiwan",
+      "country": "中国",
+      "region": "中国台湾",
+      "province_or_state": "台湾",
+      "city": "台北市",
+      "department": "台湾地区教育主管部门",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "TW-0001-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "台湾",
+          "city": "台北市",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "public"
+      ],
+      "status": "active",
+      "source": {
+        "name": "台湾地区教育主管部门大专院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "TW-0002",
+      "name": "国立清华大学",
+      "aliases": [],
+      "institution_type": "taiwan",
+      "country": "中国",
+      "region": "中国台湾",
+      "province_or_state": "台湾",
+      "city": "新竹市",
+      "department": "台湾地区教育主管部门",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "TW-0002-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "台湾",
+          "city": "新竹市",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "public"
+      ],
+      "status": "active",
+      "source": {
+        "name": "台湾地区教育主管部门大专院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "TW-0003",
+      "name": "国立阳明交通大学",
+      "aliases": [],
+      "institution_type": "taiwan",
+      "country": "中国",
+      "region": "中国台湾",
+      "province_or_state": "台湾",
+      "city": "新竹市",
+      "department": "台湾地区教育主管部门",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "TW-0003-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "台湾",
+          "city": "新竹市",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "public"
+      ],
+      "status": "active",
+      "source": {
+        "name": "台湾地区教育主管部门大专院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "TW-0004",
+      "name": "国立成功大学",
+      "aliases": [],
+      "institution_type": "taiwan",
+      "country": "中国",
+      "region": "中国台湾",
+      "province_or_state": "台湾",
+      "city": "台南市",
+      "department": "台湾地区教育主管部门",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "TW-0004-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "台湾",
+          "city": "台南市",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "public"
+      ],
+      "status": "active",
+      "source": {
+        "name": "台湾地区教育主管部门大专院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "TW-0005",
+      "name": "国立政治大学",
+      "aliases": [],
+      "institution_type": "taiwan",
+      "country": "中国",
+      "region": "中国台湾",
+      "province_or_state": "台湾",
+      "city": "台北市",
+      "department": "台湾地区教育主管部门",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "TW-0005-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "台湾",
+          "city": "台北市",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "public"
+      ],
+      "status": "active",
+      "source": {
+        "name": "台湾地区教育主管部门大专院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "TW-0006",
+      "name": "国立台湾师范大学",
+      "aliases": [],
+      "institution_type": "taiwan",
+      "country": "中国",
+      "region": "中国台湾",
+      "province_or_state": "台湾",
+      "city": "台北市",
+      "department": "台湾地区教育主管部门",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "TW-0006-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "台湾",
+          "city": "台北市",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "public"
+      ],
+      "status": "active",
+      "source": {
+        "name": "台湾地区教育主管部门大专院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "TW-0007",
+      "name": "国立中央大学",
+      "aliases": [],
+      "institution_type": "taiwan",
+      "country": "中国",
+      "region": "中国台湾",
+      "province_or_state": "台湾",
+      "city": "桃园市",
+      "department": "台湾地区教育主管部门",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "TW-0007-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "台湾",
+          "city": "桃园市",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "public"
+      ],
+      "status": "active",
+      "source": {
+        "name": "台湾地区教育主管部门大专院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "TW-0008",
+      "name": "国立中山大学",
+      "aliases": [],
+      "institution_type": "taiwan",
+      "country": "中国",
+      "region": "中国台湾",
+      "province_or_state": "台湾",
+      "city": "高雄市",
+      "department": "台湾地区教育主管部门",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "TW-0008-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "台湾",
+          "city": "高雄市",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "public"
+      ],
+      "status": "active",
+      "source": {
+        "name": "台湾地区教育主管部门大专院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "TW-0009",
+      "name": "国立台湾海洋大学",
+      "aliases": [],
+      "institution_type": "taiwan",
+      "country": "中国",
+      "region": "中国台湾",
+      "province_or_state": "台湾",
+      "city": "基隆市",
+      "department": "台湾地区教育主管部门",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "TW-0009-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "台湾",
+          "city": "基隆市",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "public"
+      ],
+      "status": "active",
+      "source": {
+        "name": "台湾地区教育主管部门大专院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "TW-0010",
+      "name": "国立中正大学",
+      "aliases": [],
+      "institution_type": "taiwan",
+      "country": "中国",
+      "region": "中国台湾",
+      "province_or_state": "台湾",
+      "city": "嘉义县",
+      "department": "台湾地区教育主管部门",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "TW-0010-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "台湾",
+          "city": "嘉义县",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "public"
+      ],
+      "status": "active",
+      "source": {
+        "name": "台湾地区教育主管部门大专院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "TW-0011",
+      "name": "国立高雄师范大学",
+      "aliases": [],
+      "institution_type": "taiwan",
+      "country": "中国",
+      "region": "中国台湾",
+      "province_or_state": "台湾",
+      "city": "高雄市",
+      "department": "台湾地区教育主管部门",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "TW-0011-MAIN",          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "台湾",
+          "city": "高雄市",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "public"
+      ],
+      "status": "active",
+      "source": {
+        "name": "台湾地区教育主管部门大专院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "TW-0012",
+      "name": "国立彰化师范大学",
+      "aliases": [],
+      "institution_type": "taiwan",
+      "country": "中国",
+      "region": "中国台湾",
+      "province_or_state": "台湾",
+      "city": "彰化县",
+      "department": "台湾地区教育主管部门",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "TW-0012-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "台湾",
+          "city": "彰化县",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "public"
+      ],
+      "status": "active",
+      "source": {
+        "name": "台湾地区教育主管部门大专院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "TW-0013",
+      "name": "国立台北大学",
+      "aliases": [],
+      "institution_type": "taiwan",
+      "country": "中国",
+      "region": "中国台湾",
+      "province_or_state": "台湾",
+      "city": "新北市",
+      "department": "台湾地区教育主管部门",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "TW-0013-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "台湾",
+          "city": "新北市",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "public"
+      ],
+      "status": "active",
+      "source": {
+        "name": "台湾地区教育主管部门大专院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "TW-0014",
+      "name": "国立宜兰大学",
+      "aliases": [],
+      "institution_type": "taiwan",
+      "country": "中国",
+      "region": "中国台湾",
+      "province_or_state": "台湾",
+      "city": "宜兰县",
+      "department": "台湾地区教育主管部门",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "TW-0014-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "台湾",
+          "city": "宜兰县",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "public"
+      ],
+      "status": "active",
+      "source": {
+        "name": "台湾地区教育主管部门大专院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "TW-0015",
+      "name": "国立金门大学",
+      "aliases": [],
+      "institution_type": "taiwan",
+      "country": "中国",
+      "region": "中国台湾",
+      "province_or_state": "台湾",
+      "city": "金门县",
+      "department": "台湾地区教育主管部门",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "TW-0015-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "台湾",
+          "city": "金门县",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "public"
+      ],
+      "status": "active",
+      "source": {
+        "name": "台湾地区教育主管部门大专院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "TW-0016",
+      "name": "国立台湾科技大学",
+      "aliases": [],
+      "institution_type": "taiwan",
+      "country": "中国",
+      "region": "中国台湾",
+      "province_or_state": "台湾",
+      "city": "台北市",
+      "department": "台湾地区教育主管部门",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "TW-0016-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "台湾",
+          "city": "台北市",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "public"
+      ],
+      "status": "active",
+      "source": {
+        "name": "台湾地区教育主管部门大专院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "TW-0017",
+      "name": "国立台北科技大学",
+      "aliases": [],
+      "institution_type": "taiwan",
+      "country": "中国",
+      "region": "中国台湾",
+      "province_or_state": "台湾",
+      "city": "台北市",
+      "department": "台湾地区教育主管部门",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "TW-0017-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "台湾",
+          "city": "台北市",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "public"
+      ],
+      "status": "active",
+      "source": {
+        "name": "台湾地区教育主管部门大专院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "TW-0018",
+      "name": "国立云林科技大学",
+      "aliases": [],
+      "institution_type": "taiwan",
+      "country": "中国",
+      "region": "中国台湾",
+      "province_or_state": "台湾",
+      "city": "云林县",
+      "department": "台湾地区教育主管部门",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "TW-0018-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "台湾",
+          "city": "云林县",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "public"
+      ],
+      "status": "active",
+      "source": {
+        "name": "台湾地区教育主管部门大专院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "TW-0019",
+      "name": "辅仁大学",
+      "aliases": [],
+      "institution_type": "taiwan",
+      "country": "中国",
+      "region": "中国台湾",
+      "province_or_state": "台湾",
+      "city": "新北市",
+      "department": "台湾地区教育主管部门",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "TW-0019-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "台湾",
+          "city": "新北市",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "private"
+      ],
+      "status": "active",
+      "source": {
+        "name": "台湾地区教育主管部门大专院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "TW-0020",
+      "name": "东吴大学",
+      "aliases": [],
+      "institution_type": "taiwan",
+      "country": "中国",
+      "region": "中国台湾",
+      "province_or_state": "台湾",
+      "city": "台北市",
+      "department": "台湾地区教育主管部门",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "TW-0020-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "台湾",
+          "city": "台北市",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "private"
+      ],
+      "status": "active",
+      "source": {
+        "name": "台湾地区教育主管部门大专院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "TW-0021",
+      "name": "淡江大学",
+      "aliases": [],
+      "institution_type": "taiwan",
+      "country": "中国",
+      "region": "中国台湾",
+      "province_or_state": "台湾",
+      "city": "新北市",
+      "department": "台湾地区教育主管部门",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "TW-0021-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "台湾",
+          "city": "新北市",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "private"
+      ],
+      "status": "active",
+      "source": {
+        "name": "台湾地区教育主管部门大专院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "TW-0022",
+      "name": "东海大学",
+      "aliases": [],
+      "institution_type": "taiwan",
+      "country": "中国",
+      "region": "中国台湾",
+      "province_or_state": "台湾",
+      "city": "台中市",
+      "department": "台湾地区教育主管部门",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "TW-0022-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "台湾",
+          "city": "台中市",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "private"
+      ],
+      "status": "active",
+      "source": {
+        "name": "台湾地区教育主管部门大专院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "TW-0023",
+      "name": "中原大学",
+      "aliases": [],
+      "institution_type": "taiwan",
+      "country": "中国",
+      "region": "中国台湾",
+      "province_or_state": "台湾",
+      "city": "桃园市",
+      "department": "台湾地区教育主管部门",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "TW-0023-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "台湾",
+          "city": "桃园市",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "private"
+      ],
+      "status": "active",
+      "source": {
+        "name": "台湾地区教育主管部门大专院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "TW-0024",
+      "name": "逢甲大学",
+      "aliases": [],
+      "institution_type": "taiwan",
+      "country": "中国",
+      "region": "中国台湾",
+      "province_or_state": "台湾",
+      "city": "台中市",
+      "department": "台湾地区教育主管部门",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "TW-0024-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "台湾",
+          "city": "台中市",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "private"
+      ],
+      "status": "active",
+      "source": {
+        "name": "台湾地区教育主管部门大专院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "TW-0025",
+      "name": "中国文化大学",
+      "aliases": [],
+      "institution_type": "taiwan",
+      "country": "中国",
+      "region": "中国台湾",
+      "province_or_state": "台湾",
+      "city": "台北市",
+      "department": "台湾地区教育主管部门",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "TW-0025-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "台湾",
+          "city": "台北市",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "private"
+      ],
+      "status": "active",
+      "source": {
+        "name": "台湾地区教育主管部门大专院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "TW-0026",
+      "name": "台北医学大学",
+      "aliases": [],
+      "institution_type": "taiwan",
+      "country": "中国",
+      "region": "中国台湾",
+      "province_or_state": "台湾",
+      "city": "台北市",
+      "department": "台湾地区教育主管部门",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "TW-0026-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "台湾",
+          "city": "台北市",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "private"
+      ],
+      "status": "active",
+      "source": {
+        "name": "台湾地区教育主管部门大专院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "TW-0027",
+      "name": "高雄医学大学",
+      "aliases": [],
+      "institution_type": "taiwan",
+      "country": "中国",
+      "region": "中国台湾",
+      "province_or_state": "台湾",
+      "city": "高雄市",
+      "department": "台湾地区教育主管部门",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "TW-0027-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "台湾",
+          "city": "高雄市",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "private"
+      ],
+      "status": "active",
+      "source": {
+        "name": "台湾地区教育主管部门大专院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "TW-0028",
+      "name": "中国医药大学",
+      "aliases": [],
+      "institution_type": "taiwan",
+      "country": "中国",
+      "region": "中国台湾",
+      "province_or_state": "台湾",
+      "city": "台中市",
+      "department": "台湾地区教育主管部门",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "TW-0028-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "台湾",
+          "city": "台中市",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "private"
+      ],
+      "status": "active",
+      "source": {
+        "name": "台湾地区教育主管部门大专院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "TW-0029",
+      "name": "长庚大学",
+      "aliases": [],
+      "institution_type": "taiwan",
+      "country": "中国",
+      "region": "中国台湾",
+      "province_or_state": "台湾",
+      "city": "桃园市",
+      "department": "台湾地区教育主管部门",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "TW-0029-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "台湾",
+          "city": "桃园市",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "private"
+      ],
+      "status": "active",
+      "source": {
+        "name": "台湾地区教育主管部门大专院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "TW-0030",
+      "name": "元智大学",
+      "aliases": [],
+      "institution_type": "taiwan",
+      "country": "中国",
+      "region": "中国台湾",
+      "province_or_state": "台湾",
+      "city": "桃园市",
+      "department": "台湾地区教育主管部门",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "TW-0030-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "台湾",
+          "city": "桃园市",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "private"
+      ],
+      "status": "active",
+      "source": {
+        "name": "台湾地区教育主管部门大专院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "TW-0031",
+      "name": "世新大学",
+      "aliases": [],
+      "institution_type": "taiwan",
+      "country": "中国",
+      "region": "中国台湾",
+      "province_or_state": "台湾",
+      "city": "台北市",
+      "department": "台湾地区教育主管部门",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "TW-0031-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "台湾",
+          "city": "台北市",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "private"
+      ],
+      "status": "active",
+      "source": {
+        "name": "台湾地区教育主管部门大专院校名单",
+        "verified_at": "2026-11-26"
+      }
+    },
+    {
+      "id": "TW-0032",
+      "name": "铭传大学",
+      "aliases": [],
+      "institution_type": "taiwan",
+      "country": "中国",
+      "region": "中国台湾",
+      "province_or_state": "台湾",
+      "city": "台北市",
+      "department": "台湾地区教育主管部门",
+      "has_branch_campuses": false,
+      "campuses": [
+        {
+          "campus_id": "TW-0032-MAIN",
+          "campus_type": "main",
+          "tag": "主校区",
+          "province_or_state": "台湾",
+          "city": "台北市",
+          "branches": []
+        }
+      ],
+      "tags": [
+        "private"
+      ],
+      "status": "active",
+      "source": {
+        "name": "台湾地区教育主管部门大专院校名单",
+        "verified_at": "2026-11-26"
+      }
+    }
+  ]
+}
