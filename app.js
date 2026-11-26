@@ -301,6 +301,7 @@ async function load(){
       const field=$("profile").elements[key];if(field)field.value=p[key]||"";
     }
     $("consent").checked=!!p.consentGiven;
+    $("profilePhoneDisplay").value=p.phone||"";
     $("universityName").value=p.university||"";
     $("overseasUniversityName").value=p.overseasUniversityName||"";
     $("admissionCategoryId").value=p.admissionCategoryId||"";
