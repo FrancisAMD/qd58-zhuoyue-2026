@@ -87,6 +87,19 @@
 <div><span class="eyebrow">UNIVERSITY TEAM</span><h3>我的大学团队</h3></div>
 <div class="directory-team-grid"><div><small>当前组长</small><strong id="teamLeaderName">—</strong><span id="teamLeaderGrade"></span></div><div><small>团队人数</small><strong id="teamMemberCount">—</strong></div><div><small>我的身份</small><strong id="teamMyRole">队员</strong></div></div>
 <p id="teamSummaryMsg" class="msg" aria-live="polite"></p>
+<section id="leaderTransferPanel" hidden>
+<h4>组长转让</h4>
+<p class="field-help">选择一位本校团队成员发起转让。对方接受后，组长身份立即变更；对方拒绝或未在有效期内响应，当前组长保持不变。</p>
+<form id="leaderTransferForm" class="cols">
+<label>转让给<select id="transferTarget" required><option value="">请选择团队成员</option></select></label>
+<div class="filter-actions"><button type="submit" class="btn" id="transferSubmit">发起转让</button></div>
+</form>
+<p id="leaderTransferMsg" class="msg" aria-live="polite"></p>
+</section>
+<section id="transferInbox" hidden>
+<h4>组长转让申请</h4>
+<div id="transferItems"></div>
+</section>
 </div>
 <div id="directory" class="directory-panel"><div class="directory-toolbar"><div><strong>同校同学</strong><span>CLASSMATES</span></div><input id="search" placeholder="搜索姓名 / 班级 / 年级 / 地区" aria-label="搜索同校同学"></div><div id="results" class="cards"></div><p id="directoryMsg" class="msg" aria-live="polite"></p></div>
 <div class="step-actions directory-actions"><button type="button" id="backToProfile" class="ghost">← 返回高校资料</button></div>
