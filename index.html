@@ -8,33 +8,71 @@
 <h3>同学信息登记</h3>
 <div class="profile-step-indicator"><span class="current" id="stepOneLabel">01 选择高校类别</span><span id="stepTwoLabel">02 搜索并确认高校</span></div>
 <section id="universityTypeStep" class="university-type-step">
-<p class="profile-intro">先选择高校所在范围。中国内地统一收录本科高校，中外合作办学、军事、公安、民族、艺术、体育等本科高校均归入中国内地高校目录。</p>
+<p class="profile-intro">先选择高校所在范围。内地本科高校、港澳台高校和海外高校分别登记；学校选择后，系统会根据类别显示对应的信息。</p>
 <input type="hidden" name="universityCategory" id="universityCategoryValue">
 <div class="university-type-grid university-type-grid-three" role="group" aria-label="高校类别">
-<button type="button" class="university-type-card" data-university-category="mainland"><span class="type-number">01 / MAINLAND</span><strong>中国内地本科高校</strong><small>普通、民办、职业本科，以及军事、公安、民族、艺术、体育和中外合作办学高校</small><span class="type-arrow">→</span></button>
+<button type="button" class="university-type-card" data-university-category="mainland"><span class="type-number">01 / MAINLAND</span><strong>中国内地本科高校</strong><small>本科层次普通高校、职业本科、军事院校及中外合作办学高校</small><span class="type-arrow">→</span></button>
 <button type="button" class="university-type-card" data-university-category="hmt"><span class="type-number">02 / HMT</span><strong>港澳台高校</strong><small>香港、澳门及台湾地区高校</small><span class="type-arrow">→</span></button>
-<button type="button" class="university-type-card" data-university-category="overseas"><span class="type-number">03 / OVERSEAS</span><strong>海外高校</strong><small>按国家归类，不要求填写州、省或城市</small><span class="type-arrow">→</span></button>
+<button type="button" class="university-type-card" data-university-category="overseas"><span class="type-number">03 / OVERSEAS</span><strong>海外高校</strong><small>自行填写学校名称，提交后等待审核</small><span class="type-arrow">→</span></button>
 </div>
 <p id="universityCategoryMsg" class="msg" aria-live="polite"></p>
 <div class="step-actions"><span class="step-hint">选择一类后继续</span><button type="button" class="btn" id="universityNext" disabled>下一步：搜索高校 <span>→</span></button></div>
 </section>
 <section id="universityDetailsStep" hidden>
 <div class="selected-university-type"><span>当前类别</span><strong id="selectedUniversityType">中国内地本科高校</strong><button type="button" id="universityBack" class="text">更改类别</button></div>
-<label>搜索高校名称、英文名称或学校代码<input id="universitySearch" type="search" maxlength="80" autocomplete="off" placeholder="例如：青岛大学 / Qingdao University / 11065"></label>
-<p class="field-help">搜索结果只包含已核验且仍有效的高校。请从结果中选择，不支持手动创建或输入未收录学校。</p>
+<div id="catalogSearchWrap">
+<label>搜索高校名称<input id="universitySearch" type="search" maxlength="80" autocomplete="off" placeholder="输入学校名称，如：复旦大学 / 香港大学"></label>
+<p class="field-help">高校名单和校区来自项目内的结构化 JSON 数据。内地请选择具体校区；港澳台只需选择学校。</p>
 <div id="universitySearchResults" class="university-search-results" role="list" aria-live="polite"></div>
-<div class="selected-university-panel"><span>已选高校</span><strong id="selectedUniversityName">尚未选择高校</strong><p id="universitySelectionMsg">请从已核验高校目录中选择。</p></div>
+</div>
+<div id="overseasUniversityWrap" hidden>
+<label>海外高校名称<input id="overseasUniversityName" maxlength="160" placeholder="请填写目前就读的海外大学名称"></label>
+<p class="field-help">海外高校暂不使用预设目录。提交后进入人工审核，审核通过后加入对应高校团队。</p>
+</div>
+<div class="selected-university-panel"><span>已选高校</span><strong id="selectedUniversityName">尚未选择高校</strong><p id="universitySelectionMsg">请先从高校目录中选择。</p></div>
+<input type="hidden" name="profileUniversityId" id="profileUniversityId">
 <input type="hidden" name="universityCatalogId" id="universityCatalogId">
 <input type="hidden" name="university" id="universityName">
-<div class="cols"><label>姓名<input name="name" required maxlength="80"></label><label>高中班级<input name="className" required maxlength="80"></label></div>
-<label>高中学校<input name="highSchool" value="青岛五十八中" required></label>
-<div class="cols"><label>当前年级<select name="grade" required><option value="">请选择</option><option>大一</option><option>大二</option><option>大三</option><option>大四</option><option>研究生</option><option>博士生</option><option>其他</option></select></label><label>目前所在省份 / 地区<input name="province" maxlength="80" placeholder="用于同地区联络" required></label></div>
-<div class="cols"><label>所在城市<input name="city" maxlength="80"></label><label class="check"><input type="checkbox" name="phoneVisible">允许同校队员查看我的手机号（默认关闭）</label></div>
-<label>个人备注<textarea name="bio" maxlength="500"></textarea></label>
-<label class="check"><input type="checkbox" id="consent" required><span>我已阅读并同意<a href="privacy.html" target="_blank" rel="noopener">《个人信息保护与隐私说明》</a>，同意将个人资料用于本次返校宣讲组织和同校目录展示。手机号公开另行选择，默认关闭。</span></label>
+<input type="hidden" name="universityCategory" id="universityCategoryField">
+<div id="campusSelectionWrap" hidden>
+<label>就读校区<select id="campusSelect" name="campusId"><option value="">请先选择高校</option></select></label>
+<p class="field-help" id="campusHelp">校区信息只用于个人资料展示。同一所大学不按校区拆分团队。</p>
+<input type="hidden" id="campusName" name="campusName">
+<input type="hidden" id="campusTag" name="campusTag">
+</div>
+<div class="cols">
+<label>姓名<input name="name" required maxlength="80"></label>
+<label>性别<select name="gender" id="gender" required><option value="">请选择</option><option value="male">男</option><option value="female">女</option><option value="undisclosed">不愿透露</option></select></label>
+</div>
+<div class="cols">
+<label>高中班级<input name="className" required maxlength="80"></label>
+<label>高中学校<input name="highSchool" value="青岛五十八中" required maxlength="100"></label>
+</div>
+<div class="cols">
+<label>当前年级<select name="grade" required><option value="">请选择</option><option>大一</option><option>大二</option><option>大三</option><option>大四</option><option>研究生</option><option>博士生</option><option>已毕业</option></select></label>
+<label>专业大类<select name="majorGroup" id="majorGroup" required><option value="">请先加载专业分类</option></select></label>
+</div>
+<div id="admissionFields" hidden>
+<h4>本科招生途径</h4>
+<p class="field-help">内地高校学生必填。先选招生大类，再选具体招生类型；招生途径与专业大类分开记录。</p>
+<div class="cols">
+<label>招生大类<select name="admissionCategoryId" id="admissionCategoryId"><option value="">请选择招生大类</option></select></label>
+<label>具体招生途径<select name="admissionTypeId" id="admissionTypeId"><option value="">请先选择招生大类</option></select></label>
+</div>
+</div>
+<div class="cols">
+<label>所在省份 / 地区<input name="province" id="profileProvince" maxlength="80" readonly required></label>
+<label>所在城市<input name="city" id="profileCity" maxlength="80" readonly></label>
+</div>
+<div class="cols">
+<label>第二联系方式（手机号，可选）<input name="secondaryPhone" id="secondaryPhone" inputmode="numeric" maxlength="11" placeholder="选填"></label>
+<label>微信号<input name="wechatId" id="wechatId" maxlength="80" placeholder="请输入微信号"></label>
+</div>
+<label>个人备注<textarea name="bio" maxlength="500" placeholder="可填写研究方向、兴趣或其他想让同校同学了解的信息"></textarea></label>
+<label class="check"><input type="checkbox" id="consent" required><span>我已阅读并同意<a href="privacy.html" target="_blank" rel="noopener">《个人信息保护与隐私说明》</a>。我理解：提交后，同一所大学团队内的同学可以查看我的姓名、年级、专业大类、微信号、注册手机号及选填的第二手机号；这些联系方式不会向其他学校或公众展示。</span></label>
 <div class="step-actions"><button type="button" id="universityBackBottom" class="ghost">上一步</button><button class="btn">保存资料</button></div>
 <p id="profileMsg" class="msg" aria-live="polite"></p><div class="profile-next"><button type="button" id="goDirectory" class="btn" hidden>进入第三页：查看同校同学 <span>→</span></button></div>
-</section><div class="account-danger-zone"><p>如果不再参加本次活动，可以永久移除账号和个人资料。此操作不可撤销。</p><button type="button" id="deleteAccountOpen" class="danger-link">删除我的账号与资料</button></div></form></section>
+</section></section><div class="account-danger-zone"><p>如果不再参加本次活动，可以永久移除账号和个人资料。此操作不可撤销。</p><button type="button" id="deleteAccountOpen" class="danger-link">删除我的账号与资料</button></div></form></section>
 <section id="groups" class="section directory-stage" hidden>
 <p class="eyebrow">03 / FIND YOUR CLASSMATES</p>
 <h2>在同一所大学，再次相遇</h2>
