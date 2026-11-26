@@ -43,7 +43,7 @@ function makeDb({ hash, otherMembers = 0, forceDeleteConflict = false } = {}) {
     forceDeleteConflict, rateLimits: new Map(), challenge: null,
     challengeDeleted: false, challengeConsumed: false, sessionsRevoked: false,
     leaderReleased: false, pendingTransfersExpired: false, profileFieldsCleared: false,
-    audit: null, batchCount: 0
+    audit: null, batchCount: 0, scrubSql: ""
   };
   const db = {
     prepare(sql) {
@@ -178,6 +178,7 @@ function makeDb({ hash, otherMembers = 0, forceDeleteConflict = false } = {}) {
             return { meta: { changes: 1 } };
           }
           if (sql.startsWith("UPDATE users SET phone='deleted:'||id")) {
+            state.scrubSql = sql;
             if (!state.active || state.forceDeleteConflict) return { meta: { changes: 0 } };
             state.active = false;
             state.tombstone = true;
@@ -333,6 +334,13 @@ try {
   assert.equal(state.active, false);
   assert.equal(state.tombstone, true);
   assert.equal(state.profileFieldsCleared, true);
+for (const field of [
+  "gender='undisclosed'", "major_group=''", "major_discipline_code=''",
+  "admission_category_id=''", "admission_type_id=''", "campus_id=''",
+  "campus_name=''", "campus_tag=''", "secondary_phone=''", "wechat_id=''",
+  "overseas_university_name=''", "profile_review_submitted_at=''", "profile_reviewed_at=''"
+]) assert.ok(state.scrubSql.includes(field), "account deletion must scrub new profile field: " + field);
+assert.ok(state.scrubSql.includes("profile_review_status='rejected'"), "deleted accounts must leave the overseas review queue");
   assert.equal(state.sessionsRevoked, true);
   assert.equal(state.leaderReleased, true);
   assert.equal(state.challengeDeleted, true);
