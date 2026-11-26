@@ -364,28 +364,100 @@ async function loadDirectory(){
   $("directoryMsg").textContent="";
   $("directoryCount").textContent="正在加载同学资料…";
   try{
-    directory=await call("/directory");
+    const [data,transferData]=await Promise.all([
+      call("/directory"),
+      call("/teams/transfers").catch(error=>({transfers:[],transferError:error.message}))
+    ]);
+    directory={...data,transfers:transferData.transfers||[],transferError:transferData.transferError||""};
     render();
-  }catch(e){
+  }catch(error){
     $("directoryCount").textContent="暂时无法加载";
-    $("directoryMsg").textContent=e.message==="unauthorized"?"登录状态已失效，请重新登录。":"同学资料加载失败，请稍后重试。";
-    if(e.message==="unauthorized")showAuthStage();
+    $("directoryMsg").textContent=error.message==="unauthorized"?"登录状态已失效，请重新登录。":"同学资料加载失败，请稍后重试。";
+    if(error.message==="unauthorized")showAuthStage();
+  }
+}
+function transferStatusLabel(status){
+  return ({pending:"等待对方处理",accepted:"已完成转让",rejected:"对方已拒绝",expired:"已过期"})[status]||"状态未知";
+}
+function renderTransfers(){
+  const team=directory?.team,items=directory?.transfers||[];
+  $("teamSummary").hidden=!team;
+  $("transferInbox").hidden=!items.length;
+  if(team){
+    $("teamLeaderName").textContent=team.leaderName||"暂未指定";
+    $("teamLeaderGrade").textContent=team.leaderGrade||"";
+    $("teamMemberCount").textContent=String(team.memberCount||0);
+    $("teamMyRole").textContent=team.isLeader?"组长":"队员";
+    $("leaderTransferPanel").hidden=!team.isLeader;
+    const targets=directory.members||[];
+    $("transferTarget").innerHTML='<option value="">请选择团队成员</option>'+targets.map(member=>'<option value="'+safe(member.id)+'">'+safe(member.name||"同学")+' · '+safe(member.grade||"年级未填写")+'</option>').join("");
+    $("transferSubmit").disabled=!targets.length;
+    if(team.isLeader&&!targets.length)msg("leaderTransferMsg","团队暂时没有其他成员，暂不可转让。");
+    else if(team.isLeader)msg("leaderTransferMsg","你当前是该校团队组长。选择一位队员即可发起转让。");
+    else msg("teamSummaryMsg","你是该校团队成员。组长转让完成后，系统会自动更新身份。");
+  }
+  if(items.length){
+    $("transferItems").innerHTML=items.map(item=>{
+      const incoming=item.status==="pending"&&item.to_user_id===directory.currentUserId;
+      const direction=incoming?"收到转让邀请":item.from_user_id===directory.currentUserId?"你发起的转让":"团队转让记录";
+      const participants=safe(item.fromName||"组长")+" → "+safe(item.toName||"队员");
+      const actions=incoming
+        ?'<div class="transfer-actions"><button type="button" class="btn" data-transfer-action="accept" data-transfer-id="'+safe(item.id)+'">接受</button><button type="button" class="ghost" data-transfer-action="reject" data-transfer-id="'+safe(item.id)+'">拒绝</button></div>'
+        :"";
+      return '<article class="transfer-record"><div><strong>'+participants+'</strong><small>'+safe(direction)+' · '+safe(transferStatusLabel(item.status))+'</small></div><time>'+safe(item.created_at||"")+'</time>'+actions+'</article>';
+    }).join("");
   }
 }
 function render(){
   if(!directory)return;
   const rows=directory.members||[];
   const q=$("search").value.trim().toLowerCase();
-  const filtered=rows.filter(x=>[x.name,x.className,x.grade,x.province].join(" ").toLowerCase().includes(q));
+  const filtered=rows.filter(item=>[
+    item.name,item.className,item.grade,item.province,item.majorGroup,item.campusName,item.wechatId
+  ].join(" ").toLowerCase().includes(q));
   $("directoryCount").textContent="共找到 "+rows.length+" 位同校同学";
-  $("results").innerHTML=filtered.map(x=>{
-    const phone=x.phone?String(x.phone).replace(/[^0-9+]/g,""):"";
-    const contact=phone
-      ?'<a class="contact-link" href="tel:'+safe(phone)+'">☎ '+safe(phone)+'</a>'
-      :'<span class="contact-private">手机号未授权公开</span>';
-    return '<article class="classmate-card panel"><div class="classmate-top"><span class="classmate-avatar">'+safe((x.name||"同").slice(0,1))+'</span><div><strong>'+safe(x.name||"同学")+'</strong><small>'+safe(x.className||"班级未填写")+'</small></div></div><div class="classmate-meta"><span>'+safe(x.grade||"年级未填写")+'</span><span>'+safe(x.province||"地区未填写")+'</span></div><div class="classmate-contact">'+contact+'</div></article>';
+  $("results").innerHTML=filtered.map(item=>{
+    const phone=item.phone?String(item.phone).replace(/[^0-9+]/g,""):"";
+    const second=item.secondaryPhone?String(item.secondaryPhone).replace(/[^0-9+]/g,""):"";
+    const contacts=[];
+    if(phone)contacts.push('<a class="contact-link" href="tel:'+safe(phone)+'">☎ '+safe(phone)+'</a>');
+    if(second)contacts.push('<a class="contact-link" href="tel:'+safe(second)+'">备用电话：'+safe(second)+'</a>');
+    if(item.wechatId)contacts.push('<span class="contact-link">微信：'+safe(item.wechatId)+'</span>');
+    const contact=contacts.length?contacts.join(" · "):'<span class="contact-private">该同学尚未完成新版联系方式授权</span>';
+    const campus=item.campusName?'<span>'+safe(item.campusName)+(item.campusTag?' · '+safe(item.campusTag):"")+'</span>':"";
+    return '<article class="classmate-card panel"><div class="classmate-top"><span class="classmate-avatar">'+safe((item.name||"同").slice(0,1))+'</span><div><strong>'+safe(item.name||"同学")+'</strong><small>'+safe(item.className||"班级未填写")+'</small></div></div><div class="classmate-meta"><span>'+safe(item.grade||"年级未填写")+'</span><span>'+safe(item.province||"地区未填写")+'</span>'+campus+'<span>'+safe(item.majorGroup||"专业大类未填写")+'</span></div><div class="classmate-contact">'+contact+'</div></article>';
   }).join("")||'<div class="directory-empty"><strong>暂时没有找到同学</strong><p>'+(q?"试试其他关键词，或清空搜索条件。":"同校同学登记后会显示在这里。")+'</p></div>';
+  renderTransfers();
 }
+$("leaderTransferForm").onsubmit=async event=>{
+  event.preventDefault();
+  const targetId=$("transferTarget").value;
+  if(!targetId)return msg("leaderTransferMsg","请先选择一位团队成员。",true);
+  $("transferSubmit").disabled=true;msg("leaderTransferMsg","正在提交转让邀请…");
+  try{
+    await call("/teams/transfer",{toUserId:targetId});
+    msg("leaderTransferMsg","转让邀请已发出。对方接受前，你仍然是组长。");
+    await loadDirectory();
+  }catch(error){
+    const labels={not_team_leader:"你当前不是团队组长。",transfer_target_not_in_team:"所选成员不属于当前团队。",transfer_conflict_or_pending_exists:"团队已有待处理的转让邀请，请先完成后再发起。"};
+    msg("leaderTransferMsg",labels[error.message]||"转让申请失败，请稍后重试。",true);
+  }finally{$("transferSubmit").disabled=false;}
+};
+$("transferItems").addEventListener("click",async event=>{
+  const button=event.target.closest("[data-transfer-action]");
+  if(!button)return;
+  const action=button.dataset.transferAction,id=button.dataset.transferId;
+  button.disabled=true;
+  try{
+    await call("/teams/transfer/"+encodeURIComponent(id)+"/"+action,{});
+    msg("teamSummaryMsg",action==="accept"?"你已接受组长转让，团队组长身份已更新。":"你已拒绝组长转让。");
+    await load();
+    if(!$("groups").hidden)await loadDirectory();
+  }catch(error){
+    const labels={transfer_expired:"该邀请已过期。",transfer_state_conflict:"该邀请状态已变化，请刷新列表。",transfer_forbidden:"你无权处理这条邀请。"};
+    msg("teamSummaryMsg",labels[error.message]||"处理转让邀请失败，请刷新后重试。",true);
+  }finally{button.disabled=false;}
+});
 document.querySelectorAll("[data-close]").forEach(x=>x.onclick=()=>$("modal").classList.remove("show"));
 document.querySelectorAll("[data-university-category]").forEach(b=>b.onclick=()=>{
   if(categoryLocked)return;
