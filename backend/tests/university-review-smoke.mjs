@@ -12,7 +12,8 @@ function makeDb({role="admin",pending=true,existing=[]}={}) {
     prepare(sql){
       let args=[];
       return {
-        bind(...values){args=values;return this;},
+        sql,bindings:[],
+        bind(...values){args=values;this.bindings=values;return this;},
         first:async()=>{
           state.queries.push({method:"first",sql,args});
           if(sql.startsWith("SELECT a.id,a.username,a.role FROM admin_sessions"))return admin;
