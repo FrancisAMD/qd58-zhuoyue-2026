@@ -74,6 +74,13 @@
       <div class="pagination"><button id="prevPage" class="ghost" type="button">上一页</button><span id="pageLabel"></span><button id="nextPage" class="ghost" type="button">下一页</button></div>
     </section>
 
+    <section id="universityReviewPanel" class="panel" hidden>
+      <div class="admin-heading"><div><p class="eyebrow">OVERSEAS UNIVERSITY REVIEW</p><h3>海外高校审核</h3></div><button id="refreshUniversityReviews" class="ghost" type="button">刷新队列</button></div>
+      <p class="muted">海外学校由同学自行填写。审核时请核实学校名称；系统会将规范化名称相同的海外高校归并到同一支团队。批准后，该同学立即解锁同校页面。</p>
+      <div id="universityReviewRows" class="admin-review-list"></div>
+      <p id="universityReviewMsg" class="msg" role="status" aria-live="polite"></p>
+    </section>
+
     <section id="auditPanel" class="panel" hidden>
       <div class="admin-heading"><div><p class="eyebrow">AUDIT TRAIL</p><h3>管理员操作审计</h3></div><button id="refreshAudit" class="ghost" type="button">刷新</button></div>
       <div class="table-wrap"><table class="admin-table"><thead><tr><th>时间</th><th>操作者</th><th>操作</th><th>对象</th><th>记录摘要</th></tr></thead><tbody id="auditRows"></tbody></table></div>
