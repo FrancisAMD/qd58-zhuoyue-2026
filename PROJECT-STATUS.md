@@ -315,3 +315,13 @@
 - Worker 关联 R2 intent eventId 与 D1 account.deleted audit ID 的代码提交已通过 CI run #214。
 - 后续新增的“D1 冲突后重新申请验证码并重试”测试在 run #215/#216 失败：模拟短信冷却仍保留，重试验证码请求返回 429，而测试预期 200。当前判断是测试 fixture 的冷却隔离问题；生产 Worker 修改本身在 run #214 已通过。
 - 修复测试 fixture 前不宣称全套 CI 通过；PR #6 仍 Draft。未操作远程 R2/D1、未部署。
+
+
+## 2026-11-26 — Admin login diagnosis and account retry regression
+
+- Fixed the account-deletion retry smoke test to advance only the simulated SMS cooldown window before retrying; daily-phone and hourly-IP quotas remain intact. The earlier HTTP 429 was a test-clock/cooldown setup issue, not an account-deletion transaction failure.
+- Improved admin console error messages for invalid credentials, missing `RATE_LIMIT_HMAC_SECRET`, `APP_ORIGIN` mismatch, and Worker internal errors.
+- Added admin-auth regression coverage for a bootstrap-generated PBKDF2-SHA256 hash, successful owner login, secure `__Host-qd58_admin` cookie issuance, `/api/admin/me` session validation, and fail-closed behavior when the rate-limit secret is absent.
+- Added operator instructions for read-only inspection of `admin_users`, first-owner bootstrap, and checking Worker Secret names. No passwords, SQL files, cookie values, or secret values are stored in the repository.
+- Remote Cloudflare D1 and Worker Secrets remain unverified because no Cloudflare runtime/authorization is available in this session. No password reset, remote SQL, secret change, or deployment was performed.
+- CI verification is pending for the latest test corrections.
