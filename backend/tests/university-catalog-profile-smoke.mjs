@@ -12,7 +12,8 @@ const baseUser={
   profile_review_submitted_at:"",profile_reviewed_at:"",deleted_at:"",auth_version:1
 };
 const campus={id:"CN-10001-MAIN",name:"主校区",tag:"主校区",country:"中国",province:"山东省",city:"青岛市",status:"active",branches:[
-  {id:"CN-10001-BRANCH-1",name:"即墨校区",tag:"异地校区",country:"中国",province:"山东省",city:"青岛市",status:"active"}
+  {id:"CN-10001-BRANCH-1",name:"即墨校区",tag:"异地校区",country:"中国",province:"山东省",city:"青岛市",status:"active"},
+  {id:"CN-10001-BRANCH-2",name:"海外合作校区",tag:"海外合作校区",country:"英国",province:"英格兰",city:"伦敦",status:"active"}
 ]};
 const profileCatalog={
   source_id:"CN-10001",university_id:"profile-CN-10001",category:"mainland",canonical_name:"示例大学",
@@ -74,6 +75,15 @@ assert.ok(userUpdate.includes("CN-10001-MAIN"));
 assert.ok(userUpdate.includes("主校区"));
 assert.ok(userUpdate.includes("山东省"));
 assert.ok(userUpdate.includes("13900000000")===false);
+
+const overseasCampusDb=makeDb();
+const overseasCampus=await save(overseasCampusDb.DB,{campusId:"CN-10001-BRANCH-2"});
+assert.equal(overseasCampus.status,200,"a mainland university overseas branch remains attached to the parent school");
+const overseasCampusUpdate=overseasCampusDb.state.batchBindings[1];
+assert.equal(overseasCampusUpdate[12],"CN-10001-BRANCH-2");
+assert.equal(overseasCampusUpdate[5],"英国 · 英格兰","the selected foreign campus must retain its country and region");
+assert.equal(overseasCampusUpdate[6],"伦敦");
+
 
 const invalidCampusDb=makeDb();
 const invalidCampus=await save(invalidCampusDb.DB,{campusId:"fake-campus"});
