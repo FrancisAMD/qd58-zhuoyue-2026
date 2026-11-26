@@ -395,6 +395,11 @@ document.querySelectorAll("[data-university-category]").forEach(b=>b.onclick=()=
 $("universityNext").onclick=()=>openUniversityDetails();
 $("universityBack").onclick=showUniversityCategoryStep;
 $("universityBackBottom").onclick=showUniversityCategoryStep;
+$("campusSelect").onchange=updateCampusFromSelection;
+$("admissionCategoryId").onchange=()=>{if(profileReferenceData)populateAdmissionTypes(profileReferenceData.admissions.categories,$("admissionCategoryId").value,"");};
+$("overseasUniversityName").oninput=()=>{$("universityName").value=$("overseasUniversityName").value.trim();$("selectedUniversityName").textContent=$("overseasUniversityName").value.trim()||"尚未填写海外高校";};
+$("reviewRefresh").onclick=async()=>{$("reviewRefresh").disabled=true;msg("reviewMsg","正在查询审核状态…");await load();$("reviewRefresh").disabled=false;};
+
 $("universitySearch").addEventListener("input",()=>{
   clearTimeout(universitySearchTimer);
   universitySearchTimer=setTimeout(searchUniversities,250);
