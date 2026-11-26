@@ -264,3 +264,16 @@ body.dark .demo-status.expired{background:#383842;color:#d0d0d9}
   .demo-warning{flex-direction:column;gap:3px}
   .demo-tabs button{padding:8px 10px}
 }
+
+
+.admin-review-list{display:grid;gap:12px;margin-top:16px}
+.admin-review-card{padding:16px;border:1px solid var(--line);border-radius:10px;background:var(--paper)}
+.admin-review-summary{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.admin-review-summary b{display:block;font-size:14px;color:var(--ink)}
+.admin-review-summary small,.admin-review-card>small{display:block;margin-top:5px;color:var(--muted);font-size:10px}
+.admin-review-card p{margin:12px 0 6px;color:var(--muted);font-size:12px}
+.admin-review-card p strong{color:var(--ink)}
+.admin-review-card label{display:block;margin:12px 0;color:var(--muted);font-size:11px}
+.admin-review-card input{display:block;width:100%;margin-top:6px;padding:11px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--ink)}
+.admin-review-card .admin-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.admin-review-card .admin-actions button{margin:0}
