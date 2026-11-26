@@ -57,7 +57,7 @@ try{
     const file=path.join(tempDir,"batch-"+String(i+1).padStart(3,"0")+".sql");
     fs.writeFileSync(file,chunks[i]+"\n","utf8");
     const command=process.platform==="win32"?"npx.cmd":"npx";
-    const result=spawnSync(command,["wrangler","d1","execute",DB_NAME,mode,"--file",file],{cwd:ROOT,stdio:"inherit"});
+    const result=spawnSync(command,["wrangler","d1","execute",DB_NAME,mode,"--file",file],{cwd:ROOT,stdio:"inherit",shell:process.platform==="win32"});
     if(result.error)throw result.error;
     if(result.status!==0)throw new Error("第 "+(i+1)+" 批导入失败，脚本已停止；可安全重新运行。");
     console.log("完成 "+(i+1)+"/"+chunks.length);
