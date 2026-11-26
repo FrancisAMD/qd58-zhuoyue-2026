@@ -724,7 +724,7 @@ async function route(request, env) {
       if(leadership && Number(leadership.other_members||0)>0) return response({error:"leader_transfer_required"},409,origin,env);
       await verifyCode(user.phone,d.code,"account_delete",env);
       const timestamp=new Date().toISOString();
-      await recordDeletionIntent(env.DELETE_LEDGER,user.id,timestamp,randomHex(16));
+      const deletionIntent=await recordDeletionIntent(env.DELETE_LEDGER,user.id,timestamp,randomHex(16));
       const phoneRateLimitKeys=await Promise.all([
         rateLimitKey(env,"sms:cooldown",user.phone),
         rateLimitKey(env,"sms:phone",user.phone),
@@ -743,7 +743,7 @@ async function route(request, env) {
           AND NOT EXISTS(SELECT 1 FROM teams WHERE leader_user_id=users.id)
           AND NOT EXISTS(SELECT 1 FROM leader_transfers WHERE status='pending' AND (from_user_id=users.id OR to_user_id=users.id))`).bind(timestamp,timestamp,user.id,account.password_hash,Number(account.auth_version)),
         env.DB.prepare("INSERT INTO audit_logs(id,actor_type,actor_id,action,target_type,target_id,metadata_json) VALUES(?,'system',NULL,'account.deleted','user',?,?)")
-          .bind(randomHex(16),user.id,JSON.stringify({method:"password_and_sms_anonymization"}))
+          .bind(deletionIntent.record.eventId,user.id,JSON.stringify({method:"password_and_sms_anonymization"}))
       ];
       const results=await env.DB.batch(statements);
       if((results[5]?.meta?.changes||0)!==1) return response({error:"account_delete_conflict"},409,origin,env);
