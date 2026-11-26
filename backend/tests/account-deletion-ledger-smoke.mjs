@@ -6,7 +6,7 @@ function fakeBucket() {
   return {
     objects,
     async put(key, value, options = {}) {
-      if (options.onlyIf?.etagDoesNotMatch === "*" && objects.has(key)) return null;
+      if ((options.onlyIf instanceof Headers && options.onlyIf.get("If-None-Match") === "*") && objects.has(key)) return null;
       objects.set(key, String(value));
       return { key };
     },
