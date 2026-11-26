@@ -831,7 +831,10 @@ async function route(request, env) {
             const chosen=choices.find(item=>item.id===String(d.campusId||""));
             if(!chosen) return response({error:"campus_selection_required"},400,origin,env);
             campusId=String(chosen.id);campusName=String(chosen.name||"校区");campusTag=String(chosen.tag||"");
-            province=String(chosen.province||profileCatalog.province_name||"");city=String(chosen.city||profileCatalog.city_name||"");
+            const campusCountry=String(chosen.country||"中国");
+            const campusProvince=String(chosen.province||profileCatalog.province_name||"");
+            province=campusCountry&&campusCountry!=="中国"?[campusCountry,campusProvince].filter(Boolean).join(" · "):campusProvince;
+            city=String(chosen.city||profileCatalog.city_name||"");
             if(!province) return response({error:"profile_reference_invalid"},400,origin,env);
           }catch(error){if(error?.error)return response({error:error.error},error.status||400,origin,env);return response({error:"profile_reference_invalid"},400,origin,env);}
         } else {
