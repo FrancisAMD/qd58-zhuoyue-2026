@@ -12,7 +12,7 @@ const b64 = bytes => {
 async function passwordHash(password) {
   const salt = Uint8Array.from({length:16},(_,i)=>i+1);
   const derived = await derivePassword(password,salt);
-  return `pbkdf2-sha256${PBKDF2_ITERATIONS}${b64(salt)}${b64(derived)}`;
+  return "pbkdf2-sha256$"+PBKDF2_ITERATIONS+"$"+b64(salt)+"$"+b64(derived);
 }
 
 // Match scripts/create-admin.mjs exactly: the bootstrap utility uses Node's
@@ -20,7 +20,7 @@ async function passwordHash(password) {
 function bootstrapPasswordHash(password) {
   const salt = Uint8Array.from({length:16},(_,i)=>i+1);
   const derived = pbkdf2Sync(password,Buffer.from(salt),PBKDF2_ITERATIONS,32,"sha256");
-  return `pbkdf2-sha256${PBKDF2_ITERATIONS}${b64(salt)}${b64(derived)}`;
+  return "pbkdf2-sha256$"+PBKDF2_ITERATIONS+"$"+b64(salt)+"$"+b64(derived);
 }
 class AuditDB {
   constructor(account=null,{rateLimitAllowed=true,failAudit=false}={}) {
