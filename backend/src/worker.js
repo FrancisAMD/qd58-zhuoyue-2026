@@ -768,7 +768,7 @@ async function route(request, env) {
       profileCatalog=await env.DB.prepare("SELECT source_id FROM profile_university_catalog WHERE university_id=?").bind(user.university_id).first();
     }
     return response({profile:{
-      name:user.name,className:user.class_name,highSchool:user.high_school,
+      name:user.name,phone:user.phone,className:user.class_name,highSchool:user.high_school,
       university:user.profile_review_status==="pending"?(user.overseas_university_name||""):uni?.canonical_name||"",
       universityCatalogId:uni?.catalog_id||null,profileUniversityId:profileCatalog?.source_id||null,
       universityCategory:uni?.category||(user.profile_review_status==="pending"?"overseas":""),
