@@ -300,3 +300,11 @@
 - 将 ledger smoke 加入 `check:worker` / `test:worker`。
 - 自动恢复重放工具尚未完成：本次仅实现意图记录和分页读取，不能声称已解决旧快照恢复后的删除重放。正式上线仍需完成恢复重放工具、隔离 D1 演练、R2 权限/保留策略及远程 D1 核对。
 - 本次未创建 bucket、未访问远程 D1/R2、未导出或恢复备份、未发送短信、未读取真实个人数据、未部署 Worker/Pages。
+
+
+## 本次增量里程碑（2026-11-26）：账号删除意图与 D1 审计事件关联
+
+- 复核独立 R2 删除意图台账和账号删除 D1 batch，发现此前 R2 的 eventId 与 D1 audit_logs.id 各自随机生成，无法精确关联。
+- 现在复用 R2 intent 的 eventId 作为 D1 的 account.deleted audit ID；失败事务不会留下审计行，重试读取 create-once intent 后使用同一 ID，形成跨存储可核验关联。
+- 修正 account-deletion smoke 的 R2 conditional-put mock，使其按 Worker R2 API 的 If-None-Match 语义模拟 create-once；增加事务冲突后重试并验证事件 ID一致、意图未被覆盖的回归测试。
+- 本次仅修改 Worker 与隔离测试；未访问 R2/D1、未导出/恢复备份、未发送短信或部署。远程环境及恢复重放仍待授权操作和隔离演练。
