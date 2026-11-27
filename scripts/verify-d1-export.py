@@ -102,7 +102,7 @@ def verify_sql_export(path, expected_migration=None, expected_sha256=None):
             }
             required_user_columns = {
                 "deleted_at", "phone", "password_hash", "name", "high_school",
-                "class_name", "university_id", "grade", "province", "city", "bio",
+                "class_name", "university_id", "grade", "province", "city", "bio", "greeting",
                 "phone_visible_to_team", "consent_given", "consent_at",
                 "consent_version", "account_consent_at", "account_consent_version",
             }
@@ -122,6 +122,7 @@ def verify_sql_export(path, expected_migration=None, expected_sha256=None):
                      OR province IS NOT NULL
                      OR city IS NOT NULL
                      OR bio IS NOT NULL
+                     OR greeting IS NOT NULL
                      OR phone_visible_to_team<>0
                      OR consent_given<>0
                      OR consent_at<>''
