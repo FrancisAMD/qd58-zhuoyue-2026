@@ -216,7 +216,7 @@ function renderDemo(){
       '<div class="stat"><small>待处理转让</small><b>1</b></div></div>'+
       '<div class="demo-note-grid"><article><small>最近动态</small><b>高校队伍持续完善</b><p>展示报名进度、队伍数量与待处理事项。</p></article><article><small>权限提示</small><b>手机号默认隐藏</b><p>演示名单与导出样例均不包含手机号、密码或真实联系方式。</p></article></div>';
   } else if(demoView==="people"){
-    const rows=DEMO_DATA.people.filter(item=>[item.name,item.className,item.university,item.province].join(" ").toLowerCase().includes(query));
+    const rows=DEMO_DATA.people.filter(item=>[item.name,item.highSchool,item.university,item.province].join(" ").toLowerCase().includes(query));
     content.innerHTML='<p class="muted">以下为虚构报名数据，共 '+rows.length+' 条匹配结果。</p><div class="table-wrap"><table class="admin-table"><thead><tr><th>姓名</th><th>高中学校</th><th>大学</th><th>年级</th><th>地区</th><th>资料同意</th><th>登记时间</th></tr></thead><tbody>'+
       (rows.map(item=>'<tr><td>'+safe(item.name)+'</td><td>'+safe(item.highSchool)+'</td><td>'+safe(item.university)+'</td><td>'+safe(item.grade)+'</td><td>'+safe(item.province)+'</td><td>'+(item.consent?"已同意":"未同意")+'</td><td>'+safe(item.created)+'</td></tr>').join("")||'<tr><td colspan="7">没有匹配的演示记录</td></tr>')+
       '</tbody></table></div>';
