@@ -3,11 +3,12 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { parseSeedArgs } from "./profile-catalog-seed-args.js";
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
 const DB_NAME="qd58-zhuoyue-db";
-const args=new Set(process.argv.slice(2));
-const mode=args.has("--remote")?"--remote":args.has("--local")?"--local":"";
-if(!mode){console.error("请明确指定 --remote 或 --local。");process.exit(2);}
+let config;
+try { config=parseSeedArgs(process.argv.slice(2)); }
+catch(error) { console.error(error.message); process.exit(2); }
 const readJson=relative=>JSON.parse(fs.readFileSync(path.join(ROOT,relative),"utf8"));
 const esc=value=>"'"+String(value??"").replace(/'/g,"''")+"'";
 const json=value=>esc(JSON.stringify(value));
@@ -77,14 +78,24 @@ statements.push("DELETE FROM profile_option_codes WHERE option_type IN ('major_g
 const chunkSize=80,chunks=[];
 for(let i=0;i<statements.length;i+=chunkSize)chunks.push(statements.slice(i,i+chunkSize).join("\n"));
 console.log("数据源检查通过：内地 "+main.universities.length+" 所、港澳台 "+hmt.universities.length+" 所、专业门类 "+majors.categories.length+" 项、招生大类 "+admissions.categories.length+" 类。");
-console.log("共 "+statements.length+" 条幂等 SQL，分 "+chunks.length+" 批写入 "+mode+" D1；最后一批会清理废弃字段和无效选项值，不删除账号。");
+console.log("共 "+statements.length+" 条幂等 SQL，分 "+chunks.length+" 批；将维护 universities、profile_university_catalog、profile_option_codes，并包含现有用户资料规范化 UPDATE 和废弃选项清理。");
+if(!config.apply){
+  console.log("安全预览（默认 dry-run）：未调用 Wrangler，未连接或写入 D1。");
+  if(config.targetMode==="--remote")console.log("目标预览：远程 D1 "+DB_NAME+"（仅预览）。");
+  else if(config.targetMode==="--local")console.log("目标预览：本地 D1（仅预览）。");
+  else console.log("未指定 D1 目标；本次仅生成内存中的预览摘要。");
+  console.log("如需本地执行：npm run seed:profile-catalog -- --local --apply");
+  console.log("如需远程执行：npm run seed:profile-catalog -- --remote --apply --confirm-remote "+DB_NAME);
+  console.log("警告：apply 会批量写入目录/选项，并规范化现有用户资料字段；先备份 D1、核对远程迁移和预览摘要，再显式确认。");
+  process.exit(0);
+}
 const tempDir=fs.mkdtempSync(path.join(os.tmpdir(),"qd58-profile-seed-"));
 try{
   for(let i=0;i<chunks.length;i++){
     const file=path.join(tempDir,"batch-"+String(i+1).padStart(3,"0")+".sql");
     fs.writeFileSync(file,chunks[i]+"\n","utf8");
     const command=process.platform==="win32"?"npx.cmd":"npx";
-    const result=spawnSync(command,["wrangler","d1","execute",DB_NAME,mode,"--file",file],{cwd:ROOT,stdio:"inherit",shell:process.platform==="win32"});
+    const result=spawnSync(command,["wrangler","d1","execute",DB_NAME,config.targetMode,"--file",file,{cwd:ROOT,stdio:"inherit",shell:process.platform==="win32"});
     if(result.error)throw result.error;
     if(result.status!==0)throw new Error("第 "+(i+1)+" 批导入失败，脚本已停止；可安全重新运行。");
     console.log("完成 "+(i+1)+"/"+chunks.length);
