@@ -266,6 +266,64 @@ function detectGroupChatImageType(bytes) {
   if (b.length >= 12 && String.fromCharCode(...b.slice(0,4))==="RIFF" && String.fromCharCode(...b.slice(8,12))==="WEBP") return "image/webp";
   return "";
 }
+async function attachAdminGroupChatStatus(env, items) {
+  if (!items.length) return items;
+  const regionByUser = new Map();
+  for (const item of items) {
+    const region = resolveGroupChatRegion(item.universityCategory,[
+      item.universityMainProvince,item.profileCatalogProvince,item.universityLegacyRegion,item.province
+    ]);
+    regionByUser.set(item.id,region);
+    item.groupChatRegionKey = region?.key || null;
+    item.groupChatRegionLabel = region?.label || "";
+  }
+  const userIds = items.map(item=>item.id);
+  const placeholders = userIds.map(()=>"?").join(",");
+  const confirmationRows = await env.DB.prepare(
+    "SELECT user_id AS userId,region_key AS regionKey,university_id_snapshot AS universityIdSnapshot,"+
+    "qr_uploaded_at_snapshot AS qrUploadedAtSnapshot,confirmed_at AS confirmedAt "+
+    "FROM group_chat_confirmations WHERE user_id IN ("+placeholders+")"
+  ).bind(...userIds).all();
+  const confirmations = new Map((confirmationRows.results||[]).map(row=>[row.userId+"|"+row.regionKey,row]));
+  const regionKeys = [...new Set([...regionByUser.values()].filter(Boolean).map(region=>region.key))];
+  const assets = new Map();
+  if (env.GROUP_QR) {
+    await Promise.all(regionKeys.map(async key=>{
+      try {
+        const object=await env.GROUP_QR.head(groupChatQrObjectKey(key));
+        assets.set(key,groupChatAssetMetadata(object));
+      } catch {
+        assets.set(key,undefined);
+      }
+    }));
+  }
+  for (const item of items) {
+    const region=regionByUser.get(item.id);
+    const previous=region?confirmations.get(item.id+"|"+region.key):null;
+    const asset=region?assets.get(region.key):null;
+    item.groupChatConfirmedAt=previous?.confirmedAt||null;
+    if (!region) {
+      item.groupChatStatus="not_applicable";
+      item.groupChatStatusLabel="暂无高校地区";
+    } else if (!env.GROUP_QR || asset===undefined) {
+      item.groupChatStatus="unavailable";
+      item.groupChatStatusLabel="二维码服务暂不可用";
+    } else if (!asset) {
+      item.groupChatStatus="not_uploaded";
+      item.groupChatStatusLabel="地区二维码未上传";
+    } else if (previous?.confirmedAt && previous.qrUploadedAtSnapshot===asset.uploadedAt) {
+      item.groupChatStatus="confirmed";
+      item.groupChatStatusLabel="已确认加入";
+    } else if (previous?.confirmedAt) {
+      item.groupChatStatus="reconfirm";
+      item.groupChatStatusLabel="二维码更新，待重新确认";
+    } else {
+      item.groupChatStatus="pending";
+      item.groupChatStatusLabel="尚未确认";
+    }
+  }
+  return items;
+}
 async function writeAudit(db, actorType, actorId, action, targetType, targetId, metadata = {}) {
   await db.prepare("INSERT INTO audit_logs(id,actor_type,actor_id,action,target_type,target_id,metadata_json) VALUES(?,?,?,?,?,?,?)")
     .bind(randomHex(16), actorType, actorId || null, action, targetType || null, targetId || null, JSON.stringify(metadata)).run();
@@ -1541,7 +1599,16 @@ if(path==="/api/teams/transfer" && method==="POST") {
     const teamCount = await env.DB.prepare("SELECT COUNT(*) AS total FROM teams t WHERE EXISTS(SELECT 1 FROM users active_member WHERE active_member.university_id=t.university_id AND active_member.deleted_at='')").first();
     let teams = [];
     if (admin.role === "owner" || admin.role === "admin") {
-      const rows = await env.DB.prepare("SELECT t.id,uni.canonical_name AS university,COUNT(u.id) AS memberCount,leader.name AS leaderName,COALESCE(leader.province,MAX(u.province),'') AS leaderProvince FROM teams t JOIN universities uni ON uni.id=t.university_id LEFT JOIN users u ON u.university_id=t.university_id AND u.deleted_at='' LEFT JOIN users leader ON leader.id=t.leader_user_id AND leader.deleted_at='' GROUP BY t.id,uni.canonical_name,leader.name HAVING COUNT(u.id)>0 ORDER BY uni.canonical_name LIMIT 500").all();
+      const rows = await env.DB.prepare(`SELECT t.id,uni.canonical_name AS university,COUNT(u.id) AS memberCount,
+        leader.name AS leaderName,
+        COALESCE(NULLIF(uni.province_name_zh,''),NULLIF(profile_catalog.province_name,''),NULLIF(uni.region_name,''),'') AS leaderProvince
+        FROM teams t
+        JOIN universities uni ON uni.id=t.university_id
+        LEFT JOIN profile_university_catalog profile_catalog ON profile_catalog.university_id=uni.id
+        LEFT JOIN users u ON u.university_id=t.university_id AND u.deleted_at=''
+        LEFT JOIN users leader ON leader.id=t.leader_user_id AND leader.deleted_at=''
+        GROUP BY t.id,uni.canonical_name,leader.name,uni.province_name_zh,profile_catalog.province_name,uni.region_name
+        HAVING COUNT(u.id)>0 ORDER BY uni.canonical_name LIMIT 500`).all();
       teams = rows.results || [];
     }
     return response({counts:{total:Number(counts?.total||0),completed:Number(counts?.completed||0),consented:Number(counts?.consented||0)},teamCount:Number(teamCount?.total||0),teams},200,origin,env);
@@ -1622,13 +1689,13 @@ if(path==="/api/teams/transfer" && method==="POST") {
     const isExport = format === "csv" || format === "xlsx";
     if (isExport && !hasAdminPermission(admin,"people:export")) return response({error:"forbidden"},403,origin,env);
     if (isExport && total > 5000) return response({error:"export_limit_exceeded",maxRows:5000},413,origin,env);
-    const select = "SELECT u.id,u.name,u.high_school AS highSchool,uni.canonical_name AS university,uni.category AS universityCategory,u.grade,u.province,u.city,u.gender,u.major_discipline_code AS majorDisciplineCode,major.label AS majorDiscipline,u.admission_category_id AS admissionCategoryId,admission.label AS admissionCategory,u.campus_name AS campusName,u.campus_tag AS campusTag,u.greeting,u.profile_review_status AS profileReviewStatus,u.overseas_university_name AS overseasUniversityName,u.consent_version AS consentVersion,u.account_consent_version AS accountConsentVersion,u.created_at AS createdAt,u.updated_at AS updatedAt,u.consent_given AS consentGiven";
-    const detailJoins = " FROM users u LEFT JOIN universities uni ON uni.id=u.university_id LEFT JOIN profile_option_codes major ON major.option_type='major_discipline' AND major.code=u.major_discipline_code LEFT JOIN profile_option_codes admission ON admission.option_type='admission_category' AND admission.code=u.admission_category_id WHERE u.deleted_at=''" + filters.clause.replace(/^ WHERE /," AND ");
+    const select = "SELECT u.id,u.name,u.high_school AS highSchool,uni.canonical_name AS university,uni.category AS universityCategory,u.grade,u.province,u.city,u.gender,u.major_discipline_code AS majorDisciplineCode,major.label AS majorDiscipline,u.admission_category_id AS admissionCategoryId,admission.label AS admissionCategory,u.campus_name AS campusName,u.campus_tag AS campusTag,u.greeting,u.profile_review_status AS profileReviewStatus,u.overseas_university_name AS overseasUniversityName,u.consent_version AS consentVersion,u.account_consent_version AS accountConsentVersion,u.created_at AS createdAt,u.updated_at AS updatedAt,u.consent_given AS consentGiven,uni.province_name_zh AS universityMainProvince,uni.region_name AS universityLegacyRegion,profile_catalog.province_name AS profileCatalogProvince";
+    const detailJoins = " FROM users u LEFT JOIN universities uni ON uni.id=u.university_id LEFT JOIN profile_university_catalog profile_catalog ON profile_catalog.university_id=uni.id LEFT JOIN profile_option_codes major ON major.option_type='major_discipline' AND major.code=u.major_discipline_code LEFT JOIN profile_option_codes admission ON admission.option_type='admission_category' AND admission.code=u.admission_category_id WHERE u.deleted_at=''" + filters.clause.replace(/^ WHERE /," AND ");
     const sql = select + detailJoins + " ORDER BY u.created_at DESC LIMIT ? OFFSET ?";
     const rows = await env.DB.prepare(sql).bind(...filters.bindings,isExport?5000:pageSize,isExport?0:(page-1)*pageSize).all();
-    const items = rows.results || [];
-    const header = ["用户编号","姓名","高中学校","大学","高校类别","年级","省份","城市","资料同意状态","创建时间","更新时间"];
-    const keys = ["id","name","highSchool","university","universityCategory","grade","province","city","consentGiven","createdAt","updatedAt"];
+    const items = await attachAdminGroupChatStatus(env,rows.results || []);
+    const header = ["用户编号","姓名","高中学校","大学","高校类别","年级","省份","城市","群聊归属地区","入群确认状态","入群确认时间","资料同意状态","创建时间","更新时间"];
+    const keys = ["id","name","highSchool","university","universityCategory","grade","province","city","groupChatRegionLabel","groupChatStatusLabel","groupChatConfirmedAt","consentGiven","createdAt","updatedAt"];
     if (format === "csv") {
       const lines = [header.map(csvCell).join(",")];
       for (const item of items) lines.push(keys.map(key => csvCell(key==="consentGiven"?(item[key]?"已同意":"未同意"):item[key])).join(","));
