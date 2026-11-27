@@ -9,7 +9,7 @@ const derivedOtherSalt=await derivePassword("worker-smoke-password",new Uint8Arr
 if(derived.length!==32 || derived.some((v,i)=>v!==derivedAgain[i]) || derived.every((v,i)=>v===derivedOtherSalt[i])) throw new Error("PBKDF2 100000 smoke test failed");
 const ok=await worker.fetch(new Request("https://api.58er.eon21.space/api/health"),env);
 const health=await ok.json();
-if(ok.status!==200 || !health.ok || health.build!=="donation-list-20261127" || health.passwordKdf!=="pbkdf2-sha256-100000") throw new Error("health route/build marker failed");
+if(ok.status!==200 || !health.ok || health.build!=="admin-rbac-20261127" || health.passwordKdf!=="pbkdf2-sha256-100000") throw new Error("health route/build marker failed");
 if(!health.readiness||health.readiness.rateLimitConfigured!==true||health.readiness.turnstileConfigured!==false||health.readiness.smsCredentialsConfigured!==false||health.readiness.smsTemplateConfigured!==false) throw new Error("health readiness must report missing configuration without exposing values");
 const configuredHealth=await worker.fetch(new Request("https://api.58er.eon21.space/api/health"),{
   APP_ORIGIN:"https://58er.eon21.space",
@@ -252,14 +252,14 @@ const viewerDb=sessionDb("viewer"),viewerCookie="__Host-qd58_admin="+"f".repeat(
 const viewerPeople=await worker.fetch(new Request("https://api.58er.eon21.space/api/admin/people",{headers:{origin:"https://58er.eon21.space",cookie:viewerCookie}}),{APP_ORIGIN:"https://58er.eon21.space",DB:viewerDb});
 const viewerAudit=await worker.fetch(new Request("https://api.58er.eon21.space/api/admin/audit",{headers:{origin:"https://58er.eon21.space",cookie:viewerCookie}}),{APP_ORIGIN:"https://58er.eon21.space",DB:viewerDb});
 if(viewerPeople.status!==403 || viewerAudit.status!==403) throw new Error("viewer role must not read roster or audit trail");
-const adminDb=sessionDb("admin"),adminCookieHeader="__Host-qd58_admin="+"e".repeat(64);
+const ownerRosterDb=sessionDb("owner"),ownerCookieHeader="__Host-qd58_admin="+"e".repeat(64);
 let peopleSql="";
-const originalPrepare=adminDb.prepare.bind(adminDb);
-adminDb.prepare=(sql)=>{if(sql.startsWith("SELECT u.id"))peopleSql=sql;return originalPrepare(sql)};
-const peopleResponse=await worker.fetch(new Request("https://api.58er.eon21.space/api/admin/people?q=青岛&province=山东省&page=1&pageSize=20",{headers:{origin:"https://58er.eon21.space",cookie:adminCookieHeader}}),{APP_ORIGIN:"https://58er.eon21.space",DB:adminDb});
+const originalPrepare=ownerRosterDb.prepare.bind(ownerRosterDb);
+ownerRosterDb.prepare=(sql)=>{if(sql.startsWith("SELECT u.id"))peopleSql=sql;return originalPrepare(sql)};
+const peopleResponse=await worker.fetch(new Request("https://api.58er.eon21.space/api/admin/people?q=青岛&province=山东省&page=1&pageSize=20",{headers:{origin:"https://58er.eon21.space",cookie:ownerCookieHeader}}),{APP_ORIGIN:"https://58er.eon21.space",DB:ownerRosterDb});
 const peopleBody=await peopleResponse.json();
-if(peopleResponse.status!==200 || peopleBody.items?.length!==1 || peopleBody.pagination?.total!==1 || /u\\.phone|SELECT[^]*phone/i.test(peopleSql)) throw new Error("admin roster filtering or phone minimization failed");
-const csvResponse=await worker.fetch(new Request("https://api.58er.eon21.space/api/admin/people?format=csv",{headers:{origin:"https://58er.eon21.space",cookie:adminCookieHeader}}),{APP_ORIGIN:"https://58er.eon21.space",DB:adminDb});
+if(peopleResponse.status!==200 || peopleBody.items?.length!==1 || peopleBody.pagination?.total!==1 || /u\\.phone|SELECT[^]*phone/i.test(peopleSql)) throw new Error("owner roster filtering or phone minimization failed");
+const csvResponse=await worker.fetch(new Request("https://api.58er.eon21.space/api/admin/people?format=csv",{headers:{origin:"https://58er.eon21.space",cookie:ownerCookieHeader}}),{APP_ORIGIN:"https://58er.eon21.space",DB:ownerRosterDb});
 const csvBytes=new Uint8Array(await csvResponse.arrayBuffer());
 const csv=new TextDecoder().decode(csvBytes);
 const hasUtf8Bom=csvBytes.length>=3 && csvBytes[0]===0xef && csvBytes[1]===0xbb && csvBytes[2]===0xbf;
@@ -268,8 +268,12 @@ if(!hasUtf8Bom) throw new Error("CSV export should include UTF-8 BOM");
 if(!csv.includes("'=2+2")) throw new Error("CSV formula-injection prefix missing");
 if(csv.includes("13800000000")) throw new Error("CSV export must not include phone numbers");
 if(!csvResponse.headers.get("content-disposition")?.includes("zhuoyue-2026-roster.csv")) throw new Error("CSV download filename missing");
-const auditResponse=await worker.fetch(new Request("https://api.58er.eon21.space/api/admin/audit",{headers:{origin:"https://58er.eon21.space",cookie:adminCookieHeader}}),{APP_ORIGIN:"https://58er.eon21.space",DB:adminDb});
-if(auditResponse.status!==200) throw new Error("admin audit read failed");
+const auditResponse=await worker.fetch(new Request("https://api.58er.eon21.space/api/admin/audit",{headers:{origin:"https://58er.eon21.space",cookie:ownerCookieHeader}}),{APP_ORIGIN:"https://58er.eon21.space",DB:ownerRosterDb});
+if(auditResponse.status!==200) throw new Error("owner audit read failed");
+const adminDb=sessionDb("admin"),adminCookieHeader="__Host-qd58_admin="+"e".repeat(64);
+const adminPeople=await worker.fetch(new Request("https://api.58er.eon21.space/api/admin/people",{headers:{origin:"https://58er.eon21.space",cookie:adminCookieHeader}}),{APP_ORIGIN:"https://58er.eon21.space",DB:adminDb});
+const adminAudit=await worker.fetch(new Request("https://api.58er.eon21.space/api/admin/audit",{headers:{origin:"https://58er.eon21.space",cookie:adminCookieHeader}}),{APP_ORIGIN:"https://58er.eon21.space",DB:adminDb});
+if(adminPeople.status!==403 || adminAudit.status!==403) throw new Error("ordinary admin must not read roster or audit");
 const adminCannotManage=await worker.fetch(new Request("https://api.58er.eon21.space/api/admin/admins",{method:"GET",headers:{origin:"https://58er.eon21.space",cookie:adminCookieHeader}}),{APP_ORIGIN:"https://58er.eon21.space",DB:adminDb});
 if(adminCannotManage.status!==403) throw new Error("only owner role may manage administrator accounts");
 const ownerAdmins=await worker.fetch(new Request("https://api.58er.eon21.space/api/admin/admins",{headers:{origin:"https://58er.eon21.space",cookie:adminCookie}}),{APP_ORIGIN:"https://58er.eon21.space",DB:ownerDb});
