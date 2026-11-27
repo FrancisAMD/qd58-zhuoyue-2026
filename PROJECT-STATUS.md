@@ -325,3 +325,14 @@
 - Added operator instructions for read-only inspection of `admin_users`, first-owner bootstrap, and checking Worker Secret names. No passwords, SQL files, cookie values, or secret values are stored in the repository.
 - Remote Cloudflare D1 and Worker Secrets remain unverified because no Cloudflare runtime/authorization is available in this session. No password reset, remote SQL, secret change, or deployment was performed.
 - CI verification is pending for the latest test corrections.
+
+
+## 2026-11-27 — R2 deletion-ledger export and offline replay preparation
+
+- Rechecked both repositories. The memoir site remains separate. PR #6 was merged into main on 2026-11-26 (merge commit 97b704a); the previously documented Draft state is historical, not current.
+- Added a feature-flagged owner-only paginated GET endpoint for the external deletion ledger. It requires same-origin, active owner session, and the account:deletion:recovery permission; each export page is audit-logged using only aggregate count and digest metadata.
+- Added scripts/export-deletion-ledger.mjs and an npm command. It prompts for admin credentials, validates all page records/checksums, rejects duplicates, collects all pages, writes a complete snapshot exclusively under private-backups, and attempts logout. It does not persist credentials/session cookies or print record rows.
+- Added scripts/replay-deletion-intents.py. It validates the SQL backup and complete R2 snapshot, restores to temporary SQLite, replays the intent set atomically, cleans sessions/OTP/rate-limit keys, expires pending transfers, safely releases an empty team leader, anonymizes user rows, and inserts the correlated account.deleted audit event. It verifies the replay-ready export before exclusive output creation.
+- Replay fails closed when a restored active user still leads a team with other active members, an audit event conflicts, an already-tombstoned account lacks its correlated audit row, the ledger is incomplete/corrupt, the HMAC secret is unavailable, or the source backup fails verification. Missing user IDs are counted without modification.
+- Added route/CLI smoke tests and a synthetic SQLite replay test; wired them into check:worker, test:worker, and test:backup. The GitHub Actions result is pending after PR creation.
+- No feature flag was enabled, no R2 bucket/export was operated, no D1 remote query/restore/migration was performed, no real user data was accessed, no SMS was sent, and no Worker/Pages deployment occurred. The real test-D1 restore rehearsal remains a launch blocker.
