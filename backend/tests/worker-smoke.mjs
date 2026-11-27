@@ -9,7 +9,19 @@ const derivedOtherSalt=await derivePassword("worker-smoke-password",new Uint8Arr
 if(derived.length!==32 || derived.some((v,i)=>v!==derivedAgain[i]) || derived.every((v,i)=>v===derivedOtherSalt[i])) throw new Error("PBKDF2 100000 smoke test failed");
 const ok=await worker.fetch(new Request("https://api.58er.eon21.space/api/health"),env);
 const health=await ok.json();
-if(ok.status!==200 || !health.ok || health.build!=="profile-registration-v4-20261126" || health.passwordKdf!=="pbkdf2-sha256-100000") throw new Error("health route/build marker failed");
+if(ok.status!==200 || !health.ok || health.build!=="sms-readiness-diagnostics-20261127" || health.passwordKdf!=="pbkdf2-sha256-100000") throw new Error("health route/build marker failed");
+if(!health.readiness||health.readiness.rateLimitConfigured!==false||health.readiness.turnstileConfigured!==false||health.readiness.smsCredentialsConfigured!==false||health.readiness.smsTemplateConfigured!==false) throw new Error("health readiness must report missing configuration without exposing values");
+const configuredHealth=await worker.fetch(new Request("https://api.58er.eon21.space/api/health"),{
+  APP_ORIGIN:"https://58er.eon21.space",
+  RATE_LIMIT_HMAC_SECRET:RATE_LIMIT_TEST_SECRET,
+  TURNSTILE_SECRET_KEY:"turnstile-test-secret",
+  ALIBABA_ACCESS_KEY_ID:"fake-id",
+  ALIBABA_ACCESS_KEY_SECRET:"fake-secret",
+  ALIBABA_SIGN_NAME:"fake-sign",
+  ALIBABA_TEMPLATE_CODE:"fake-template"
+});
+const configuredReadiness=(await configuredHealth.json()).readiness;
+if(configuredReadiness.rateLimitConfigured!==true||configuredReadiness.turnstileConfigured!==true||configuredReadiness.smsCredentialsConfigured!==true||configuredReadiness.smsTemplateConfigured!==true) throw new Error("health readiness must recognize complete test configuration");
 const blocked=await worker.fetch(new Request("https://api.58er.eon21.space/api/auth/login",{method:"POST",headers:{"content-type":"application/json",origin:"https://evil.example"},body:JSON.stringify({phone:"13800000000",password:"test"})}),env);
 if(blocked.status!==403) throw new Error("origin guard failed");
 const preflight=await worker.fetch(new Request("https://api.58er.eon21.space/api/auth/login",{method:"OPTIONS",headers:{origin:"https://58er.eon21.space","access-control-request-method":"POST"}}),env);
