@@ -70,6 +70,7 @@ const selected=await save(selectedDb.DB,{});
 assert.equal(selected.status,200,JSON.stringify(await selected.clone().json()));
 assert.equal((await selected.json()).reviewStatus,"approved");
 assert.equal(selectedDb.state.batchCalls,1);
+assert.ok(selectedDb.state.statements.some(sql=>sql.includes("DELETE FROM group_chat_confirmations")),"first school assignment also clears any orphaned confirmation rows");
 assert.ok(selectedDb.state.queries.some(q=>q.sql.includes("FROM profile_university_catalog WHERE source_id=?")));
 assert.ok(selectedDb.state.statements.some(sql=>sql.includes("UPDATE users SET")&&sql.includes("campus_id=?")&&sql.includes("admission_type_id=''")&&sql.includes("major_discipline_code=?")&&sql.includes("greeting=?")));
 assert.ok(selectedDb.state.statements.some(sql=>sql.includes("INSERT OR IGNORE INTO teams")));
@@ -147,6 +148,7 @@ const changedRelease=changedDb.state.statements.findIndex(sql=>sql.includes("UPD
 const changedUser=changedDb.state.statements.findIndex(sql=>sql.includes("UPDATE users SET"));
 assert.ok(changedRelease>=0&&changedRelease<changedUser,"old team leader slot handling must run before user university_id changes");
 assert.ok(changedDb.state.statements.some(sql=>sql.includes("UPDATE leader_transfers SET status='expired'")),"pending transfer rows must be closed when leaving the old school");
+assert.ok(changedDb.state.statements.some(sql=>sql.includes("DELETE FROM group_chat_confirmations")),"changing schools must clear the previous school's group-chat confirmation");
 assert.ok(!changedDb.state.statements.some(sql=>/DELETE FROM leader_transfers/i.test(sql)),"transfer history must not be deleted");
 
 const blockedLeaderDb=makeDb({
@@ -175,6 +177,11 @@ const pendingTransfer=await save(pendingTransferDb.DB,{});
 assert.equal(pendingTransfer.status,200,"a recipient of an old-school pending transfer can leave; the pending row is expired and retained");
 assert.ok(pendingTransferDb.state.statements.some(sql=>sql.includes("UPDATE leader_transfers SET status='expired'")));
 assert.equal(pendingTransferDb.state.statements.some(sql=>/DELETE FROM leader_transfers/i.test(sql)),false);
+
+const sameUniversityDb=makeDb({user:{...baseUser,university_id:university.id}});
+const sameUniversitySave=await save(sameUniversityDb.DB,{});
+assert.equal(sameUniversitySave.status,200);
+assert.equal(sameUniversityDb.state.statements.some(sql=>sql.includes("DELETE FROM group_chat_confirmations")),false,"saving unchanged school details must preserve the current confirmation");
 
 const getDb=makeDb({user:{...baseUser,university_id:university.id,consent_given:1,consent_at:"now",consent_version:NOTICE,
   account_consent_at:"now",account_consent_version:NOTICE,gender:"female",major_discipline_code:"08",greeting:"一路顺风",campus_id:"CN-10001-MAIN",
