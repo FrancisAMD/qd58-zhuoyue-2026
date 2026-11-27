@@ -25,7 +25,7 @@ DEFAULT_MIGRATION = "0014_university_catalog_import_staging.sql"
 REQUIRED_USER_COLUMNS = {
     "id", "phone", "password_hash", "name", "high_school", "class_name",
     "university_id", "grade", "province", "city", "bio", "gender",
-    "major_group", "major_discipline_code", "admission_category_id",
+    "secondary_phone", "wechat_id", "major_group", "major_discipline_code", "admission_category_id",
     "admission_type_id", "campus_id", "campus_name", "campus_tag",
     "secondary_phone", "wechat_id", "profile_review_status",
     "profile_review_submitted_at", "profile_reviewed_at",
@@ -35,7 +35,7 @@ REQUIRED_USER_COLUMNS = {
 }
 TOMBSTONE_NULL_FIELDS = {
     "password_hash", "name", "high_school", "class_name", "university_id",
-    "grade", "province", "city", "bio", "secondary_phone", "wechat_id"
+    "grade", "province", "city", "bio"
 }
 TOMBSTONE_EMPTY_FIELDS = {
     "major_group", "major_discipline_code", "admission_category_id",
