@@ -17,4 +17,9 @@ assert.match(css,/#profile textarea\[name="greeting"\][\s\S]*?max-height:132px/,
 assert.match(css,/padding:0!important/,"step number badges must not inherit the legacy pill padding");
 assert.match(css,/\.profile-stage-panel[\s\S]*?margin-top:18px/,"profile stage cards must have visual separation");
 assert.match(css,/@media\(min-width:761px\)[\s\S]*?#join>#profile\s*\{[^}]*width:100%[^}]*max-width:none/,"desktop registration form must fill the section width and align with the journey and account bars");
+assert.match(html,/id="registerFields" class="register-fields" disabled/,"registration SMS/password fields must start locked");
+assert.match(html,/id="regPhoneStatus"/,"registration form must show phone-check status");
+assert.match(html,/id="regGoLogin"/,"registered phone must have a direct login action");
+assert.match(js,/\/auth\/register\/check-phone/,"frontend must call the Worker phone precheck");
+assert.match(js,/registrationPhoneVerifiedValue/,"SMS sending and registration must require successful phone verification");
 console.log("Profile UI smoke tests: defaults, fixed textarea, centered badges and stage spacing passed.");

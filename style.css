@@ -648,3 +648,17 @@ header>div:last-child{display:flex;align-items:center;gap:8px}
     transition:background-color .18s ease,color .18s ease,border-color .18s ease;
   }
 }
+
+/* Registration phone precheck: keep SMS/password controls locked until verified. */
+.register-fields{display:block;width:100%;min-width:0;margin:0;padding:0;border:0}
+.register-fields:disabled{opacity:.46;filter:saturate(.62)}
+.register-fields:disabled #regCaptcha{pointer-events:none}
+.register-phone-status{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin:13px 0 8px;padding:11px 13px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--muted);font:11px/1.7 system-ui,sans-serif}
+.register-phone-status.is-checking{border-color:#b6c8ba;color:var(--muted)}
+.register-phone-status.is-success{border-color:#b6d1bd;background:#edf5ef;color:#315f43}
+.register-phone-status.is-error{border-color:#dfc3bd;background:#fff7f5;color:#94564d}
+.register-phone-actions{display:flex;gap:7px;flex-wrap:wrap}
+.register-phone-actions button{padding:8px 11px;font-size:11px}
+:root[data-theme="dark"] body .register-phone-status{background:var(--paper);border-color:var(--line);color:var(--muted)}
+:root[data-theme="dark"] body .register-phone-status.is-success{background:#243b2d;border-color:#416d58;color:#c4dfcc}
+:root[data-theme="dark"] body .register-phone-status.is-error{background:#3b2d2b;border-color:#79504b;color:#e2b8b1}

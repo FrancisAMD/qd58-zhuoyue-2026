@@ -12,6 +12,13 @@ migrations_dir = "migrations"
 [[r2_buckets]]
 binding = "GROUP_QR"
 bucket_name = "qd58-group-chat-qr"
+[secrets]
+required = [
+  "RATE_LIMIT_HMAC_SECRET",
+  "TURNSTILE_SECRET_KEY",
+  "ALIBABA_ACCESS_KEY_ID",
+  "ALIBABA_ACCESS_KEY_SECRET"
+]
 [vars]
 APP_ORIGIN = "https://58er.eon21.space"
 SESSION_TTL_SECONDS = "604800"
