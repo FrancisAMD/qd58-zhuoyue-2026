@@ -301,6 +301,7 @@ async function load(){
     $("overseasUniversityName").value=p.overseasUniversityName||"";
     $("admissionCategoryId").value=p.admissionCategoryId||"";
     populateAdmissionCategories(profileReferenceData);
+    $("admissionCategoryId").value=p.admissionCategoryId||"";
     categoryLocked=!!p.university||p.profileReviewStatus==="pending";
     if(p.profileReviewStatus==="pending"){
       $("universityCategoryValue").value="overseas";$("universityCategoryField").value="overseas";
@@ -316,6 +317,7 @@ async function load(){
       const source=rows.find(item=>item.id===p.profileUniversityId);
       if(source){
         selectUniversity({...source,_category:p.universityCategory},p.campusId||"");
+        $("majorDisciplineCode").value=p.majorDisciplineCode||"";
         $("profileUniversityId").value=p.profileUniversityId;
         $("universityName").value=source.name;
         $("universityCategoryValue").value=p.universityCategory;
@@ -341,6 +343,9 @@ async function load(){
       $("universitySelectionMsg").textContent="这是历史登记的高校记录。如需更改学校，请联系组织者。";
       $("universityBack").hidden=true;$("universityBackBottom").hidden=true;
       $("admissionFields").hidden=category!=="mainland";
+      let legacyTags=[];try{legacyTags=JSON.parse(p.projectTags||"[]");if(!Array.isArray(legacyTags))legacyTags=[];}catch{}
+      populateMajorDisciplines(profileReferenceData,legacyTags);
+      $("majorDisciplineCode").value=p.majorDisciplineCode||"";
     }else{
       categoryLocked=false;
       showUniversityCategoryStep();
