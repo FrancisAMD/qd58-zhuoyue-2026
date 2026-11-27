@@ -65,3 +65,5 @@ assert.match(js,/methodOverride\|\|\(data\?"POST":"GET"\)/);
 assert.match(css,/#dashboard[\s\S]*?row-gap:22px/);
 assert.match(css,/#results\.cards[\s\S]*?gap:20px!important/);
 assert.match(css,/#teamSummary[\s\S]*?directory-team-grid[\s\S]*?gap:16px/);
+
+assert.match(js,/colspan="9"/);
