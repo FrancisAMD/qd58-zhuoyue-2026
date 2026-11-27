@@ -530,7 +530,7 @@ $("transferItems").addEventListener("click",async event=>{
     await loadDirectory();
     msg("teamSummaryMsg",action==="accept"?"你已接受组长转让，团队组长身份已更新。":"你已拒绝组长转让。");
   }catch(error){
-    const labels={transfer_expired:"该邀请已过期。",transfer_state_conflict:"该邀请状态已变化，请刷新列表。",transfer_forbidden:"你无权处理这条邀请。"};
+    const labels={transfer_expired:"该邀请已过期。",transfer_state_conflict:"该邀请状态已变化，请刷新列表。",transfer_forbidden:"你无权处理这条邀请。",transfer_school_mismatch:"这条转让记录属于以前的高校，不能在当前高校处理。"};
     msg("teamSummaryMsg",labels[error.message]||"处理转让邀请失败，请刷新后重试。",true);
   }finally{button.disabled=false;}
 });
