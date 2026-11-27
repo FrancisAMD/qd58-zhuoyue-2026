@@ -50,7 +50,14 @@ const ERROR_MESSAGES={
   group_qr_delete_failed:"删除二维码失败，请稍后重试。",
   group_chat_confirmations_failed:"入群确认名单加载失败，请稍后重试。",
   admin_username_exists:"用户名已存在。",
-  admin_password_too_weak:"管理员密码至少需要14位。"
+  admin_password_too_weak:"管理员密码至少需要14位。",
+  donation_nickname_invalid:"赞助昵称需填写 1–40 个字符，且不能包含控制字符。",
+  donation_amount_invalid:"金额必须在 0.01 元至 1,000,000 元之间，最多保留两位小数。",
+  donation_order_invalid:"显示顺序必须是 -10000 至 10000 之间的整数。",
+  donation_payload_invalid:"赞助记录格式不正确，请刷新页面后重试。",
+  donation_not_found:"这条赞助记录已不存在，请刷新名单。",
+  donation_save_failed:"保存赞助记录失败，请稍后重试。",
+  donation_delete_failed:"删除赞助记录失败，请稍后重试。"
 };
 function errorMessage(error){
   const message=ERROR_MESSAGES[error?.message]||"操作失败，请稍后重试。";
@@ -95,6 +102,7 @@ async function enter(options={}){
   $("managePanel").hidden=!has("admins:manage");
   $("universityReviewPanel").hidden=!has("universities:review");
   $("groupChatQrPanel").hidden=!has("group-chat:manage");
+  $("donationManagementPanel").hidden=!has("donations:manage");
   if(!overviewRefreshTimer){
     overviewRefreshTimer=setInterval(()=>{
       if(current&&$("dashboard")&&!$("dashboard").hidden&&has("people:read")){
@@ -111,13 +119,14 @@ async function enter(options={}){
     ["audit",()=>has("audit:read")?loadAudit():Promise.resolve(),()=>setPanelFailure("auditRows","审计记录加载失败，请稍后刷新。")],
     ["admins",()=>has("admins:manage")?loadAdmins():Promise.resolve(),()=>setPanelFailure("createAdminMsg","管理员账户列表加载失败。")],
     ["universityReviews",()=>has("universities:review")?loadUniversityReviews():Promise.resolve(),()=>setPanelFailure("universityReviewMsg","海外高校审核队列加载失败。")],
-    ["groupChatQr",()=>has("group-chat:manage")?loadGroupQrAssets():Promise.resolve(),()=>setPanelFailure("groupQrAssetList","群聊二维码配置加载失败，请检查 GROUP_QR R2 绑定。")]
+    ["groupChatQr",()=>has("group-chat:manage")?loadGroupQrAssets():Promise.resolve(),()=>setPanelFailure("groupQrAssetList","群聊二维码配置加载失败，请检查 GROUP_QR R2 绑定。")],
+    ["donations",()=>has("donations:manage")?loadDonations():Promise.resolve(),()=>setPanelFailure("donationAdminMsg","赞助名单加载失败。")]
   ];
   const results=await Promise.allSettled(jobs.map(job=>job[1]()));
   results.forEach((result,index)=>{
     if(result.status==="rejected"){
       jobs[index][2]();
-      const panelName={overview:"统计",people:"名单",audit:"审计",admins:"管理员列表",universityReviews:"海外高校审核",groupChatQr:"群聊二维码"}[jobs[index][0]];
+      const panelName={overview:"统计",people:"名单",audit:"审计",admins:"管理员列表",universityReviews:"海外高校审核",groupChatQr:"群聊二维码",donations:"赞助名单"}[jobs[index][0]];
       console.error("Admin panel load failed:",jobs[index][0],result.reason?.message||"unknown");
       const status=$("adminPanelStatus");
       if(status) status.textContent="已登录；部分面板加载失败："+panelName+"。这不影响当前登录会话。";
@@ -287,6 +296,54 @@ async function loadAdmins(){
   ).join("");
 }
 
+let adminDonationRows=[];
+function donationYuan(cents){return (Number(cents||0)/100).toFixed(2);}
+async function loadDonations(){
+  const data=await req("/admin/donations");
+  adminDonationRows=data.items||[];
+  renderDonationAdminRows();
+  $("donationAdminMsg").textContent="当前共有 "+adminDonationRows.length+" 条公开赞助记录。";
+}
+function renderDonationAdminRows(){
+  const container=$("donationAdminRows");
+  container.innerHTML=adminDonationRows.map(item=>
+    '<article class="donation-admin-row" data-donation-row="'+safe(item.id)+'">'+
+      '<div class="donation-admin-fields">'+
+        '<label>赞助昵称<input data-donation-nickname maxlength="40" value="'+safe(item.nickname)+'"></label>'+
+        '<label>金额（元）<input data-donation-amount type="number" min="0.01" max="1000000" step="0.01" value="'+donationYuan(item.amountCents)+'"></label>'+
+        '<label>显示顺序<input data-donation-order type="number" min="-10000" max="10000" step="1" value="'+Number(item.displayOrder||0)+'"></label>'+
+      '</div>'+
+      '<div class="donation-admin-actions"><button type="button" class="btn" data-donation-save="'+safe(item.id)+'">保存修改</button><button type="button" class="admin-delete-button" data-donation-delete="'+safe(item.id)+'" data-donation-name="'+safe(item.nickname)+'">删除记录</button></div>'+
+    '</article>'
+  ).join("")||'<div class="directory-empty"><strong>目前还没有赞助记录</strong><p>可以在上方录入第一条记录。保存后会自动显示在同校同学页面。</p></div>';
+}
+async function saveDonationRow(button){
+  const id=button.dataset.donationSave,row=button.closest("[data-donation-row]");
+  if(!row)return;
+  const nickname=row.querySelector("[data-donation-nickname]").value.trim();
+  const amount=Number(row.querySelector("[data-donation-amount]").value);
+  const displayOrder=Number(row.querySelector("[data-donation-order]").value);
+  if(!Number.isFinite(amount)||Math.abs(amount*100-Math.round(amount*100))>0.000001){
+    $("donationAdminMsg").textContent="金额最多只能保留两位小数。";return;
+  }
+  const payload={nickname,amountCents:Math.round(amount*100),displayOrder};
+  button.disabled=true;
+  try{
+    await req("/admin/donations/"+encodeURIComponent(id),payload,"PUT");
+    $("donationAdminMsg").textContent="「"+nickname+"」的赞助记录已更新，前台名单已同步。";
+    await loadDonations();
+  }catch(error){showError("donationAdminMsg",error);button.disabled=false;}
+}
+async function deleteDonationRow(button){
+  const id=button.dataset.donationDelete,nickname=button.dataset.donationName||"这条记录";
+  if(!confirm("确定删除「"+nickname+"」的赞助记录？删除后前台名单会同步移除。"))return;
+  button.disabled=true;
+  try{
+    await req("/admin/donations/"+encodeURIComponent(id),null,"DELETE");
+    $("donationAdminMsg").textContent="赞助记录已删除，前台名单已同步。";
+    await loadDonations();
+  }catch(error){showError("donationAdminMsg",error);button.disabled=false;}
+}
 /* The built-in demo uses fictional in-memory records only. It never calls the API. */
 const DEMO_DATA={
   people:[
@@ -374,6 +431,31 @@ $("demoTabs").addEventListener("click",event=>{
 });
 $("demoSearch").addEventListener("input",renderDemo);
 
+$("donationCreateForm").onsubmit=async event=>{
+  event.preventDefault();
+  const nickname=$("donationNewNickname").value.trim();
+  const amount=Number($("donationNewAmount").value);
+  const displayOrder=Number($("donationNewOrder").value||0);
+  if(!Number.isFinite(amount)||Math.abs(amount*100-Math.round(amount*100))>0.000001){
+    $("donationAdminMsg").textContent="金额最多只能保留两位小数。";return;
+  }
+  const button=$("donationCreateSubmit");button.disabled=true;
+  try{
+    await req("/admin/donations",{nickname,amountCents:Math.round(amount*100),displayOrder});
+    $("donationCreateForm").reset();
+    $("donationNewOrder").value=String(Math.max(0,...adminDonationRows.map(item=>Number(item.displayOrder)||0))+10);
+    $("donationAdminMsg").textContent="已新增「"+nickname+"」的赞助记录，前台名单已同步。";
+    await loadDonations();
+  }catch(error){showError("donationAdminMsg",error);}
+  finally{button.disabled=false;}
+};
+$("refreshDonations").onclick=()=>loadDonations().catch(error=>showError("donationAdminMsg",error));
+$("donationAdminRows").addEventListener("click",async event=>{
+  const saveButton=event.target.closest("[data-donation-save]");
+  if(saveButton){await saveDonationRow(saveButton);return;}
+  const deleteButton=event.target.closest("[data-donation-delete]");
+  if(deleteButton)await deleteDonationRow(deleteButton);
+});
 $("adminLogin").onsubmit=async event=>{
   event.preventDefault();
   const submit=$("adminLogin").querySelector('button[type="submit"]')||$("adminLogin").querySelector("button");

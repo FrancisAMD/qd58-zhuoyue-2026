@@ -1,4 +1,4 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f3f6f2"><title>返校宣讲 · 青岛五十八中2026-2027校友组队平台</title><link rel="stylesheet" href="style.css?v=20261127-regional-group-chat-qr-v2"><link rel="stylesheet" href="ui-sections.css?v=20261127-faq-donation-delete-guard"><script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" defer></script></head><body class="session-checking">
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f3f6f2"><title>返校宣讲 · 青岛五十八中2026-2027校友组队平台</title><link rel="stylesheet" href="style.css?v=20261127-regional-group-chat-qr-v2"><link rel="stylesheet" href="donations.css?v=20261127-donor-list-v1"><link rel="stylesheet" href="ui-sections.css?v=20261127-faq-donation-delete-guard"><script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" defer></script></head><body class="session-checking">
 <div id="bootScreen" class="boot-screen"><span class="boot-mark">58</span><p id="bootMessage">正在确认登录状态…</p><button id="retrySession" class="ghost" hidden>重新检查</button></div>
 <main id="mainContent" hidden><section id="authStage" class="auth-stage"><section class="hero" id="home"><div><p class="eyebrow">2026 · 冬日返校计划</p><h1>去远方求证，<br><em>回原点</em>作答。</h1><p class="lead">在各自的旷野里跋涉后，才懂得最初的坐标最为确凿。冬日里且卸下大学的包裹，回到五十八中，也为学弟学妹们点燃星星之火。</p><div class="auth-actions"><button class="btn" id="authStageLogin">账号登录 ↗</button><button class="ghost" id="authStageRegister">注册账号</button></div><p class="note">青岛五十八中 · 2026-2027 冬日返校计划 | 汇聚校友力量，五八卓越启航</p></div><div class="art"><div class="sun"></div><div class="float a">01 / 返校<b>山海有归期</b></div><div class="float b">02 / 宣讲<b>燃星星之火</b></div><strong>58</strong><small>THE JOURNEY CONTINUES · 2026</small></div></section><div class="auth-required-panel"><span class="auth-required-kicker">MEMBERS ONLY · FOR 58ERS</span><strong>注册/登录后填写返校宣讲个人资料</strong><p>数据收集仅用于摊位设置、活动安排，详见下方 Q & A ——</p></div>
 <section class="home-faq" id="homeFaq" aria-labelledby="homeFaqTitle">
@@ -128,9 +128,18 @@
     <h3 id="donationTitle">让每一份善意，都成为继续出发的力量</h3>
     <p>本网站的开发，离不开大家的时间、热情，也离不开一些付费服务的参与。验证码服务器价格不菲，累计已经投入100元左右，预计需要200元左右；另有两位数的本地AI电力消耗和网页API的tokens费用...如果你愿意为本站添一份力，可以通过下方方式自愿支持。每一份心意都会被认真对待，zzf将在下方更新展示赞助者名单。</p>
     <div class="donation-qr-area">
-      <img class="donation-qr-image" src="assets/donation-campus-illustration.webp" alt="校园与信笺主题插画">
+      <img class="donation-qr-image" src="assets/donation-qr.png" alt="赞助捐赠收款二维码">
       <p class="donation-qr-note">请在捐赠备注中注明昵称。感谢愿意给zzf回血的各位家人们😊</p>
     </div>
+    <section class="donation-list" aria-labelledby="donationListTitle">
+      <div class="donation-list-heading">
+        <div><p class="eyebrow">WITH GRATITUDE · 感谢同行</p><h4 id="donationListTitle">目前已收到的支持</h4></div>
+        <span id="donationListSummary" class="donation-list-summary">正在同步名单…</span>
+      </div>
+      <div id="donationListRows" class="donation-list-rows" aria-live="polite">
+        <p class="donation-list-empty">正在加载赞助名单…</p>
+      </div>
+    </section>
     <p class="donation-footnote">您的支持，将成为这段旅程中温柔而具体的一部分。</p>
   </div>
 </section>
@@ -169,4 +178,4 @@
 <label>当前登录密码<div class="password-box"><input id="deletePassword" type="password" autocomplete="current-password" required><button type="button" class="password-toggle" data-toggle-password="deletePassword">显示</button></div></label>
 <label>输入 DELETE 确认<input id="deleteConfirm" autocomplete="off" required></label>
 <button class="btn wide danger-button">永久删除账号</button><button type="button" class="text" id="cancelDeleteAccount">取消</button><p id="deleteMsg" class="msg" aria-live="polite"></p>
-</form></section></div><script src="app.js?v=20261127-regional-group-chat-qr-v1" defer></script><script src="account-deletion-ui.js?v=20261127-delete-preflight-v1" defer></script></body></html>
+</form></section></div><script src="app.js?v=20261127-donor-list-v1" defer></script><script src="account-deletion-ui.js?v=20261127-delete-preflight-v1" defer></script></body></html>

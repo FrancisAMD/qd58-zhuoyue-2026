@@ -433,16 +433,34 @@ async function load(){
     $("retrySession").hidden=false;
   }
 }
+function renderDonationList(items){
+  const container=$("donationListRows");
+  const summary=$("donationListSummary");
+  if(!container||!summary)return;
+  const rows=Array.isArray(items)?items:[];
+  summary.textContent=rows.length+" 位支持者";
+  if(!rows.length){
+    container.innerHTML='<p class="donation-list-empty">赞助名单正在整理中。感谢每一位愿意支持本项目的校友。</p>';
+    return;
+  }
+  container.innerHTML=rows.map((item,index)=>{
+    const cents=Number(item.amountCents)||0;
+    const amount=(cents/100).toLocaleString("zh-CN",{minimumFractionDigits:2,maximumFractionDigits:2});
+    return '<article class="donation-list-row"><span class="donation-list-rank">'+String(index+1).padStart(2,"0")+'</span><strong>'+safe(item.nickname||"匿名校友")+'</strong><span class="donation-list-amount">¥ '+amount+'</span></article>';
+  }).join("");
+}
 async function loadDirectory(){
   $("directoryMsg").textContent="";
   $("directoryCount").textContent="正在加载同学资料…";
   try{
-    const [data,transferData,groupChatData]=await Promise.all([
+    const [data,transferData,groupChatData,donationData]=await Promise.all([
       call("/directory"),
       call("/teams/transfers").catch(error=>({transfers:[],transferError:error.message})),
-      call("/group-chat/status").catch(error=>({error:error.message}))
+      call("/group-chat/status").catch(error=>({error:error.message})),
+      call("/donations").catch(error=>({items:[]}))
     ]);
     directory={...data,transfers:transferData.transfers||[],transferError:transferData.transferError||"",groupChat:groupChatData};
+    renderDonationList(donationData.items||[]);
     render();
     await renderGroupChat();
   }catch(error){

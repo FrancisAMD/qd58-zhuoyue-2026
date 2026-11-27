@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>返校宣讲 · 管理后台</title>
   <link rel="stylesheet" href="style.css?v=20261127-regional-group-chat-qr-v2">
+  <link rel="stylesheet" href="donations.css?v=20261127-donor-list-v1">
 </head>
 <body>
 <header>
@@ -75,6 +76,22 @@
       </div>
     </section>
 
+    <section id="donationManagementPanel" class="panel" hidden>
+      <div class="admin-heading">
+        <div><p class="eyebrow">DONATION RECORDS</p><h3>赞助名单管理</h3></div>
+        <button id="refreshDonations" class="ghost" type="button">刷新名单</button>
+      </div>
+      <p class="muted">在这里新增、修改或删除公开展示的赞助昵称和金额。列表按“显示顺序”从小到大排列；数字相同时按录入时间排列。金额以人民币元录入，保存时精确到分。</p>
+      <form id="donationCreateForm" class="admin-filters donation-create-form">
+        <label>赞助昵称<input id="donationNewNickname" required maxlength="40" placeholder="如：五八校友"></label>
+        <label>金额（人民币元）<input id="donationNewAmount" type="number" required min="0.01" max="1000000" step="0.01" placeholder="如：50.00"></label>
+        <label>显示顺序<input id="donationNewOrder" type="number" min="-10000" max="10000" step="1" value="10"></label>
+        <div class="filter-actions"><button id="donationCreateSubmit" class="btn" type="submit">新增赞助记录</button></div>
+      </form>
+      <p id="donationAdminMsg" class="msg" role="status" aria-live="polite"></p>
+      <div id="donationAdminRows" class="donation-admin-list"></div>
+    </section>
+
     <p id="adminPanelStatus" class="admin-panel-status" role="status" aria-live="polite"></p>
     <div class="admin-stats" id="summary"></div>
     <section id="teamsPanel" class="panel" hidden>
@@ -125,6 +142,6 @@
     </section>
   </section>
 </main>
-<script src="admin.js?v=20261127-roster-group-chat-status-v1" defer></script>
+<script src="admin.js?v=20261127-donor-list-v1" defer></script>
 </body>
 </html>

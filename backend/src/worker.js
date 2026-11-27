@@ -219,8 +219,8 @@ async function currentAdmin(request, env) {
     .bind(digest, now()).first();
 }
 const ADMIN_PERMISSIONS = {
-  owner: ["overview", "people:read", "people:export", "people:delete", "audit:read", "admins:manage", "universities:import", "universities:review", "group-chat:manage"],
-  admin: ["overview", "people:read", "people:export", "people:delete", "audit:read", "universities:review", "group-chat:manage"],
+  owner: ["overview", "people:read", "people:export", "people:delete", "audit:read", "admins:manage", "universities:import", "universities:review", "group-chat:manage", "donations:manage"],
+  admin: ["overview", "people:read", "people:export", "people:delete", "audit:read", "universities:review", "group-chat:manage", "donations:manage"],
   viewer: ["overview"]
 };
 function hasAdminPermission(admin, permission) {
@@ -328,6 +328,17 @@ async function attachAdminGroupChatStatus(env, items) {
     }
   }
   return items;
+}
+function validateDonationPayload(data){
+  if(!data||typeof data!=="object"||Array.isArray(data))return {error:"donation_payload_invalid"};
+  if(Object.keys(data).some(key=>!["nickname","amountCents","displayOrder"].includes(key)))return {error:"donation_payload_invalid"};
+  const nickname=String(data.nickname||"").normalize("NFKC").trim();
+  if(nickname.length<1||nickname.length>40||/[\u0000-\u001f\u007f]/.test(nickname))return {error:"donation_nickname_invalid"};
+  const amountCents=Number(data.amountCents);
+  if(!Number.isSafeInteger(amountCents)||amountCents<1||amountCents>100000000)return {error:"donation_amount_invalid"};
+  const displayOrder=data.displayOrder===undefined?0:Number(data.displayOrder);
+  if(!Number.isSafeInteger(displayOrder)||displayOrder< -10000||displayOrder>10000)return {error:"donation_order_invalid"};
+  return {nickname,amountCents,displayOrder};
 }
 async function writeAudit(db, actorType, actorId, action, targetType, targetId, metadata = {}) {
   await db.prepare("INSERT INTO audit_logs(id,actor_type,actor_id,action,target_type,target_id,metadata_json) VALUES(?,?,?,?,?,?,?)")
@@ -613,7 +624,7 @@ async function route(request, env) {
   if(!isTrustedAppOrigin(origin,env) && !originlessPublicRead)
     return response({error:"origin_forbidden"},403,origin,env);
   if(path==="/api/health" && method==="GET") return response({
-    ok:true,service:"zhuoyue-2026-api",build:"strict-origin-guard-20261127",
+    ok:true,service:"zhuoyue-2026-api",build:"donation-list-20261127",
     passwordKdf:"pbkdf2-sha256-100000",
     readiness:{
       rateLimitConfigured:typeof env.RATE_LIMIT_HMAC_SECRET==="string"&&env.RATE_LIMIT_HMAC_SECRET.length>=32,
@@ -622,6 +633,17 @@ async function route(request, env) {
       smsTemplateConfigured:!!env.ALIBABA_SIGN_NAME&&!!env.ALIBABA_TEMPLATE_CODE
     }
   },200,origin,env);
+  if(path==="/api/donations" && method==="GET") {
+    try {
+      const rows=await env.DB.prepare("SELECT id,nickname,amount_cents AS amountCents,display_order AS displayOrder FROM donation_records ORDER BY display_order ASC,created_at ASC,id ASC LIMIT 300").all();
+      return response({items:(rows.results||[]).map(item=>({
+        id:item.id,nickname:item.nickname,amountCents:Number(item.amountCents)||0,displayOrder:Number(item.displayOrder)||0
+      }))},200,origin,env);
+    } catch(error) {
+      console.error("Public donation list failed",error?.message||"unknown");
+      return response({error:"donation_list_unavailable"},503,origin,env);
+    }
+  }
   if(path==="/api/universities" && method==="GET") {
     // Public, read-only catalog lookup for profile selection. Never expose
     // draft/unverified, inactive, merged, or legacy free-form university rows.
@@ -1510,6 +1532,69 @@ if(path==="/api/teams/transfer" && method==="POST") {
     if (!admin) return response({error:"unauthorized"},401,origin,env);
     return response({admin:{id:admin.id,username:admin.username,role:admin.role,permissions:ADMIN_PERMISSIONS[admin.role]||[]}},200,origin,env);
   }
+  if(path==="/api/admin/donations" && (method==="GET"||method==="POST")) {
+    const admin=await currentAdmin(request,env);
+    if(!admin)return response({error:"unauthorized"},401,origin,env);
+    if(!hasAdminPermission(admin,"donations:manage"))return response({error:"forbidden"},403,origin,env);
+    if(method==="GET") {
+      try {
+        const rows=await env.DB.prepare("SELECT id,nickname,amount_cents AS amountCents,display_order AS displayOrder,created_at AS createdAt,updated_at AS updatedAt FROM donation_records ORDER BY display_order ASC,created_at ASC,id ASC LIMIT 300").all();
+        return response({items:(rows.results||[]).map(item=>({
+          id:item.id,nickname:item.nickname,amountCents:Number(item.amountCents)||0,
+          displayOrder:Number(item.displayOrder)||0,createdAt:item.createdAt,updatedAt:item.updatedAt
+        }))},200,origin,env);
+      } catch(error) {
+        console.error("Admin donation list failed",error?.message||"unknown");
+        return response({error:"donation_list_unavailable"},500,origin,env);
+      }
+    }
+    try {
+      const data=await limitedJsonBody(request,4096),checked=validateDonationPayload(data);
+      if(checked.error)return response({error:checked.error},400,origin,env);
+      const id=randomHex(16),timestamp=new Date().toISOString();
+      await env.DB.prepare("INSERT INTO donation_records(id,nickname,amount_cents,display_order,created_at,updated_at) VALUES(?,?,?,?,?,?)")
+        .bind(id,checked.nickname,checked.amountCents,checked.displayOrder,timestamp,timestamp).run();
+      await writeAudit(env.DB,"admin",admin.id,"admin.donation.created","donation",id,{amountCents:checked.amountCents,displayOrder:checked.displayOrder});
+      return response({ok:true,id,nickname:checked.nickname,amountCents:checked.amountCents,displayOrder:checked.displayOrder},201,origin,env);
+    } catch(error) {
+      if(error?.error)return response({error:error.error},error.status||400,origin,env);
+      console.error("Admin donation create failed",error?.message||"unknown");
+      return response({error:"donation_save_failed"},500,origin,env);
+    }
+  }
+  const donationRecordMatch=path.match(/^\/api\/admin\/donations\/([a-f0-9]{32})$/);
+  if(donationRecordMatch&&(method==="PUT"||method==="DELETE")) {
+    const admin=await currentAdmin(request,env);
+    if(!admin)return response({error:"unauthorized"},401,origin,env);
+    if(!hasAdminPermission(admin,"donations:manage"))return response({error:"forbidden"},403,origin,env);
+    const id=donationRecordMatch[1];
+    if(method==="PUT") {
+      try {
+        const data=await limitedJsonBody(request,4096),checked=validateDonationPayload(data);
+        if(checked.error)return response({error:checked.error},400,origin,env);
+        const timestamp=new Date().toISOString();
+        const result=await env.DB.prepare("UPDATE donation_records SET nickname=?,amount_cents=?,display_order=?,updated_at=? WHERE id=?")
+          .bind(checked.nickname,checked.amountCents,checked.displayOrder,timestamp,id).run();
+        if((result.meta?.changes||0)!==1)return response({error:"donation_not_found"},404,origin,env);
+        await writeAudit(env.DB,"admin",admin.id,"admin.donation.updated","donation",id,{amountCents:checked.amountCents,displayOrder:checked.displayOrder});
+        return response({ok:true,id,nickname:checked.nickname,amountCents:checked.amountCents,displayOrder:checked.displayOrder},200,origin,env);
+      } catch(error) {
+        if(error?.error)return response({error:error.error},error.status||400,origin,env);
+        console.error("Admin donation update failed",error?.message||"unknown");
+        return response({error:"donation_save_failed"},500,origin,env);
+      }
+    }
+    try {
+      const result=await env.DB.prepare("DELETE FROM donation_records WHERE id=?").bind(id).run();
+      if((result.meta?.changes||0)!==1)return response({error:"donation_not_found"},404,origin,env);
+      await writeAudit(env.DB,"admin",admin.id,"admin.donation.deleted","donation",id);
+      return response({ok:true,deleted:true,id},200,origin,env);
+    } catch(error) {
+      console.error("Admin donation delete failed",error?.message||"unknown");
+      return response({error:"donation_delete_failed"},500,origin,env);
+    }
+  }
+
   if(path==="/api/admin/group-chat/qr" && method==="GET") {
     const admin=await currentAdmin(request,env);
     if(!admin) return response({error:"unauthorized"},401,origin,env);
