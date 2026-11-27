@@ -66,7 +66,7 @@ assert.match(css,/#dashboard[\s\S]*?row-gap:22px/);
 assert.match(css,/#results\.cards[\s\S]*?gap:20px!important/);
 assert.match(css,/#teamSummary[\s\S]*?directory-team-grid[\s\S]*?gap:16px/);
 
-assert.match(js,/colspan="9"/);
+assert.match(js,/colspan="10"/);
 
 for(const id of ["groupChatQrPanel","groupQrRegion","groupQrFile","uploadGroupQr","groupQrAssetList","groupChatConfirmationRegion","groupChatConfirmationRows","refreshGroupChatConfirmations"]) {
   assert.match(html,new RegExp('id="'+id+'"'),"admin QR management must include #"+id);
@@ -75,3 +75,11 @@ assert.match(js,/async function loadGroupQrAssets\(\)/);
 assert.match(js,/async function loadGroupChatConfirmations\(\)/);
 assert.match(js,/method:"PUT",credentials:"include"/);
 assert.match(js,/data-qr-delete/);
+
+assert.match(html,/入群确认/,"roster table must include a group-chat confirmation column");
+assert.match(js,/groupChatStatusMarkup\(item\)/);
+assert.match(js,/profileDetailField\("入群确认状态",item\.groupChatStatusLabel\)/);
+assert.doesNotMatch(html,/group-chat-confirmation-block/,"confirmation status must not be a separate admin section");
+assert.doesNotMatch(html,/groupChatConfirmationRows|groupChatConfirmationRegion/);
+assert.ok(html.indexOf('id="universityReviewPanel"')<html.indexOf('id="peoplePanel"'),"overseas review must be near the top of the dashboard");
+assert.ok(html.indexOf('id="groupChatQrPanel"')<html.indexOf('id="peoplePanel"'),"regional QR management must be near the top of the dashboard");
