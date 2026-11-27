@@ -127,6 +127,7 @@ with tempfile.TemporaryDirectory(prefix="qd58-backup-smoke-") as temporary:
         "INSERT INTO users(id,phone,consent_at,name) VALUES(?,?,?,?)",
         ("bad-tombstone", "13800000002", "2026-11-25T00:00:00Z", "不应保留的姓名"),
     )
+    tombstone_db.execute("UPDATE users SET greeting=? WHERE id='bad-tombstone'",("不应保留的问候",))
     tombstone_db.execute(
         "UPDATE users SET deleted_at=? WHERE id='bad-tombstone'",
         ("2026-11-25T00:00:00Z",),
