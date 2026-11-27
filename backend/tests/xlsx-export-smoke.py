@@ -21,12 +21,18 @@ try:
         assert cells["B2"] == '=HYPERLINK("https://evil.example")'
         assert cells["C2"] == "青岛五十八中 🚀"
         assert cells["D2"] == "测试大学"
-        assert cells["I2"] == "已同意"
+        assert cells["I1"] == "群聊归属地区"
+        assert cells["I2"] == "山东省"
+        assert cells["J1"] == "入群确认状态"
+        assert cells["J2"] == "二维码服务暂不可用"
+        assert cells["K1"] == "入群确认时间"
+        assert cells["L1"] == "资料同意状态"
+        assert cells["L2"] == "已同意"
         assert not sheet.findall(".//x:f", ns), "all cells must be strings, never formulas"
         pane = sheet.find(".//x:pane", ns)
         assert pane is not None and pane.attrib.get("state") == "frozen"
         auto_filter = sheet.find(".//x:autoFilter", ns)
-        assert auto_filter is not None and auto_filter.attrib.get("ref") == "A1:K2"
+        assert auto_filter is not None and auto_filter.attrib.get("ref") == "A1:N2"
         raw = b"".join(archive.read(name) for name in names)
         assert b"13800000000" not in raw, "phone number leaked into workbook"
         assert b"private bio" not in raw, "private note leaked into workbook"
