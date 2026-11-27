@@ -64,8 +64,8 @@ const resetSql=statements[resetUserIndex].sql;
 for(const field of ["name=NULL","university_id=NULL","grade=NULL","greeting=''","major_discipline_code=''","secondary_phone=''","wechat_id=''","consent_given=0","account_consent_at=''"]){
   assert.ok(resetSql.includes(field),"profile reset should clear "+field);
 }
-assert.equal(/password_hashs*=/.test(resetSql),false,"password credentials must remain intact");
-assert.equal(/phones*=/.test(resetSql),false,"account phone must remain intact");
+assert.equal(resetSql.includes("password_hash="),false,"password credentials must remain intact");
+assert.equal(resetSql.includes(",phone="),false,"account phone must remain intact");
 
 const blockedDb=makeDb({userUniversity:"old-university",leaderUserId:USER_ID,memberCount:3});
 const blocked=await reset(blockedDb.DB);
