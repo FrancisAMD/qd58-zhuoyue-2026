@@ -549,3 +549,22 @@ body.dark .admin-delete-button{background:#382a28;border-color:#79504b;color:#e2
 @media(max-width:560px){.group-qr-upload-form,.group-qr-asset-grid{grid-template-columns:1fr}.group-qr-upload-card,.group-qr-asset-block,.group-chat-confirmation-block{padding:13px}}
 body.dark .group-qr-ready{background:#243b2d;color:#b9dfc8}
 body.dark .group-qr-missing{background:#40302d;color:#e0b2a8}
+
+/* Student-facing regional group chat QR card. */
+.group-chat-panel{display:grid;gap:14px;margin:0;padding:22px;border:1px solid var(--line);border-radius:14px;background:var(--paper)}
+.group-chat-heading{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.group-chat-heading h3{margin:3px 0 0}
+.group-chat-status{display:inline-flex;align-items:center;flex:0 0 auto;padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:var(--bg);font-size:11px;font-weight:650;color:var(--ink)}
+.group-chat-qr-frame{display:grid;place-items:center;min-height:220px;padding:18px;border:1px dashed var(--line);border-radius:12px;background:var(--bg)}
+#groupChatQrImage{display:block;width:min(100%,320px);max-height:380px;object-fit:contain;border-radius:8px;background:#fff}
+#groupChatQrPlaceholder{max-width:360px;margin:0;text-align:center;color:var(--muted);font-size:13px;line-height:1.8}
+#confirmGroupChat{width:100%;max-width:360px;justify-self:start}
+.group-chat-panel .field-help{margin:0}
+.group-chat-panel .msg{margin:0}
+@media(max-width:600px){
+  .group-chat-panel{padding:15px;gap:12px}
+  .group-chat-qr-frame{min-height:190px;padding:12px}
+  #groupChatQrImage{width:min(100%,290px);max-height:340px}
+  #confirmGroupChat{max-width:none}
+}
+body.dark .group-chat-status{background:var(--bg);color:var(--ink)}
