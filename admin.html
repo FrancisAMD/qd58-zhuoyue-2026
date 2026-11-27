@@ -50,6 +50,31 @@
         <button id="adminLogout" class="ghost" type="button">退出后台</button>
       </div>
     </div>
+<section id="universityReviewPanel" class="panel" hidden>
+      <div class="admin-heading"><div><p class="eyebrow">OVERSEAS UNIVERSITY REVIEW</p><h3>海外高校审核</h3></div><button id="refreshUniversityReviews" class="ghost" type="button">刷新队列</button></div>
+      <p class="muted">海外学校由同学自行填写。审核时请核实学校名称；系统会将规范化名称相同的海外高校归并到同一支团队。批准后，该同学立即解锁同校页面。</p>
+      <div id="universityReviewRows" class="admin-review-list"></div>
+      <p id="universityReviewMsg" class="msg" role="status" aria-live="polite"></p>
+    </section>
+
+    <section id="groupChatQrPanel" class="panel" hidden>
+      <div class="admin-heading"><div><p class="eyebrow">REGIONAL GROUP CHATS</p><h3>省份群聊二维码管理</h3></div><button id="refreshGroupQr" class="ghost" type="button">刷新二维码配置</button></div>
+      <p class="muted">内地按高校校本部所在省份归组，不按学生就读的异地校区；港澳台共用一个群，海外共用一个群。上传新二维码后，原有确认记录保留，但同学需要重新确认。</p>
+      <div class="group-qr-upload-card">
+        <div class="admin-heading"><div><h4>上传 / 更新二维码</h4><small class="muted">支持 PNG、JPG、WebP，单张不超过 5 MB。</small></div></div>
+        <div class="admin-filters group-qr-upload-form">
+          <label>区域<select id="groupQrRegion"></select></label>
+          <label>二维码图片<input id="groupQrFile" type="file" accept="image/png,image/jpeg,image/webp"></label>
+          <div class="filter-actions"><button id="uploadGroupQr" class="btn" type="button">上传并保存到 R2</button></div>
+        </div>
+        <p id="groupQrUploadMsg" class="msg" role="status" aria-live="polite"></p>
+      </div>
+      <div class="group-qr-asset-block">
+        <h4>区域二维码配置</h4>
+        <div id="groupQrAssetList" class="group-qr-asset-grid"></div>
+      </div>
+    </section>
+
     <p id="adminPanelStatus" class="admin-panel-status" role="status" aria-live="polite"></p>
     <div class="admin-stats" id="summary"></div>
     <section id="teamsPanel" class="panel" hidden>
@@ -75,43 +100,13 @@
         <div class="filter-actions"><button class="btn" type="submit">筛选</button><button type="reset" id="clearFilters" class="ghost">清空</button></div>
       </form>
       <p id="peopleMeta" class="muted"></p>
-      <div class="table-wrap"><table class="admin-table"><thead><tr><th>姓名</th><th>高中学校</th><th>大学</th><th>年级</th><th>省份</th><th>资料同意</th><th>登记时间</th><th>资料概览 / 完整资料</th><th>操作</th></tr></thead><tbody id="peopleRows"></tbody></table></div>
+      <div class="table-wrap"><table class="admin-table"><thead><tr><th>姓名</th><th>高中学校</th><th>大学</th><th>年级</th><th>省份</th><th>入群确认</th><th>资料同意</th><th>登记时间</th><th>资料概览 / 完整资料</th><th>操作</th></tr></thead><tbody id="peopleRows"></tbody></table></div>
       <div class="pagination"><button id="prevPage" class="ghost" type="button">上一页</button><span id="pageLabel"></span><button id="nextPage" class="ghost" type="button">下一页</button></div>
     </section>
 
-    <section id="groupChatQrPanel" class="panel" hidden>
-      <div class="admin-heading"><div><p class="eyebrow">REGIONAL GROUP CHATS</p><h3>省份群聊二维码管理</h3></div><button id="refreshGroupQr" class="ghost" type="button">刷新二维码与确认名单</button></div>
-      <p class="muted">内地按高校校本部所在省份归组，不按学生就读的异地校区；港澳台共用一个群，海外共用一个群。上传新二维码后，原有确认记录保留，但同学需要重新确认。</p>
-      <div class="group-qr-upload-card">
-        <div class="admin-heading"><div><h4>上传 / 更新二维码</h4><small class="muted">支持 PNG、JPG、WebP，单张不超过 5 MB。</small></div></div>
-        <div class="admin-filters group-qr-upload-form">
-          <label>区域<select id="groupQrRegion"></select></label>
-          <label>二维码图片<input id="groupQrFile" type="file" accept="image/png,image/jpeg,image/webp"></label>
-          <div class="filter-actions"><button id="uploadGroupQr" class="btn" type="button">上传并保存到 R2</button></div>
-        </div>
-        <p id="groupQrUploadMsg" class="msg" role="status" aria-live="polite"></p>
-      </div>
-      <div class="group-qr-asset-block">
-        <h4>区域二维码配置</h4>
-        <div id="groupQrAssetList" class="group-qr-asset-grid"></div>
-      </div>
-      <div class="group-chat-confirmation-block">
-        <div class="admin-heading"><div><h4>群聊加入确认名单</h4><small class="muted">按当前高校本部所在地区统计；二维码更新后，之前的确认会标记为待重新确认。</small></div></div>
-        <div class="admin-filters">
-          <label>查看区域<select id="groupChatConfirmationRegion"></select></label>
-          <div class="filter-actions"><button id="refreshGroupChatConfirmations" class="ghost" type="button">刷新名单</button></div>
-        </div>
-        <p id="groupChatConfirmationSummary" class="muted"></p>
-        <div class="table-wrap"><table class="admin-table"><thead><tr><th>姓名</th><th>高校</th><th>年级</th><th>校区</th><th>入群确认</th><th>确认时间</th></tr></thead><tbody id="groupChatConfirmationRows"></tbody></table></div>
-      </div>
-    </section>
+    
 
-    <section id="universityReviewPanel" class="panel" hidden>
-      <div class="admin-heading"><div><p class="eyebrow">OVERSEAS UNIVERSITY REVIEW</p><h3>海外高校审核</h3></div><button id="refreshUniversityReviews" class="ghost" type="button">刷新队列</button></div>
-      <p class="muted">海外学校由同学自行填写。审核时请核实学校名称；系统会将规范化名称相同的海外高校归并到同一支团队。批准后，该同学立即解锁同校页面。</p>
-      <div id="universityReviewRows" class="admin-review-list"></div>
-      <p id="universityReviewMsg" class="msg" role="status" aria-live="polite"></p>
-    </section>
+    
 
     <section id="auditPanel" class="panel" hidden>
       <div class="admin-heading"><div><p class="eyebrow">AUDIT TRAIL</p><h3>管理员操作审计</h3><small class="muted">仅显示最近 10 条记录</small></div><button id="refreshAudit" class="ghost" type="button">刷新</button></div>
@@ -130,6 +125,6 @@
     </section>
   </section>
 </main>
-<script src="admin.js?v=20261127-regional-group-chat-qr-v1" defer></script>
+<script src="admin.js?v=20261127-roster-group-chat-status-v1" defer></script>
 </body>
 </html>
