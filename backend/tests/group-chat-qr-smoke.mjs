@@ -110,6 +110,10 @@ assert.equal(status.confirmed,true);
 assert.match(status.mappingRule,/校本部所在省份/);
 assert.ok(mainQrR2.state.heads.includes("group-chat-qr/heilongjiang"));
 assert.ok(!mainQrR2.state.heads.includes("group-chat-qr/shandong"));
+const contextSql=mainDb.state.queries.find(item=>item.sql.includes("profile_catalog.province_name"))?.sql||"";
+assert.match(contextSql,/COALESCE\(NULLIF\(uni\.province_name_zh,''\),NULLIF\(profile_catalog\.province_name,''\)\)/);
+assert.match(contextSql,/LEFT JOIN profile_university_catalog profile_catalog/);
+
 
 const imageResponse=await worker.fetch(makeRequest("/group-chat/qr-image"),{APP_ORIGIN:ORIGIN,DB:mainDb.DB,GROUP_QR:mainQrR2});
 assert.equal(imageResponse.status,200);
@@ -200,6 +204,10 @@ assert.equal(confirmList.confirmed,1);
 assert.equal(confirmList.members[0].id,"sd");
 assert.equal(confirmList.members.some(item=>item.id==="hw"),false,"HIT Weihai campus must not count as Shandong; QR follows main campus");
 assert.equal(confirmList.members.some(item=>item.id==="hk"),false);
+const adminRegionSql=confirmAdminDb.state.queries.find(item=>item.sql.includes("profile_catalog.province_name"))?.sql||"";
+assert.match(adminRegionSql,/LEFT JOIN profile_university_catalog profile_catalog/);
+assert.match(adminRegionSql,/COALESCE\(NULLIF\(uni\.province_name_zh,''\),NULLIF\(profile_catalog\.province_name,''\)\)/);
+
 
 const missingBucket=await worker.fetch(makeRequest("/group-chat/status"),{APP_ORIGIN:ORIGIN,DB:mainDb.DB});
 assert.equal(missingBucket.status,503);
