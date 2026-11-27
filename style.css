@@ -277,3 +277,103 @@ body.dark .demo-status.expired{background:#383842;color:#d0d0d9}
 .admin-review-card input{display:block;width:100%;margin-top:6px;padding:11px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--ink)}
 .admin-review-card .admin-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .admin-review-card .admin-actions button{margin:0}
+
+
+/* Three-stage registration flow and mobile-first account controls. */
+.journey-steps{
+  max-width:1100px;
+  margin:24px auto 0;
+  padding:0 28px;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px;
+}
+.journey-steps button{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  min-width:0;
+  width:100%;
+  padding:12px 10px;
+  border:1px solid var(--line);
+  border-radius:999px;
+  background:var(--paper);
+  color:var(--muted);
+  font:600 12px system-ui,sans-serif;
+  cursor:pointer;
+  transition:background .16s,border-color .16s,color .16s;
+}
+.journey-steps button>span{
+  display:inline-grid;
+  place-items:center;
+  flex:0 0 25px;
+  width:25px;
+  height:25px;
+  border-radius:50%;
+  background:var(--mint);
+  color:var(--green);
+  font:700 11px system-ui,sans-serif;
+}
+.journey-steps button.active{
+  background:var(--green);
+  border-color:var(--green);
+  color:#fff;
+}
+.journey-steps button.active>span{background:#ffffff2b;color:#fff}
+.journey-steps button:focus-visible{outline:3px solid #83ad91;outline-offset:2px}
+.profile-stage-panel{min-width:0}
+.profile-stage-panel[hidden]{display:none!important}
+.university-continue{margin-top:18px}
+.selected-university-panel{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+}
+.selected-university-panel>div{display:grid;gap:6px;min-width:0}
+.selected-university-panel>div>span{color:var(--muted);font-size:10px}
+.selected-university-panel>div>strong{color:var(--green);font:600 16px "Noto Serif SC",serif;overflow-wrap:anywhere}
+.selected-university-panel>div>p{margin:0;color:var(--muted);font-size:10px;line-height:1.7}
+.danger-outline{
+  flex:0 0 auto;
+  padding:9px 12px;
+  border:1px solid #d8b7ae;
+  border-radius:7px;
+  background:#fff8f6;
+  color:#a64d43;
+  font-size:11px;
+  font-weight:650;
+}
+.danger-outline:hover{background:#fbece8}
+.account-bottom{max-width:1100px;margin:24px auto 45px;padding:0 28px}
+.account-actions{display:flex;justify-content:flex-end;gap:9px;margin-bottom:12px}
+.account-danger-zone{margin-top:0;padding:18px 20px;border:1px solid #d8b7ae;border-radius:10px;background:#fff8f6}
+.danger-link{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:10px 14px;
+  border:1px solid #d8b7ae;
+  border-radius:7px;
+  background:#fff0ed;
+  color:#a64d43;
+  text-decoration:none;
+  cursor:pointer;
+  font:650 12px system-ui,sans-serif;
+}
+.danger-link:hover{background:#fbe5e1}
+.profile-next{display:none}
+body.dark .danger-outline,body.dark .danger-link{background:#382a28;border-color:#79504b;color:#e2b8b1}
+@media(max-width:600px){
+  .journey-steps{padding:0 16px;gap:6px;margin-top:15px}
+  .journey-steps button{flex-direction:column;gap:4px;padding:8px 4px;border-radius:12px;font-size:10px;line-height:1.25}
+  .journey-steps button>span{width:23px;height:23px;flex-basis:23px}
+  .account-bottom{padding:0 16px;margin:18px auto 30px}
+  .account-actions{justify-content:stretch}
+  .account-actions button{flex:1}
+  .selected-university-panel{align-items:flex-start;flex-direction:column}
+  .danger-outline{align-self:flex-start}
+  .section{padding-left:16px;padding-right:16px}
+  .step-actions{flex-wrap:wrap}
+}
