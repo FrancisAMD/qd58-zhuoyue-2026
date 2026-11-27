@@ -179,15 +179,23 @@ function renderProfilePreview(item){
     (greetingText?'<small>寄语：'+safe(greetingText)+'</small>':'')+
   '</div>';
 }
+function groupChatStatusMarkup(item){
+  const status=item.groupChatStatus||"unavailable";
+  const variant=status==="confirmed"?"confirmed":status==="pending"||status==="reconfirm"?"pending":"missing";
+  return '<div class="group-chat-roster-cell"><span class="group-chat-roster-status '+variant+'">'+safe(item.groupChatStatusLabel||"状态未知")+'</span>'+
+    (item.groupChatRegionLabel?'<small>'+safe(item.groupChatRegionLabel)+'</small>':"")+'</div>';
+}
 function renderPersonDetails(item){
   const gender=({male:"男",female:"女",undisclosed:"不愿透露"})[item.gender]||"未填写";
   const category=({mainland:"中国内地",hmt:"港澳台",sino_foreign:"中外合作办学",overseas:"海外"})[item.universityCategory]||"未选择";
   const campus=[item.campusName,item.campusTag].filter(Boolean).join(" · ");
-  return '<tr class="admin-profile-detail-row" data-profile-detail-row="'+safe(item.id)+'" hidden><td colspan="9"><div class="admin-profile-details">'+
+  return '<tr class="admin-profile-detail-row" data-profile-detail-row="'+safe(item.id)+'" hidden><td colspan="10"><div class="admin-profile-details">'+
     profileDetailField("用户编号",item.id)+profileDetailField("性别",gender)+profileDetailField("高中学校",item.highSchool)+
     profileDetailField("当前大学",item.university||"尚未选择高校")+profileDetailField("高校类别",category)+profileDetailField("年级",item.grade)+
     profileDetailField("地区",[item.province,item.city].filter(Boolean).join(" · "))+profileDetailField("专业学科门类",item.majorDiscipline)+
     profileDetailField("招生大类",item.admissionCategory)+profileDetailField("校区",campus)+
+    profileDetailField("群聊归属地区",item.groupChatRegionLabel)+profileDetailField("入群确认状态",item.groupChatStatusLabel)+
+    profileDetailField("入群确认时间",item.groupChatConfirmedAt)+
     profileDetailField("海外高校填写",item.overseasUniversityName)+profileDetailField("高校审核状态",profileReviewLabel(item))+
     profileDetailField("资料隐私版本",item.consentVersion)+profileDetailField("账号隐私版本",item.accountConsentVersion)+
     profileDetailField("资料更新时间",item.updatedAt)+
@@ -203,11 +211,11 @@ async function loadPeople(){
   $("peopleRows").innerHTML=items.map(item=>{
     const school=item.university||"尚未选择高校";
     const state=item.profileReviewStatus==="pending"?" · 待审核":"";
-    return '<tr><td>'+safe(item.name||"未填写")+'</td><td>'+safe(item.highSchool||"")+'</td><td>'+safe(school)+safe(state)+'</td><td>'+safe(item.grade||"")+'</td><td>'+safe(item.province||"")+'</td><td>'+(item.consentGiven?"已同意":"未同意")+'</td><td>'+safe(item.createdAt||"")+'</td><td>'+renderProfilePreview(item)+'<button type="button" class="ghost admin-detail-toggle" data-profile-toggle="'+safe(item.id)+'" aria-expanded="false">完整资料</button></td><td><div class="admin-row-actions">'+
+    return '<tr><td>'+safe(item.name||"未填写")+'</td><td>'+safe(item.highSchool||"")+'</td><td>'+safe(school)+safe(state)+'</td><td>'+safe(item.grade||"")+'</td><td>'+safe(item.province||"")+'</td><td>'+groupChatStatusMarkup(item)+'</td><td>'+(item.consentGiven?"已同意":"未同意")+'</td><td>'+safe(item.createdAt||"")+'</td><td>'+renderProfilePreview(item)+'<button type="button" class="ghost admin-detail-toggle" data-profile-toggle="'+safe(item.id)+'" aria-expanded="false">完整资料</button></td><td><div class="admin-row-actions">'+
       (has("people:delete")?'<button type="button" class="admin-delete-button" data-person-delete="'+safe(item.id)+'" data-person-name="'+safe(item.name||"该同学")+'">删除报名</button>':"")+
       '</div></td></tr>'+
       renderPersonDetails(item);
-  }).join("")||'<tr><td colspan="9">没有符合条件的记录</td></tr>';
+  }).join("")||'<tr><td colspan="10">没有符合条件的记录</td></tr>';
   $("pageLabel").textContent="第 "+(pagination.page||1)+" / "+totalPages+" 页";
   $("prevPage").disabled=page<=1;
   $("nextPage").disabled=page>=totalPages;
@@ -227,11 +235,8 @@ async function loadGroupQrAssets(){
   const regions=data.regions||[];
   const options=regions.map(item=>'<option value="'+safe(item.key)+'">'+safe(item.label)+'</option>').join("");
   const currentQrRegion=$("groupQrRegion").value;
-  const currentConfirmRegion=$("groupChatConfirmationRegion").value;
   $("groupQrRegion").innerHTML=options;
-  $("groupChatConfirmationRegion").innerHTML=options;
   if(regions.some(item=>item.key===currentQrRegion))$("groupQrRegion").value=currentQrRegion;
-  if(regions.some(item=>item.key===currentConfirmRegion))$("groupChatConfirmationRegion").value=currentConfirmRegion;
   $("groupQrAssetList").innerHTML=regions.map(item=>
     '<article class="group-qr-asset-card"><div><b>'+safe(item.label)+'</b><span class="'+(item.configured?"group-qr-ready":"group-qr-missing")+'">'+(item.configured?"已上传":"未上传")+'</span></div>'+
     (item.asset?'<small>'+safe(item.asset.fileName)+' · '+formatQrSize(item.asset.sizeBytes)+'</small><small>更新时间：'+safe(item.asset.uploadedAt||"")+'</small>':'<small>尚未配置该区域二维码</small>')+
@@ -239,20 +244,6 @@ async function loadGroupQrAssets(){
     (item.configured?'<button type="button" class="admin-delete-button" data-qr-delete="'+safe(item.key)+'" data-qr-label="'+safe(item.label)+'">删除二维码</button>':'')+
     '</div></article>'
   ).join("");
-  if(!regions.some(item=>item.key===currentConfirmRegion)&&regions.length)$("groupChatConfirmationRegion").value=regions[0].key;
-  await loadGroupChatConfirmations();
-}
-async function loadGroupChatConfirmations(){
-  const regionKey=$("groupChatConfirmationRegion").value;
-  if(!regionKey)return;
-  const data=await req("/admin/group-chat/confirmations?regionKey="+encodeURIComponent(regionKey));
-  $("groupChatConfirmationSummary").textContent=data.configured
-    ?"当前 "+data.regionLabel+"：共 "+data.total+" 人，已确认 "+data.confirmed+" 人，待确认 "+data.pending+" 人。"
-    :"当前 "+data.regionLabel+" 尚未上传二维码；该地区共有 "+data.total+" 位同学。";
-  $("groupChatConfirmationRows").innerHTML=(data.members||[]).map(item=>{
-    const status=item.confirmed?"已确认加入":item.hasPriorConfirmation?"二维码更新，待重新确认":"尚未确认";
-    return '<tr><td>'+safe(item.name||"未填写")+'</td><td>'+safe(item.university||"")+'</td><td>'+safe(item.grade||"")+'</td><td>'+safe(item.campusName||"未填写")+'</td><td><span class="'+(item.confirmed?"group-qr-ready":"group-qr-missing")+'">'+status+'</span></td><td>'+safe(item.confirmedAt||"—")+'</td></tr>';
-  }).join("")||'<tr><td colspan="6">该地区目前没有已审核并完成高校登记的同学。</td></tr>';
 }
 async function uploadGroupQr(){
   const regionKey=$("groupQrRegion").value,file=$("groupQrFile").files?.[0];
@@ -474,8 +465,6 @@ $("refreshAudit").onclick=()=>loadAudit().catch(error=>showError("auditRows",err
 $("refreshUniversityReviews").onclick=()=>loadUniversityReviews().catch(error=>showError("universityReviewMsg",error));
 $("uploadGroupQr").onclick=uploadGroupQr;
 $("refreshGroupQr").onclick=()=>loadGroupQrAssets().catch(error=>showError("groupQrUploadMsg",error));
-$("refreshGroupChatConfirmations").onclick=()=>loadGroupChatConfirmations().catch(error=>showError("groupChatConfirmationSummary",error));
-$("groupChatConfirmationRegion").onchange=()=>loadGroupChatConfirmations().catch(error=>showError("groupChatConfirmationSummary",error));
 $("groupQrAssetList").addEventListener("click",async event=>{
   const selectButton=event.target.closest("[data-qr-select]");
   if(selectButton){$("groupQrRegion").value=selectButton.dataset.qrSelect;$("groupQrFile").focus();return;}
