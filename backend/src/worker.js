@@ -221,6 +221,48 @@ const ADMIN_PERMISSIONS = {
 function hasAdminPermission(admin, permission) {
   return !!admin && (ADMIN_PERMISSIONS[admin.role] || []).includes(permission);
 }
+const GROUP_CHAT_REGIONS = [{"key":"beijing","label":"北京市","kind":"mainland"},{"key":"tianjin","label":"天津市","kind":"mainland"},{"key":"hebei","label":"河北省","kind":"mainland"},{"key":"shanxi","label":"山西省","kind":"mainland"},{"key":"inner-mongolia","label":"内蒙古自治区","kind":"mainland"},{"key":"liaoning","label":"辽宁省","kind":"mainland"},{"key":"jilin","label":"吉林省","kind":"mainland"},{"key":"heilongjiang","label":"黑龙江省","kind":"mainland"},{"key":"shanghai","label":"上海市","kind":"mainland"},{"key":"jiangsu","label":"江苏省","kind":"mainland"},{"key":"zhejiang","label":"浙江省","kind":"mainland"},{"key":"anhui","label":"安徽省","kind":"mainland"},{"key":"fujian","label":"福建省","kind":"mainland"},{"key":"jiangxi","label":"江西省","kind":"mainland"},{"key":"shandong","label":"山东省","kind":"mainland"},{"key":"henan","label":"河南省","kind":"mainland"},{"key":"hubei","label":"湖北省","kind":"mainland"},{"key":"hunan","label":"湖南省","kind":"mainland"},{"key":"guangdong","label":"广东省","kind":"mainland"},{"key":"guangxi","label":"广西壮族自治区","kind":"mainland"},{"key":"hainan","label":"海南省","kind":"mainland"},{"key":"chongqing","label":"重庆市","kind":"mainland"},{"key":"sichuan","label":"四川省","kind":"mainland"},{"key":"guizhou","label":"贵州省","kind":"mainland"},{"key":"yunnan","label":"云南省","kind":"mainland"},{"key":"tibet","label":"西藏自治区","kind":"mainland"},{"key":"shaanxi","label":"陕西省","kind":"mainland"},{"key":"gansu","label":"甘肃省","kind":"mainland"},{"key":"qinghai","label":"青海省","kind":"mainland"},{"key":"ningxia","label":"宁夏回族自治区","kind":"mainland"},{"key":"xinjiang","label":"新疆维吾尔自治区","kind":"mainland"},{"key":"hmt","label":"港澳台","kind":"hmt"},{"key":"overseas","label":"海外","kind":"overseas"}];
+const GROUP_CHAT_REGION_BY_KEY = new Map(GROUP_CHAT_REGIONS.map(item=>[item.key,item]));
+const GROUP_CHAT_REGION_BY_LABEL = new Map(GROUP_CHAT_REGIONS.filter(item=>item.kind==="mainland").map(item=>[item.label,item]));
+function resolveGroupChatRegion(category, provinceCandidates = []) {
+  if (category === "hmt") return GROUP_CHAT_REGION_BY_KEY.get("hmt");
+  if (category === "overseas") return GROUP_CHAT_REGION_BY_KEY.get("overseas");
+  if (category !== "mainland" && category !== "sino_foreign") return null;
+  for (const candidate of provinceCandidates) {
+    const region = GROUP_CHAT_REGION_BY_LABEL.get(String(candidate || "").trim());
+    if (region) return region;
+  }
+  return null;
+}
+async function getGroupChatContext(db, userId) {
+  const row = await db.prepare(`SELECT u.id,u.university_id,u.province AS userProvince,
+    uni.canonical_name AS university,uni.category AS category,
+    uni.province_name_zh AS mainProvince,uni.region_name AS legacyRegion
+    FROM users u LEFT JOIN universities uni ON uni.id=u.university_id
+    WHERE u.id=? AND u.deleted_at=''`).bind(userId).first();
+  if (!row || !row.university_id) throw err("group_chat_university_required",409);
+  const region = resolveGroupChatRegion(row.category,[row.mainProvince,row.legacyRegion,row.userProvince]);
+  if (!region) throw err("group_chat_region_unavailable",409);
+  return { ...row, region };
+}
+function groupChatQrObjectKey(regionKey) { return "group-chat-qr/" + regionKey; }
+function groupChatAssetMetadata(object) {
+  if (!object) return null;
+  return {
+    fileName: object.customMetadata?.fileName || "群聊二维码",
+    contentType: object.httpMetadata?.contentType || "application/octet-stream",
+    sizeBytes: Number(object.size || 0),
+    uploadedAt: object.customMetadata?.uploadedAt || object.uploaded?.toISOString?.() || "",
+    uploadedBy: object.customMetadata?.uploadedBy || ""
+  };
+}
+function detectGroupChatImageType(bytes) {
+  const b = new Uint8Array(bytes);
+  if (b.length >= 8 && b[0]===0x89 && b[1]===0x50 && b[2]===0x4e && b[3]===0x47 && b[4]===0x0d && b[5]===0x0a && b[6]===0x1a && b[7]===0x0a) return "image/png";
+  if (b.length >= 3 && b[0]===0xff && b[1]===0xd8 && b[2]===0xff) return "image/jpeg";
+  if (b.length >= 12 && String.fromCharCode(...b.slice(0,4))==="RIFF" && String.fromCharCode(...b.slice(8,12))==="WEBP") return "image/webp";
+  return "";
+}
 async function writeAudit(db, actorType, actorId, action, targetType, targetId, metadata = {}) {
   await db.prepare("INSERT INTO audit_logs(id,actor_type,actor_id,action,target_type,target_id,metadata_json) VALUES(?,?,?,?,?,?,?)")
     .bind(randomHex(16), actorType, actorId || null, action, targetType || null, targetId || null, JSON.stringify(metadata)).run();
