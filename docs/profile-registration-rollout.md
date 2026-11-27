@@ -42,7 +42,23 @@ npx wrangler deploy --config backend/wrangler.toml
 Invoke-RestMethod https://api.58er.eon21.space/api/health
 ```
 
-本轮 Worker 构建标记应为 `profile-registration-v4-20261126`。若仍显示旧标记，说明 Worker 尚未更新。不要在新 D1 字段迁移前部署新 Worker。
+本轮 Worker 构建标记应为 `sms-readiness-diagnostics-20261127`。若仍显示旧标记，说明 Worker 尚未更新。不要在新 D1 字段迁移前部署新 Worker。
+
+健康检查会额外返回不含密钥值的 `readiness` 状态：
+- `rateLimitConfigured`：`RATE_LIMIT_HMAC_SECRET` 是否存在且至少 32 位。
+- `turnstileConfigured`：`TURNSTILE_SECRET_KEY` 是否存在。
+- `smsCredentialsConfigured`：`ALIBABA_ACCESS_KEY_ID` 和 `ALIBABA_ACCESS_KEY_SECRET` 是否都存在。
+- `smsTemplateConfigured`：`ALIBABA_SIGN_NAME` 和 `ALIBABA_TEMPLATE_CODE` 是否都存在。
+
+前两项以及阿里云 AccessKey 必须使用 Worker Secrets；SignName 和 TemplateCode 作为 Worker Variables 配置。名称必须严格使用以上大写拼写。不要把密钥值写入 GitHub。
+如缺少 Secrets，可在项目根目录按提示执行 `npx wrangler secret put SECRET_NAME --config backend/wrangler.toml`，并按终端提示粘贴对应值；如缺少 SignName/TemplateCode，请在 Cloudflare Worker 的 Settings → Variables and Secrets → Variables 中补齐，再重新部署 Worker。
+
+### 短信 503 的判定
+- `sms_not_configured`：阿里云 AccessKey、SignName 或 TemplateCode 至少有一项未配置。
+- `rate_limit_secret_not_configured`：缺少或长度不足的限流 HMAC Secret。
+- `turnstile_failed`：Worker 服务端 Siteverify 请求异常或未能确认本次 token；浏览器组件显示绿色成功不代表服务端验证已通过。
+- `rate_limited`：触发手机号或 IP 频率限制，按响应里的 `retryAfter` 等待。
+当前 Worker 会把阿里云明确拒绝的注册短信请求对外处理成中性响应，因此若前端直接看到 503，优先检查上述配置/服务端 Turnstile，不要先按阿里云业务频控处理。
 
 ## D. 页面验证顺序
 
