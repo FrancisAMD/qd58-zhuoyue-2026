@@ -164,15 +164,15 @@ assert.equal(adminDb.state.runs[0].bindings[3],"admin.group_chat_qr.uploaded");
 
 const invalidUpload=await worker.fetch(makeRequest("/admin/group-chat/qr/not-a-province?fileName=bad.png",{
   method:"PUT",cookie:ADMIN_COOKIE,headers:{"content-type":"image/png"},body:PNG
-}),{APP_ORIGIN,DB:adminDb.DB,GROUP_QR:uploadR2});
+}),{APP_ORIGIN:ORIGIN,DB:adminDb.DB,GROUP_QR:uploadR2});
 assert.equal(invalidUpload.status,400);
 
 const nonImage=await worker.fetch(makeRequest("/admin/group-chat/qr/shandong?fileName=bad.png",{
   method:"PUT",cookie:ADMIN_COOKIE,headers:{"content-type":"image/png"},body:new Uint8Array([1,2,3,4])
-}),{APP_ORIGIN,DB:adminDb.DB,GROUP_QR:uploadR2});
+}),{APP_ORIGIN:ORIGIN,DB:adminDb.DB,GROUP_QR:uploadR2});
 assert.equal(nonImage.status,415);
 
-const qrListResponse=await worker.fetch(makeRequest("/admin/group-chat/qr",{cookie:ADMIN_COOKIE}),{APP_ORIGIN,DB:adminDb.DB,GROUP_QR:uploadR2});
+const qrListResponse=await worker.fetch(makeRequest("/admin/group-chat/qr",{cookie:ADMIN_COOKIE}),{APP_ORIGIN:ORIGIN,DB:adminDb.DB,GROUP_QR:uploadR2});
 assert.equal(qrListResponse.status,200);
 const qrList=await qrListResponse.json();
 assert.equal(qrList.regions.length,33);
@@ -201,6 +201,6 @@ assert.equal(confirmList.members[0].id,"sd");
 assert.equal(confirmList.members.some(item=>item.id==="hw"),false,"HIT Weihai campus must not count as Shandong; QR follows main campus");
 assert.equal(confirmList.members.some(item=>item.id==="hk"),false);
 
-const missingBucket=await worker.fetch(makeRequest("/group-chat/status"),{APP_ORIGIN,DB:mainDb.DB});
+const missingBucket=await worker.fetch(makeRequest("/group-chat/status"),{APP_ORIGIN:ORIGIN,DB:mainDb.DB});
 assert.equal(missingBucket.status,503);
 console.log("group-chat-qr-smoke: main-campus region mapping, hmt/overseas groups, R2 upload, protected image, confirmation and admin roster passed");
