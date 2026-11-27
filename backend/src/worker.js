@@ -214,8 +214,8 @@ async function currentAdmin(request, env) {
     .bind(digest, now()).first();
 }
 const ADMIN_PERMISSIONS = {
-  owner: ["overview", "people:read", "people:export", "people:delete", "audit:read", "admins:manage", "universities:import", "universities:review"],
-  admin: ["overview", "people:read", "people:export", "people:delete", "audit:read", "universities:review"],
+  owner: ["overview", "people:read", "people:export", "people:delete", "audit:read", "admins:manage", "universities:import", "universities:review", "group-chat:manage"],
+  admin: ["overview", "people:read", "people:export", "people:delete", "audit:read", "universities:review", "group-chat:manage"],
   viewer: ["overview"]
 };
 function hasAdminPermission(admin, permission) {
@@ -495,7 +495,7 @@ async function route(request, env) {
   if(method==="OPTIONS") return new Response(null,{status:204,headers:corsHeaders(origin,env)});
   if(origin && origin!==env.APP_ORIGIN) return response({error:"origin_forbidden"},403,origin,env);
   if(path==="/api/health" && method==="GET") return response({
-    ok:true,service:"zhuoyue-2026-api",build:"admin-roster-delete-spacing-20261127",
+    ok:true,service:"zhuoyue-2026-api",build:"regional-group-chat-qr-20261127",
     passwordKdf:"pbkdf2-sha256-100000",
     readiness:{
       rateLimitConfigured:typeof env.RATE_LIMIT_HMAC_SECRET==="string"&&env.RATE_LIMIT_HMAC_SECRET.length>=32,
@@ -1096,6 +1096,94 @@ if(path==="/api/teams/transfer" && method==="POST") {
     if(!completed) return response({error:"transfer_state_conflict"},409,origin,env);
     return response({ok:true,status,alreadyApplied:transfer.status===status},200,origin,env);
   }
+  if(path==="/api/group-chat/status" && method==="GET") {
+    const user=await currentUser(request,env);
+    if(!user) return response({error:"unauthorized"},401,origin,env);
+    if(!user.consent_given||!user.consent_at||user.consent_version!==PRIVACY_NOTICE_VERSION||
+       !user.account_consent_at||user.account_consent_version!==PRIVACY_NOTICE_VERSION) {
+      return response({error:"consent_required"},403,origin,env);
+    }
+    if(!env.GROUP_QR) return response({error:"group_qr_storage_not_configured"},503,origin,env);
+    try {
+      const context=await getGroupChatContext(env.DB,user.id);
+      const asset=await env.GROUP_QR.head(groupChatQrObjectKey(context.region.key));
+      const metadata=groupChatAssetMetadata(asset);
+      const confirmation=await env.DB.prepare(`SELECT university_id_snapshot,qr_uploaded_at_snapshot,confirmed_at
+        FROM group_chat_confirmations WHERE user_id=? AND region_key=?`).bind(user.id,context.region.key).first();
+      const confirmed=!!(metadata&&confirmation?.confirmed_at&&confirmation.qr_uploaded_at_snapshot===metadata.uploadedAt);
+      return response({
+        regionKey:context.region.key,regionLabel:context.region.label,university:context.university,
+        mappingRule:"按高校校本部所在省份归组，不按本人就读的异地校区归组。",
+        hmtRule:"港澳台高校统一使用港澳台群聊二维码。",
+        overseasRule:"海外高校统一使用海外群聊二维码。",
+        configured:!!metadata,asset:metadata,
+        confirmed,confirmedAt:confirmation?.confirmed_at||null,
+        needsReconfirm:!!(confirmation?.confirmed_at&&!confirmed)
+      },200,origin,env);
+    } catch(error) {
+      if(error?.status) return response({error:error.error},error.status,origin,env);
+      console.error("Group chat status failed",error?.message||"unknown");
+      return response({error:"group_chat_status_failed"},500,origin,env);
+    }
+  }
+  if(path==="/api/group-chat/qr-image" && method==="GET") {
+    const user=await currentUser(request,env);
+    if(!user) return response({error:"unauthorized"},401,origin,env);
+    if(!user.consent_given||!user.consent_at||user.consent_version!==PRIVACY_NOTICE_VERSION||
+       !user.account_consent_at||user.account_consent_version!==PRIVACY_NOTICE_VERSION) {
+      return response({error:"consent_required"},403,origin,env);
+    }
+    if(!env.GROUP_QR) return response({error:"group_qr_storage_not_configured"},503,origin,env);
+    try {
+      const context=await getGroupChatContext(env.DB,user.id);
+      const asset=await env.GROUP_QR.get(groupChatQrObjectKey(context.region.key));
+      if(!asset) return response({error:"group_qr_not_configured"},404,origin,env);
+      return new Response(asset.body,{status:200,headers:{
+        ...corsHeaders(origin,env),
+        "content-type":asset.httpMetadata?.contentType||"application/octet-stream",
+        "cache-control":"private, no-store",
+        "x-content-type-options":"nosniff",
+        "content-disposition":"inline"
+      }});
+    } catch(error) {
+      if(error?.status) return response({error:error.error},error.status,origin,env);
+      console.error("Group chat QR read failed",error?.message||"unknown");
+      return response({error:"group_qr_read_failed"},500,origin,env);
+    }
+  }
+  if(path==="/api/group-chat/confirm" && method==="POST") {
+    const user=await currentUser(request,env);
+    if(!user) return response({error:"unauthorized"},401,origin,env);
+    if(!user.consent_given||!user.consent_at||user.consent_version!==PRIVACY_NOTICE_VERSION||
+       !user.account_consent_at||user.account_consent_version!==PRIVACY_NOTICE_VERSION) {
+      return response({error:"consent_required"},403,origin,env);
+    }
+    if(!env.GROUP_QR) return response({error:"group_qr_storage_not_configured"},503,origin,env);
+    try {
+      const context=await getGroupChatContext(env.DB,user.id);
+      const asset=await env.GROUP_QR.head(groupChatQrObjectKey(context.region.key));
+      const metadata=groupChatAssetMetadata(asset);
+      if(!metadata) return response({error:"group_qr_not_configured"},409,origin,env);
+      const confirmedAt=new Date().toISOString();
+      await env.DB.batch([
+        env.DB.prepare(`INSERT INTO group_chat_confirmations(user_id,region_key,university_id_snapshot,qr_uploaded_at_snapshot,confirmed_at)
+          VALUES(?,?,?,?,?)
+          ON CONFLICT(user_id,region_key) DO UPDATE SET
+            university_id_snapshot=excluded.university_id_snapshot,
+            qr_uploaded_at_snapshot=excluded.qr_uploaded_at_snapshot,
+            confirmed_at=excluded.confirmed_at`)
+          .bind(user.id,context.region.key,context.university_id,metadata.uploadedAt,confirmedAt),
+        env.DB.prepare("INSERT INTO audit_logs(id,actor_type,actor_id,action,target_type,target_id,metadata_json) VALUES(?,'user',?,'student.group_chat.confirmed','group_chat',?,?)")
+          .bind(randomHex(16),user.id,context.region.key,JSON.stringify({regionLabel:context.region.label,universityId:context.university_id,qrUploadedAt:metadata.uploadedAt}))
+      ]);
+      return response({ok:true,confirmed:true,regionKey:context.region.key,regionLabel:context.region.label,confirmedAt},200,origin,env);
+    } catch(error) {
+      if(error?.status) return response({error:error.error},error.status,origin,env);
+      console.error("Group chat confirmation failed",error?.message||"unknown");
+      return response({error:"group_chat_confirmation_failed"},500,origin,env);
+    }
+  }
+
   if(path==="/api/directory" && method==="GET") {
     const user=await currentUser(request,env); if(!user) return response({error:"unauthorized"},401,origin,env);
     if(!user.consent_given||!user.consent_at||user.consent_version!==PRIVACY_NOTICE_VERSION||
@@ -1299,6 +1387,105 @@ if(path==="/api/teams/transfer" && method==="POST") {
     if (!admin) return response({error:"unauthorized"},401,origin,env);
     return response({admin:{id:admin.id,username:admin.username,role:admin.role,permissions:ADMIN_PERMISSIONS[admin.role]||[]}},200,origin,env);
   }
+  if(path==="/api/admin/group-chat/qr" && method==="GET") {
+    const admin=await currentAdmin(request,env);
+    if(!admin) return response({error:"unauthorized"},401,origin,env);
+    if(!hasAdminPermission(admin,"group-chat:manage")) return response({error:"forbidden"},403,origin,env);
+    if(!env.GROUP_QR) return response({error:"group_qr_storage_not_configured"},503,origin,env);
+    try {
+      const regions=await Promise.all(GROUP_CHAT_REGIONS.map(async region=>{
+        const object=await env.GROUP_QR.head(groupChatQrObjectKey(region.key));
+        return {...region,configured:!!object,asset:groupChatAssetMetadata(object)};
+      }));
+      return response({regions},200,origin,env);
+    } catch(error) {
+      console.error("Admin group QR list failed",error?.message||"unknown");
+      return response({error:"group_qr_list_failed"},500,origin,env);
+    }
+  }
+  const groupQrUploadMatch=path.match(/^\/api\/admin\/group-chat\/qr\/([a-z0-9-]+)$/);
+  if(groupQrUploadMatch && method==="PUT") {
+    const admin=await currentAdmin(request,env);
+    if(!admin) return response({error:"unauthorized"},401,origin,env);
+    if(!hasAdminPermission(admin,"group-chat:manage")) return response({error:"forbidden"},403,origin,env);
+    if(!env.GROUP_QR) return response({error:"group_qr_storage_not_configured"},503,origin,env);
+    const region=GROUP_CHAT_REGION_BY_KEY.get(groupQrUploadMatch[1]);
+    if(!region) return response({error:"group_qr_region_invalid"},400,origin,env);
+    const declaredLength=Number(request.headers.get("content-length")||0);
+    if(declaredLength>5*1024*1024) return response({error:"group_qr_file_too_large"},413,origin,env);
+    let bytes;
+    try { bytes=await request.arrayBuffer(); } catch { return response({error:"group_qr_file_invalid"},400,origin,env); }
+    if(bytes.byteLength===0) return response({error:"group_qr_file_empty"},400,origin,env);
+    if(bytes.byteLength>5*1024*1024) return response({error:"group_qr_file_too_large"},413,origin,env);
+    const detected=detectGroupChatImageType(bytes);
+    const declaredType=String(request.headers.get("content-type")||"").split(";")[0].trim().toLowerCase();
+    if(!detected||detected!==declaredType) return response({error:"group_qr_image_type_invalid"},415,origin,env);
+    const fileName=String(url.searchParams.get("fileName")||"group-chat-qr")
+      .replace(/[\\/\u0000-\u001f]/g,"_").slice(0,120);
+    const uploadedAt=new Date().toISOString();
+    const objectKey=groupChatQrObjectKey(region.key);
+    try {
+      await env.GROUP_QR.put(objectKey,bytes,{
+        httpMetadata:{contentType:detected,cacheControl:"private, no-store"},
+        customMetadata:{regionKey:region.key,regionLabel:region.label,fileName,uploadedAt,uploadedBy:admin.username}
+      });
+      await writeAudit(env.DB,"admin",admin.id,"admin.group_chat_qr.uploaded","group_chat",region.key,{regionLabel:region.label,fileName,sizeBytes:bytes.byteLength,contentType:detected});
+      return response({ok:true,regionKey:region.key,regionLabel:region.label,configured:true,asset:{fileName,contentType:detected,sizeBytes:bytes.byteLength,uploadedAt,uploadedBy:admin.username}},200,origin,env);
+    } catch(error) {
+      console.error("Admin group QR upload failed",error?.message||"unknown");
+      return response({error:"group_qr_upload_failed"},500,origin,env);
+    }
+  }
+  if(groupQrUploadMatch && method==="DELETE") {
+    const admin=await currentAdmin(request,env);
+    if(!admin) return response({error:"unauthorized"},401,origin,env);
+    if(!hasAdminPermission(admin,"group-chat:manage")) return response({error:"forbidden"},403,origin,env);
+    if(!env.GROUP_QR) return response({error:"group_qr_storage_not_configured"},503,origin,env);
+    const region=GROUP_CHAT_REGION_BY_KEY.get(groupQrUploadMatch[1]);
+    if(!region) return response({error:"group_qr_region_invalid"},400,origin,env);
+    try {
+      await env.GROUP_QR.delete(groupChatQrObjectKey(region.key));
+      await writeAudit(env.DB,"admin",admin.id,"admin.group_chat_qr.deleted","group_chat",region.key,{regionLabel:region.label});
+      return response({ok:true,deleted:true,regionKey:region.key},200,origin,env);
+    } catch(error) {
+      console.error("Admin group QR delete failed",error?.message||"unknown");
+      return response({error:"group_qr_delete_failed"},500,origin,env);
+    }
+  }
+  if(path==="/api/admin/group-chat/confirmations" && method==="GET") {
+    const admin=await currentAdmin(request,env);
+    if(!admin) return response({error:"unauthorized"},401,origin,env);
+    if(!hasAdminPermission(admin,"group-chat:manage")) return response({error:"forbidden"},403,origin,env);
+    const regionKey=url.searchParams.get("regionKey")||"";
+    const region=GROUP_CHAT_REGION_BY_KEY.get(regionKey);
+    if(!region) return response({error:"group_qr_region_invalid"},400,origin,env);
+    if(!env.GROUP_QR) return response({error:"group_qr_storage_not_configured"},503,origin,env);
+    try {
+      const object=await env.GROUP_QR.head(groupChatQrObjectKey(region.key));
+      const asset=groupChatAssetMetadata(object);
+      const rows=await env.DB.prepare(`SELECT u.id,u.name,u.grade,u.campus_name AS campusName,
+        uni.canonical_name AS university,uni.category AS category,
+        uni.province_name_zh AS mainProvince,uni.region_name AS legacyRegion,u.province AS userProvince,
+        gc.confirmed_at AS confirmedAt,gc.qr_uploaded_at_snapshot AS qrUploadedAtSnapshot
+        FROM users u
+        JOIN universities uni ON uni.id=u.university_id
+        LEFT JOIN group_chat_confirmations gc ON gc.user_id=u.id AND gc.region_key=?
+        WHERE u.deleted_at='' ORDER BY uni.canonical_name,u.created_at`).bind(region.key).all();
+      const members=(rows.results||[]).filter(item=>
+        resolveGroupChatRegion(item.category,[item.mainProvince,item.legacyRegion,item.userProvince])?.key===region.key
+      ).map(item=>({
+        id:item.id,name:item.name,grade:item.grade,campusName:item.campusName,university:item.university,
+        confirmed:!!(asset&&item.confirmedAt&&item.qrUploadedAtSnapshot===asset.uploadedAt),
+        hasPriorConfirmation:!!item.confirmedAt,confirmedAt:item.confirmedAt||null
+      }));
+      const confirmedCount=members.filter(item=>item.confirmed).length;
+      return response({regionKey:region.key,regionLabel:region.label,configured:!!asset,total:members.length,confirmed:confirmedCount,pending:members.length-confirmedCount,members},200,origin,env);
+    } catch(error) {
+      console.error("Admin group confirmation list failed",error?.message||"unknown");
+      return response({error:"group_chat_confirmations_failed"},500,origin,env);
+    }
+  }
+
   if (path === "/api/admin/overview" && method === "GET") {
     const admin = await currentAdmin(request,env);
     if (!admin) return response({error:"unauthorized"},401,origin,env);
