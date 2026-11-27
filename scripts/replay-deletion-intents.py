@@ -328,7 +328,10 @@ def replay_backup(sql_path, ledger_path, out_path, rate_limit_secret, expected_m
     if private_raw.is_symlink():
         raise ReplayError("replay_private_directory_unsafe")
     private = private_raw.resolve()
-    output_path = Path(out_path).resolve()
+    output_raw = Path(out_path)
+    if output_raw.is_symlink():
+        raise ReplayError("replay_output_must_be_new_private_file")
+    output_path = output_raw.resolve()
     if output_path.parent != private or output_path.exists() or output_path.is_symlink():
         raise ReplayError("replay_output_must_be_new_private_file")
     private.mkdir(parents=True,exist_ok=True)
