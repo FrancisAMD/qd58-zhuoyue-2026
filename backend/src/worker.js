@@ -1,5 +1,5 @@
 import { buildXlsxWorkbook } from "./xlsx.js";
-import { recordDeletionIntent } from "./account-deletion-ledger.js";
+import { recordDeletionIntent, listDeletionIntents } from "./account-deletion-ledger.js";
 import {
   stageCatalogImport,
   finalizeCatalogImport,
@@ -214,7 +214,7 @@ async function currentAdmin(request, env) {
     .bind(digest, now()).first();
 }
 const ADMIN_PERMISSIONS = {
-  owner: ["overview", "people:read", "people:export", "audit:read", "admins:manage", "universities:import", "universities:review"],
+  owner: ["overview", "people:read", "people:export", "audit:read", "admins:manage", "universities:import", "universities:review", "account:deletion:recovery"],
   admin: ["overview", "people:read", "people:export", "audit:read", "universities:review"],
   viewer: ["overview"]
 };
@@ -1189,6 +1189,36 @@ if(path==="/api/teams/transfer" && method==="POST") {
     if (!admin) return response({error:"unauthorized"},401,origin,env);
     return response({admin:{id:admin.id,username:admin.username,role:admin.role,permissions:ADMIN_PERMISSIONS[admin.role]||[]}},200,origin,env);
   }
+  if (path === "/api/admin/account-deletion-ledger/export" && method === "GET") {
+    if (origin !== env.APP_ORIGIN) return response({error:"origin_forbidden"},403,origin,env);
+    if (env.ACCOUNT_DELETION_LEDGER_EXPORT_ENABLED !== "true") {
+      return response({error:"deletion_ledger_export_disabled"},503,origin,env);
+    }
+    const admin = await currentAdmin(request,env);
+    if (!admin) return response({error:"unauthorized"},401,origin,env);
+    if (admin.role !== "owner" || !hasAdminPermission(admin,"account:deletion:recovery")) {
+      return response({error:"forbidden"},403,origin,env);
+    }
+    const rawLimit = url.searchParams.get("limit") || "1000";
+    if (!/^(1|[1-9]\d{0,3})$/.test(rawLimit) || Number(rawLimit)>1000) {
+      return response({error:"deletion_ledger_page_invalid"},400,origin,env);
+    }
+    const cursor = url.searchParams.get("cursor") || undefined;
+    if (cursor && cursor.length>2048) return response({error:"deletion_ledger_page_invalid"},400,origin,env);
+    try {
+      const page = await listDeletionIntents(env.DELETE_LEDGER,{limit:Number(rawLimit),cursor});
+      const pageSha256 = await sha256(JSON.stringify(page.records));
+      const cursorSha256 = cursor ? await sha256(cursor) : null;
+      await writeAudit(env.DB,"admin",admin.id,"admin.account_deletion_ledger.export_page",
+        "account_deletion_ledger",null,{recordCount:page.records.length,truncated:page.truncated,pageSha256,cursorSha256});
+      return response({schemaVersion:1,records:page.records,truncated:page.truncated,cursor:page.cursor},
+        200,origin,env,{"cache-control":"no-store"});
+    } catch (error) {
+      console.error("Deletion ledger export page failed",error?.message || "unknown");
+      return response({error:"deletion_ledger_export_failed"},503,origin,env);
+    }
+  }
+  
   if (path === "/api/admin/overview" && method === "GET") {
     const admin = await currentAdmin(request,env);
     if (!admin) return response({error:"unauthorized"},401,origin,env);
