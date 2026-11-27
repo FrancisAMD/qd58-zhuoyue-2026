@@ -74,6 +74,7 @@ function selectUniversityCategory(category){
   $("universityCatalogId").value="";
   $("universityName").value="";
   $("selectedUniversityName").textContent="尚未选择高校";
+  $("clearSelectedUniversity").hidden=true;$("continueToDetails").hidden=true;
   $("universitySelectionMsg").textContent=category==="overseas"?"海外高校由你自行填写，提交后进入审核。":"请从项目内高校目录中选择。";
   $("universitySearch").value="";
   $("universitySearchResults").innerHTML="";
@@ -198,6 +199,7 @@ function selectUniversity(item,selectedCampusId=""){
   universitySearchSequence++;clearTimeout(universitySearchTimer);
   selectedUniversity=item;
   const category=item._category||$("universityCategoryValue").value;
+  $("clearSelectedUniversity").hidden=false;$("continueToDetails").hidden=false;
   $("profileUniversityId").value=item.id;
   $("universityCatalogId").value="";
   $("universityName").value=item.name;
@@ -224,6 +226,25 @@ function selectUniversity(item,selectedCampusId=""){
     $("admissionCategoryId").required=false;
     populateMajorDisciplines(profileReferenceData,item.tags||[]);
   }
+}
+function clearSelectedUniversity(){
+  if(!confirm("移除当前选择的高校？现有资料不会立即删除，只有重新选择并保存后才会调整团队归属。"))return;
+  categoryLocked=false;selectedUniversity=null;universityResults=[];universitySearchSequence++;clearTimeout(universitySearchTimer);
+  $("profileUniversityId").value="";$("universityCatalogId").value="";$("universityName").value="";
+  $("universityCategoryValue").value="";$("universityCategoryField").value="";
+  $("selectedUniversityName").textContent="尚未选择高校";
+  $("universitySelectionMsg").textContent="请重新选择高校类别和学校。";
+  $("universitySearch").value="";$("universitySearch").disabled=false;
+  $("universitySearchResults").innerHTML="";
+  $("overseasUniversityName").value="";$("profileProvince").value="";$("profileCity").value="";
+  $("campusSelectionWrap").hidden=true;$("campusSelect").required=false;$("campusSelect").value="";
+  $("campusName").value="";$("campusTag").value="";
+  $("admissionFields").hidden=true;$("admissionCategoryId").required=false;$("admissionCategoryId").value="";
+  $("clearSelectedUniversity").hidden=true;$("continueToDetails").hidden=true;
+  $("universityBack").hidden=false;
+  document.querySelectorAll("[data-university-category]").forEach(button=>button.classList.remove("selected"));
+  showUniversityCategoryStep();
+  showRegistrationStep("university");
 }
 function populateMajorDisciplines(refs,tags=[]){
   if(!refs)return;
@@ -369,7 +390,7 @@ async function load(){
       $("universityName").value=p.university;
       $("profileUniversityId").value="";
       $("universityCatalogId").value=p.universityCatalogId||"";
-      $("universitySelectionMsg").textContent="这是历史登记的高校记录。如需更改学校，请联系组织者。";
+      $("universitySelectionMsg").textContent="这是已登记的高校。如需更改，请先移除所选高校再重新选择。";
       $("universityBack").hidden=true;
       $("admissionFields").hidden=category!=="mainland";
       let legacyTags=[];try{legacyTags=JSON.parse(p.projectTags||"[]");if(!Array.isArray(legacyTags))legacyTags=[];}catch{}
@@ -497,8 +518,15 @@ $("universityNext").onclick=()=>openUniversityDetails();
 $("universityBack").onclick=showUniversityCategoryStep;
 
 $("campusSelect").onchange=updateCampusFromSelection;
-$("admissionCategoryId").onchange=()=>{if(profileReferenceData)populateAdmissionTypes(profileReferenceData.admissions.categories,$("admissionCategoryId").value,"");};
-$("overseasUniversityName").oninput=()=>{$("universityName").value=$("overseasUniversityName").value.trim();$("selectedUniversityName").textContent=$("overseasUniversityName").value.trim()||"尚未填写海外高校";};
+$("admissionCategoryId").onchange=()=>{};
+$("overseasUniversityName").oninput=()=>{
+  const value=$("overseasUniversityName").value.trim();
+  $("universityName").value=value;
+  $("selectedUniversityName").textContent=value||"尚未填写海外高校";
+  $("universitySelectionMsg").textContent=value?"已填写海外高校名称，提交后进入审核。":"请填写目前就读的海外大学名称。";
+  $("clearSelectedUniversity").hidden=!value;
+  $("continueToDetails").hidden=!value;
+};
 $("reviewRefresh").onclick=async()=>{$("reviewRefresh").disabled=true;msg("reviewMsg","正在查询审核状态…");await load();$("reviewRefresh").disabled=false;};
 
 $("universitySearch").addEventListener("input",()=>{
@@ -511,7 +539,15 @@ $("universitySearchResults").addEventListener("click",event=>{
   const item=universityResults[Number(button.dataset.universityIndex)];
   if(item)selectUniversity(item);
 });
-["authStageLogin","gateLogin"].forEach(x=>$(x).onclick=()=>auth("login"));$("authStageRegister").onclick=()=>auth("register");$("goDirectory").onclick=showDirectoryStage;$("backToProfile").onclick=showProfileStage;$("changePassword").onclick=()=>auth("changePassword");document.querySelectorAll("[data-auth]").forEach(x=>x.onclick=()=>auth(x.dataset.auth));$("forgot").onclick=()=>auth("reset");$("backLogin").onclick=()=>auth("login");$("cancelPasswordChange").onclick=()=>$("modal").classList.remove("show");$("deleteAccountOpen").onclick=()=>auth("deleteAccount");$("cancelDeleteAccount").onclick=()=>$("modal").classList.remove("show");$("deleteSend").onclick=()=>sendCode("deleteAccount");$("regSend").onclick=()=>sendCode("register");$("resetSend").onclick=()=>sendCode("reset");
+["authStageLogin","gateLogin"].forEach(x=>$(x).onclick=()=>auth("login"));$("authStageRegister").onclick=()=>auth("register");
+$("goDirectory").onclick=showDirectoryStage;$("backToProfile").onclick=showProfileStage;
+document.querySelectorAll("[data-journey-step]").forEach(button=>button.onclick=()=>{
+  const step=button.dataset.journeyStep;
+  if(step==="directory")showDirectoryStage();else showRegistrationStep(step);
+});
+$("continueToDetails").onclick=()=>showRegistrationStep("profile");
+$("backToUniversityStep").onclick=showRegistrationStep.bind(null,"university");
+$("clearSelectedUniversity").onclick=clearSelectedUniversity;$("changePassword").onclick=()=>auth("changePassword");document.querySelectorAll("[data-auth]").forEach(x=>x.onclick=()=>auth(x.dataset.auth));$("forgot").onclick=()=>auth("reset");$("backLogin").onclick=()=>auth("login");$("cancelPasswordChange").onclick=()=>$("modal").classList.remove("show");$("deleteAccountOpen").onclick=()=>auth("deleteAccount");$("cancelDeleteAccount").onclick=()=>$("modal").classList.remove("show");$("deleteSend").onclick=()=>sendCode("deleteAccount");$("regSend").onclick=()=>sendCode("register");$("resetSend").onclick=()=>sendCode("reset");
 $("loginForm").onsubmit=async e=>{e.preventDefault();try{await call("/auth/login",{phone:$("loginPhone").value.trim(),password:$("loginPassword").value});$("modal").classList.remove("show");await load()}catch(x){msg("loginMsg",errorText(x),true)}};
 $("registerForm").onsubmit=async e=>{e.preventDefault();if($("regPass").value!==$("regPass2").value)return msg("regMsg","两次密码不一致",true);try{await call("/auth/register",{phone:$("regPhone").value.trim(),code:$("regCode").value.trim(),password:$("regPass").value,accountConsent:$("accountConsent").checked});$("modal").classList.remove("show");await load()}catch(x){msg("regMsg",errorText(x),true)}};
 $("resetForm").onsubmit=async e=>{e.preventDefault();if($("resetPass").value!==$("resetPass2").value)return msg("resetMsg","两次密码不一致",true);try{await call("/auth/password/reset",{phone:$("resetPhone").value.trim(),code:$("resetCode").value.trim(),newPassword:$("resetPass").value});msg("resetMsg","密码已重置，请返回登录");setTimeout(()=>auth("login"),900)}catch(x){msg("resetMsg",errorText(x),true)}};
