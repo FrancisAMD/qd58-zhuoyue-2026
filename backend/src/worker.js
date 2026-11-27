@@ -28,7 +28,7 @@ function json(data, status = 200, headers = {}) {
 }
 function corsHeaders(origin, env) {
   if (!origin || origin !== env.APP_ORIGIN) return {};
-  return { "access-control-allow-origin": origin, "access-control-allow-credentials": "true", "access-control-allow-methods": "GET,POST,PUT,OPTIONS", "access-control-allow-headers": "Content-Type", "vary": "Origin" };
+  return { "access-control-allow-origin": origin, "access-control-allow-credentials": "true", "access-control-allow-methods": "GET,POST,PUT,DELETE,OPTIONS", "access-control-allow-headers": "Content-Type", "vary": "Origin" };
 }
 function response(data, status, origin, env, extra = {}) { return json(data, status, { ...corsHeaders(origin, env), ...extra }); }
 function validPhone(p) { return /^1[3-9]\d{9}$/.test(String(p || "")); }
@@ -214,8 +214,8 @@ async function currentAdmin(request, env) {
     .bind(digest, now()).first();
 }
 const ADMIN_PERMISSIONS = {
-  owner: ["overview", "people:read", "people:export", "audit:read", "admins:manage", "universities:import", "universities:review"],
-  admin: ["overview", "people:read", "people:export", "audit:read", "universities:review"],
+  owner: ["overview", "people:read", "people:export", "people:delete", "audit:read", "admins:manage", "universities:import", "universities:review"],
+  admin: ["overview", "people:read", "people:export", "people:delete", "audit:read", "universities:review"],
   viewer: ["overview"]
 };
 function hasAdminPermission(admin, permission) {
@@ -294,8 +294,12 @@ function adminPeopleFilters(url) {
     if (parameter === "category" && !["mainland", "hmt", "sino_foreign", "overseas", "unclassified"].includes(value)) {
       return { error: "invalid_filter" };
     }
-    where.push(column + "=?");
-    bindings.push(value);
+    if (parameter !== "category" && value === "__empty__") {
+      where.push("COALESCE(" + column + ",'')=''");
+    } else {
+      where.push(column + "=?");
+      bindings.push(value);
+    }
     filterCount++;
   }
   const university = (url.searchParams.get("university") || "").trim().slice(0, 120);
@@ -1307,6 +1311,67 @@ if(path==="/api/teams/transfer" && method==="POST") {
       teams = rows.results || [];
     }
     return response({counts:{total:Number(counts?.total||0),completed:Number(counts?.completed||0),consented:Number(counts?.consented||0)},teamCount:Number(teamCount?.total||0),teams},200,origin,env);
+  }
+  const adminPersonDeleteMatch = path.match(/^\/api\/admin\/people\/([a-f0-9]{32})$/);
+  if (adminPersonDeleteMatch && method === "DELETE") {
+    const admin = await currentAdmin(request,env);
+    if (!admin) return response({error:"unauthorized"},401,origin,env);
+    if (!hasAdminPermission(admin,"people:delete")) return response({error:"forbidden"},403,origin,env);
+    const targetUserId = adminPersonDeleteMatch[1];
+    try {
+      const target = await env.DB.prepare("SELECT id,phone,university_id,name FROM users WHERE id=? AND deleted_at=''")
+        .bind(targetUserId).first();
+      if (!target) return response({error:"person_not_found"},404,origin,env);
+      const leadership = await env.DB.prepare(`SELECT t.id,
+        (SELECT COUNT(*) FROM users member
+          WHERE member.university_id=t.university_id AND member.deleted_at='' AND member.id<>?) AS otherMembers
+        FROM teams t WHERE t.leader_user_id=? LIMIT 1`)
+        .bind(targetUserId,targetUserId).first();
+      if (leadership && Number(leadership.otherMembers||0)>0) {
+        return response({error:"team_leader_transfer_required"},409,origin,env);
+      }
+      const timestamp = new Date().toISOString();
+      const auditId = randomHex(16);
+      const statements = [
+        env.DB.prepare("UPDATE leader_transfers SET status='expired',responded_at=? WHERE status='pending' AND (from_user_id=? OR to_user_id=?)")
+          .bind(timestamp,targetUserId,targetUserId),
+        env.DB.prepare(`UPDATE teams SET leader_user_id=NULL
+          WHERE leader_user_id=?
+            AND NOT EXISTS(SELECT 1 FROM users member
+              WHERE member.university_id=teams.university_id AND member.deleted_at='' AND member.id<>?)`)
+          .bind(targetUserId,targetUserId),
+        env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(targetUserId),
+        env.DB.prepare("DELETE FROM otp_challenges WHERE phone=?").bind(target.phone),
+        env.DB.prepare(`UPDATE users SET
+          phone='deleted:'||id,password_hash=NULL,name=NULL,high_school=NULL,class_name=NULL,
+          university_id=NULL,grade=NULL,province=NULL,city=NULL,bio=NULL,greeting='',
+          gender='undisclosed',major_group='',major_discipline_code='',admission_category_id='',
+          admission_type_id='',campus_id='',campus_name='',campus_tag='',secondary_phone='',wechat_id='',
+          profile_review_status='rejected',overseas_university_name='',profile_review_submitted_at='',
+          profile_reviewed_at='',phone_visible_to_team=0,consent_at='',consent_given=0,
+          consent_version='',account_consent_at='',account_consent_version='',
+          auth_version=auth_version+1,deleted_at=?,updated_at=?
+          WHERE id=? AND deleted_at=''`)
+          .bind(timestamp,timestamp,targetUserId),
+        env.DB.prepare("INSERT INTO audit_logs(id,actor_type,actor_id,action,target_type,target_id,metadata_json) VALUES(?,'admin',?,'admin.user.deleted','user',?,?)")
+          .bind(auditId,admin.id,targetUserId,JSON.stringify({
+            reason:"admin_roster_cleanup",
+            transferHistoryPreserved:true,
+            previousUniversityId:target.university_id||null
+          }))
+      ];
+      const results = await env.DB.batch(statements);
+      if (!results?.[4]?.meta || Number(results[4].meta.changes||0)!==1) {
+        return response({error:"admin_delete_conflict"},409,origin,env);
+      }
+      return response({ok:true,deleted:true,transferHistoryPreserved:true},200,origin,env);
+    } catch(error) {
+      const reason=String(error?.message||"");
+      if(reason.includes("leader_must_transfer_team_first")) return response({error:"team_leader_transfer_required"},409,origin,env);
+      if(reason.includes("account_deletion_requires_no_pending_transfer")) return response({error:"admin_delete_conflict"},409,origin,env);
+      console.error("Admin roster deletion failed",reason||"unknown");
+      return response({error:"admin_person_delete_failed"},500,origin,env);
+    }
   }
   if (path === "/api/admin/people" && method === "GET") {
     const admin = await currentAdmin(request,env);

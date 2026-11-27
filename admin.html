@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>卓越2026 · 管理后台</title>
-  <link rel="stylesheet" href="style.css?v=20261127-admin-visible-details-v2">
+  <link rel="stylesheet" href="style.css?v=20261127-admin-delete-select-spacing-v1">
 </head>
 <body>
 <header>
@@ -68,14 +68,14 @@
       </div>
       <form id="filters" class="admin-filters">
         <label>关键词<input id="q" placeholder="姓名、高中学校、大学或省份"></label>
-        <label>省份<input id="province" placeholder="例如：山东省"></label>
+        <label>省份 / 地区<select id="province"><option value="">全部省份 / 地区</option><option value="北京市">北京市</option><option value="天津市">天津市</option><option value="河北省">河北省</option><option value="山西省">山西省</option><option value="内蒙古自治区">内蒙古自治区</option><option value="辽宁省">辽宁省</option><option value="吉林省">吉林省</option><option value="黑龙江省">黑龙江省</option><option value="上海市">上海市</option><option value="江苏省">江苏省</option><option value="浙江省">浙江省</option><option value="安徽省">安徽省</option><option value="福建省">福建省</option><option value="江西省">江西省</option><option value="山东省">山东省</option><option value="河南省">河南省</option><option value="湖北省">湖北省</option><option value="湖南省">湖南省</option><option value="广东省">广东省</option><option value="广西壮族自治区">广西壮族自治区</option><option value="海南省">海南省</option><option value="重庆市">重庆市</option><option value="四川省">四川省</option><option value="贵州省">贵州省</option><option value="云南省">云南省</option><option value="西藏自治区">西藏自治区</option><option value="陕西省">陕西省</option><option value="甘肃省">甘肃省</option><option value="青海省">青海省</option><option value="宁夏回族自治区">宁夏回族自治区</option><option value="新疆维吾尔自治区">新疆维吾尔自治区</option><option value="中国香港">中国香港</option><option value="中国澳门">中国澳门</option><option value="中国台湾">中国台湾</option><option value="海外">海外</option><option value="__empty__">未填写</option></select></label>
+        <label>年级<select id="grade"><option value="">全部年级</option><option value="大一">大一</option><option value="大二">大二</option><option value="大三">大三</option><option value="大四">大四</option><option value="研究生">研究生</option><option value="博士生">博士生</option><option value="已毕业">已毕业</option><option value="__empty__">未填写</option></select></label>
         <label>大学<input id="university" placeholder="大学名称"></label>
-        <label>年级<input id="grade" placeholder="例如：大一"></label>
         <label>高校类别<select id="category"><option value="">全部类别</option><option value="mainland">中国内地</option><option value="hmt">港澳台</option><option value="sino_foreign">历史中外合作记录</option><option value="overseas">海外</option><option value="unclassified">未分类</option></select></label>
         <div class="filter-actions"><button class="btn" type="submit">筛选</button><button type="reset" id="clearFilters" class="ghost">清空</button></div>
       </form>
       <p id="peopleMeta" class="muted"></p>
-      <div class="table-wrap"><table class="admin-table"><thead><tr><th>姓名</th><th>高中学校</th><th>大学</th><th>年级</th><th>省份</th><th>资料同意</th><th>登记时间</th><th>资料概览 / 完整资料</th></tr></thead><tbody id="peopleRows"></tbody></table></div>
+      <div class="table-wrap"><table class="admin-table"><thead><tr><th>姓名</th><th>高中学校</th><th>大学</th><th>年级</th><th>省份</th><th>资料同意</th><th>登记时间</th><th>资料概览 / 完整资料</th><th>操作</th></tr></thead><tbody id="peopleRows"></tbody></table></div>
       <div class="pagination"><button id="prevPage" class="ghost" type="button">上一页</button><span id="pageLabel"></span><button id="nextPage" class="ghost" type="button">下一页</button></div>
     </section>
 
@@ -103,6 +103,6 @@
     </section>
   </section>
 </main>
-<script src="admin.js?v=20261127-admin-visible-details-v2" defer></script>
+<script src="admin.js?v=20261127-admin-delete-select-spacing-v1" defer></script>
 </body>
 </html>

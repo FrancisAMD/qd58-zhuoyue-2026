@@ -490,3 +490,43 @@ body.dark .transfer-school{color:#b7d4c0}
   }
   .university-type-grid{gap:12px}
 }
+
+/* Actual dashboard and directory containers: visible gutters between every card. */
+#dashboard{display:grid;grid-template-columns:minmax(0,1fr);row-gap:22px}
+#dashboard[hidden]{display:none!important}
+#dashboard>.admin-toolbar,#dashboard>.admin-panel-status,#dashboard>.admin-stats{margin:0!important}
+#dashboard>section.panel{margin:0!important}
+#dashboard>.admin-stats{gap:16px}
+#teamsGrid{column-gap:18px;row-gap:18px}
+#peoplePanel .admin-heading{margin-bottom:18px}
+#peoplePanel .table-wrap{margin-top:14px}
+#peoplePanel .pagination{margin-top:20px}
+.admin-row-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:88px}
+.admin-delete-button{border:1px solid #d7aaa2;border-radius:7px;background:#fff6f4;color:#a3483f;padding:8px 10px;font:650 11px system-ui,sans-serif;white-space:nowrap;cursor:pointer}
+.admin-delete-button:hover{background:#f9e8e5}
+.admin-delete-button:disabled{opacity:.55;cursor:wait}
+body.dark .admin-delete-button{background:#382a28;border-color:#79504b;color:#e2b8b1}
+
+#groups{display:flex;flex-direction:column;gap:22px}
+#groups[hidden]{display:none!important}
+#groups>.directory-school,#groups>#teamSummary,#groups>#directory{width:100%;margin:0!important}
+#groups>.directory-school{padding:20px 22px}
+#groups>#teamSummary{padding:22px}
+#teamSummary>.directory-team-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:16px 0}
+#teamSummary>.directory-team-grid>div{padding:15px;border:1px solid var(--line);border-radius:10px;background:var(--bg);display:grid;gap:7px}
+#teamSummary>#leaderTransferPanel,#teamSummary>#transferInbox{margin-top:20px!important;padding-top:17px;border-top:1px solid var(--line)}
+#teamSummary>#leaderTransferPanel>p{margin:8px 0 14px}
+#teamSummary>#transferInbox h4{margin:0 0 12px}
+#groups>#directory.directory-panel{margin:0!important;padding:20px;border:1px solid var(--line);border-radius:13px;background:var(--paper)}
+#directory .directory-toolbar{margin-bottom:18px}
+#results.cards{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px!important;align-items:stretch;margin:0!important}
+#results.cards>.classmate-card.panel{margin:0!important;padding:20px;border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px #294a3409}
+#transferItems{display:grid;gap:16px!important;margin-top:16px}
+#transferItems>.transfer-record{margin:0!important}
+@media(max-width:760px){
+  #dashboard{row-gap:18px}
+  #groups{gap:17px}
+  #results.cards{grid-template-columns:1fr;gap:15px!important}
+  #teamSummary>.directory-team-grid{grid-template-columns:1fr;gap:11px}
+  #groups>#directory.directory-panel{padding:15px}
+}

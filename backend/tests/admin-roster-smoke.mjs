@@ -82,3 +82,15 @@ assert.equal(auditBody.pagination.pageSize,10);
 const auditQuery=queries.find(item=>item.kind==="all"&&item.sql.startsWith("SELECT l.id,l.actor_type"));
 assert.deepEqual(auditQuery.bindings,[10,0],"the server must cap audit page size at ten, even if a client asks for more");
 console.log("admin-roster-smoke: expanded profile API, empty-team filtering and latest-10 audit cap passed");
+
+const provinceGradeFilter = await get("/api/admin/people?province=%E5%B1%B1%E4%B8%9C%E7%9C%81&grade=%E5%A4%A7%E4%B8%80");
+assert.equal(provinceGradeFilter.status,200);
+const filteredSelect=queries.filter(item=>item.kind==="all"&&item.sql.startsWith("SELECT u.id,u.name,u.high_school")).at(-1);
+assert.match(filteredSelect.sql,/u\.province=\?/);
+assert.match(filteredSelect.sql,/u\.grade=\?/);
+assert.ok(filteredSelect.bindings.includes("山东省"));
+assert.ok(filteredSelect.bindings.includes("大一"));
+const emptyProvinceFilter=await get("/api/admin/people?province=__empty__");
+assert.equal(emptyProvinceFilter.status,200);
+const emptyFilterQuery=queries.filter(item=>item.kind==="all"&&item.sql.startsWith("SELECT u.id,u.name,u.high_school")).at(-1);
+assert.match(emptyFilterQuery.sql,/COALESCE\(u\.province,''\)=''/);

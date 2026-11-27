@@ -56,3 +56,12 @@ assert.match(js,/pageSize=10/);
 assert.match(js,/slice\(0,10\)/);
 assert.match(js,/30_000|30000/);
 assert.match(css,/\.admin-profile-preview/);
+
+assert.match(html,/id="province"><option value="">全部省份 \/ 地区<\/option>/);
+assert.match(html,/id="grade"><option value="">全部年级<\/option>/);
+assert.match(js,/people:delete/);
+assert.match(js,/data-person-delete/);
+assert.match(js,/methodOverride\|\|\(data\?"POST":"GET"\)/);
+assert.match(css,/#dashboard[\s\S]*?row-gap:22px/);
+assert.match(css,/#results\.cards[\s\S]*?gap:20px!important/);
+assert.match(css,/#teamSummary[\s\S]*?directory-team-grid[\s\S]*?gap:16px/);

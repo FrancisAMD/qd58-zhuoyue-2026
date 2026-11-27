@@ -1,11 +1,11 @@
 const API="https://api.58er.eon21.space/api", $=id=>document.getElementById(id);
 let current=null,page=1,pageSize=50,totalPages=1,filters={},overviewRefreshTimer=null;
 
-async function req(path,data){
+async function req(path,data,methodOverride){
   let response;
   try {
     response=await fetch(API+path,{
-      method:data?"POST":"GET",
+      method:methodOverride||(data?"POST":"GET"),
       credentials:"include",
       headers:data?{"Content-Type":"application/json"}:{},
       body:data?JSON.stringify(data):undefined
@@ -37,6 +37,10 @@ const ERROR_MESSAGES={
   admin_login_failed:"管理员登录服务发生内部错误，请检查 Worker Logs。",
   network_error:"无法连接管理员 API，请检查网络和 api.58er.eon21.space。",
   forbidden:"当前管理员角色没有此项权限。",
+  team_leader_transfer_required:"该同学仍是有其他成员的团队组长，请先完成组长转让后再删除。",
+  person_not_found:"该报名记录不存在，可能已被其他管理员删除。",
+  admin_delete_conflict:"删除状态发生冲突，请刷新名单后重试。",
+  admin_person_delete_failed:"删除报名记录失败，请稍后重试。",
   admin_username_exists:"用户名已存在。",
   admin_password_too_weak:"管理员密码至少需要14位。"
 };
@@ -169,7 +173,7 @@ function renderPersonDetails(item){
   const gender=({male:"男",female:"女",undisclosed:"不愿透露"})[item.gender]||"未填写";
   const category=({mainland:"中国内地",hmt:"港澳台",sino_foreign:"中外合作办学",overseas:"海外"})[item.universityCategory]||"未选择";
   const campus=[item.campusName,item.campusTag].filter(Boolean).join(" · ");
-  return '<tr class="admin-profile-detail-row" data-profile-detail-row="'+safe(item.id)+'" hidden><td colspan="8"><div class="admin-profile-details">'+
+  return '<tr class="admin-profile-detail-row" data-profile-detail-row="'+safe(item.id)+'" hidden><td colspan="9"><div class="admin-profile-details">'+
     profileDetailField("用户编号",item.id)+profileDetailField("性别",gender)+profileDetailField("高中学校",item.highSchool)+
     profileDetailField("当前大学",item.university||"尚未选择高校")+profileDetailField("高校类别",category)+profileDetailField("年级",item.grade)+
     profileDetailField("地区",[item.province,item.city].filter(Boolean).join(" · "))+profileDetailField("专业学科门类",item.majorDiscipline)+
@@ -189,7 +193,9 @@ async function loadPeople(){
   $("peopleRows").innerHTML=items.map(item=>{
     const school=item.university||"尚未选择高校";
     const state=item.profileReviewStatus==="pending"?" · 待审核":"";
-    return '<tr><td>'+safe(item.name||"未填写")+'</td><td>'+safe(item.highSchool||"")+'</td><td>'+safe(school)+safe(state)+'</td><td>'+safe(item.grade||"")+'</td><td>'+safe(item.province||"")+'</td><td>'+(item.consentGiven?"已同意":"未同意")+'</td><td>'+safe(item.createdAt||"")+'</td><td>'+renderProfilePreview(item)+'<button type="button" class="ghost admin-detail-toggle" data-profile-toggle="'+safe(item.id)+'" aria-expanded="false">完整资料</button></td></tr>'+
+    return '<tr><td>'+safe(item.name||"未填写")+'</td><td>'+safe(item.highSchool||"")+'</td><td>'+safe(school)+safe(state)+'</td><td>'+safe(item.grade||"")+'</td><td>'+safe(item.province||"")+'</td><td>'+(item.consentGiven?"已同意":"未同意")+'</td><td>'+safe(item.createdAt||"")+'</td><td>'+renderProfilePreview(item)+'<button type="button" class="ghost admin-detail-toggle" data-profile-toggle="'+safe(item.id)+'" aria-expanded="false">完整资料</button></td><td><div class="admin-row-actions">'+
+      (has("people:delete")?'<button type="button" class="admin-delete-button" data-person-delete="'+safe(item.id)+'" data-person-name="'+safe(item.name||"该同学")+'">删除报名</button>':"")+
+      '</div></td></tr>'+
       renderPersonDetails(item);
   }).join("")||'<tr><td colspan="8">没有符合条件的记录</td></tr>';
   $("pageLabel").textContent="第 "+(pagination.page||1)+" / "+totalPages+" 页";
@@ -332,7 +338,24 @@ $("adminLogout").onclick=async()=>{
   catch(error) { console.error("Admin logout failed:",error?.message||"unknown"); }
   finally { location.reload(); }
 };
-$("peopleRows").addEventListener("click",event=>{
+$("peopleRows").addEventListener("click",async event=>{
+  const deleteButton=event.target.closest("[data-person-delete]");
+  if(deleteButton){
+    const userId=deleteButton.dataset.personDelete;
+    const name=deleteButton.dataset.personName||"该同学";
+    const confirmed=confirm("确定删除「"+name+"」的报名及账号？\\n\\n此操作会永久注销账号、清除个人资料并撤销登录；历史组长转让记录会保留。若该同学仍是有其他成员的团队组长，需要先转让组长身份。此操作不可撤销。");
+    if(!confirmed)return;
+    deleteButton.disabled=true;
+    try{
+      await req("/admin/people/"+encodeURIComponent(userId),null,"DELETE");
+      $("adminPanelStatus").textContent="已删除「"+name+"」的报名及账号，历史组长转让记录已保留。";
+      await Promise.all([loadPeople(),loadOverview()]);
+    }catch(error){
+      $("adminPanelStatus").textContent=errorMessage(error);
+      deleteButton.disabled=false;
+    }
+    return;
+  }
   const button=event.target.closest("[data-profile-toggle]");
   if(!button)return;
   const id=button.dataset.profileToggle;
