@@ -1,12 +1,15 @@
 <!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f3f6f2"><title>青岛五十八中 卓越·2026</title><link rel="stylesheet" href="style.css?v=20261126-profile-team-admin"><script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" defer></script></head><body class="session-checking">
-<header><a class="brand" href="#"><b>58</b><span>青岛五十八中<small>卓越 · 2026 返校宣讲</small></span></a><nav id="mainNav" hidden><a href="#join">首页</a><a href="#join">加入我们</a><a href="#groups">大学同伴</a><a href="admin.html">管理后台 ↗</a></nav><div><button id="theme" class="ghost">◐</button><button id="changePassword" class="ghost" hidden>修改密码</button><button id="openAuth" class="btn" hidden>登录 / 注册</button><button id="logout" class="ghost" hidden>退出</button></div></header>
 <div id="bootScreen" class="boot-screen"><span class="boot-mark">58</span><p id="bootMessage">正在确认登录状态…</p><button id="retrySession" class="ghost" hidden>重新检查</button></div>
 <main id="mainContent" hidden><section id="authStage" class="auth-stage"><section class="hero" id="home"><div><p class="eyebrow">2026 · 冬日返校计划</p><h1>从五十八中出发，<br><em>在更大的世界</em>重逢。</h1><p class="lead">无论你现在身在何处，读到哪所大学，都欢迎回家，和曾经的同学再次并肩。</p><div class="auth-actions"><button class="btn" id="authStageLogin">账号登录 ↗</button><button class="ghost" id="authStageRegister">注册账号</button></div><p class="note">青岛五十八中 · 2026 届　/　让青春有迹可循</p></div><div class="art"><div class="sun"></div><div class="float a">01 / 同窗<b>山海有归期</b></div><div class="float b">02 / 重逢<b>再见，少年</b></div><strong>58</strong><small>THE JOURNEY CONTINUES · 2026</small></div></section><div class="auth-required-panel"><span class="auth-required-kicker">MEMBERS ONLY · 58TH</span><strong>请先登录，再开始填写返校资料</strong><p>账号登录成功后，将自动进入第二页，选择你目前就读的高校并完善个人信息。</p></div></section>
 <section id="appStage" hidden>
-<div class="journey-steps" id="journeySteps"><span class="active" data-journey-step="profile">02 / 完善高校资料</span><i>→</i><span data-journey-step="directory">03 / 查看同校同学</span></div>
+<nav class="journey-steps" id="journeySteps" aria-label="报名流程">
+<button type="button" data-journey-step="university" aria-current="step"><span>01</span><b>选择高校</b></button>
+<button type="button" data-journey-step="profile"><span>02</span><b>完善资料</b></button>
+<button type="button" data-journey-step="directory"><span>03</span><b>查看同校同学</b></button>
+</nav>
 <section id="join" class="section"><p class="eyebrow">01 / JOIN THE COMMUNITY</p><h2>留下你的坐标</h2><p class="lead">登录后完善个人资料，系统会自动将你加入所在大学的小队。</p><div id="gate" class="panel"><div><h3>先找到自己，再找到同路人。</h3><p>手机号作为用户名，使用密码登录。首次注册及找回密码需要短信验证。</p></div><button class="btn" id="gateLogin">登录 / 注册</button></div><form id="profile" class="panel" hidden>
 <h3>同学信息登记</h3>
-<div class="profile-step-indicator"><span class="current" id="stepOneLabel">01 选择高校类别</span><span id="stepTwoLabel">02 搜索并确认高校</span></div>
+<section id="registrationUniversityPanel" class="profile-stage-panel">
 <section id="universityTypeStep" class="university-type-step">
 <p class="profile-intro">先选择高校所在范围。内地本科高校、港澳台高校和海外高校分别登记；学校选择后，系统会根据类别显示对应的信息。</p>
 <input type="hidden" name="universityCategory" id="universityCategoryValue">
@@ -29,7 +32,7 @@
 <label>海外高校名称<input id="overseasUniversityName" maxlength="160" placeholder="请填写目前就读的海外大学名称"></label>
 <p class="field-help">海外高校暂不使用预设目录。提交后进入人工审核，审核通过后加入对应高校团队。</p>
 </div>
-<div class="selected-university-panel"><span>已选高校</span><strong id="selectedUniversityName">尚未选择高校</strong><p id="universitySelectionMsg">请先从高校目录中选择。</p></div>
+<div class="selected-university-panel"><div><span>已选高校</span><strong id="selectedUniversityName">尚未选择高校</strong><p id="universitySelectionMsg">请先从高校目录中选择。</p></div><button type="button" id="clearSelectedUniversity" class="danger-outline" hidden>移除所选高校</button></div>
 <input type="hidden" name="profileUniversityId" id="profileUniversityId">
 <input type="hidden" name="universityCatalogId" id="universityCatalogId">
 <input type="hidden" name="university" id="universityName">
@@ -40,6 +43,9 @@
 <input type="hidden" id="campusName" name="campusName">
 <input type="hidden" id="campusTag" name="campusTag">
 </div>
+<div class="step-actions university-continue"><span class="step-hint">确认学校和校区无误后继续</span><button type="button" id="continueToDetails" class="btn" hidden>下一步：完善个人资料 →</button></div>
+</section>
+<section id="registrationDetailsPanel" class="profile-stage-panel" hidden>
 <div class="cols">
 <label>姓名<input name="name" required maxlength="80"></label>
 <label>性别<select name="gender" id="gender" required><option value="">请选择</option><option value="male">男</option><option value="female">女</option><option value="undisclosed">不愿透露</option></select></label>
@@ -67,9 +73,9 @@
 <label>微信号<input name="wechatId" id="wechatId" maxlength="80" placeholder="请输入微信号"></label>
 <label>寄语<textarea name="greeting" maxlength="500" placeholder="写一句想对同校同学说的话（选填）"></textarea></label>
 <label class="check"><input type="checkbox" id="consent" required><span>我已阅读并同意<a href="privacy.html" target="_blank" rel="noopener">《个人信息保护与隐私说明》</a>。我理解：提交后，同一所大学团队内的同学可以查看我的姓名、年级、专业大类、微信号、注册手机号及选填的第二手机号；这些联系方式不会向其他学校或公众展示。</span></label>
-<div class="step-actions"><button type="button" id="universityBackBottom" class="ghost">上一步</button><button class="btn">保存资料</button></div>
+<div class="step-actions"><button type="button" id="backToUniversityStep" class="ghost">← 上一步：修改高校</button><button class="btn">保存资料并进入第三页 →</button></div>
 <p id="profileMsg" class="msg" aria-live="polite"></p><div class="profile-next"><button type="button" id="goDirectory" class="btn" hidden>进入第三页：查看同校同学 <span>→</span></button></div>
-</section></section><div class="account-danger-zone"><p>如果不再参加本次活动，可以永久移除账号和个人资料。此操作不可撤销。</p><button type="button" id="deleteAccountOpen" class="danger-link">删除我的账号与资料</button></div></form></section>
+</section></section></form></section>
 <section id="reviewPending" class="section review-pending" hidden>
 <p class="eyebrow">UNIVERSITY REVIEW</p>
 <h2>学校信息正在审核</h2>
@@ -100,6 +106,10 @@
 </div>
 <div id="directory" class="directory-panel"><div class="directory-toolbar"><div><strong>同校同学</strong><span>CLASSMATES</span></div><input id="search" placeholder="搜索姓名 / 班级 / 年级 / 地区" aria-label="搜索同校同学"></div><div id="results" class="cards"></div><p id="directoryMsg" class="msg" aria-live="polite"></p></div>
 <div class="step-actions directory-actions"><button type="button" id="backToProfile" class="ghost">← 返回高校资料</button></div>
+</section>
+<section id="accountBottom" class="account-bottom" hidden>
+<div class="account-actions"><button type="button" id="changePassword" class="ghost" hidden>修改密码</button><button type="button" id="logout" class="ghost" hidden>退出登录</button></div>
+<div id="accountDangerZone" class="account-danger-zone"><p>如果不再参加本次活动，可以永久移除账号和个人资料。此操作不可撤销。</p><button type="button" id="deleteAccountOpen" class="danger-link">删除我的账号与资料</button></div>
 </section></section></main><footer id="pageFooter" hidden>青岛五十八中 · 卓越 2026 <span>山海相隔，青春同频。</span><a href="admin.html">组织者入口 ↗</a></footer>
 <div id="modal" class="modal" aria-hidden="true"><div class="shade" data-close></div><section class="dialog"><button class="x" data-close>×</button><div class="mark">58 <small>卓越 · 2026</small></div><div class="tabs auth-tabs" id="authTabs"><button data-auth="login" class="active">账号登录</button><button data-auth="register">注册账号</button></div>
 <form id="loginForm" class="auth-form">
