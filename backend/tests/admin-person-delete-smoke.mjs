@@ -49,7 +49,7 @@ const success=await remove(successDb.DB);
 assert.equal(success.status,200);
 assert.deepEqual(await success.json(),{ok:true,deleted:true,transferHistoryPreserved:true});
 const statements=successDb.state.batches[0];
-assert.equal(statements.length,6);
+assert.equal(statements.length,7);
 assert.ok(statements[0].sql.includes("UPDATE leader_transfers SET status='expired'"));
 assert.ok(statements[1].sql.includes("UPDATE teams SET leader_user_id=NULL"));
 assert.ok(statements[2].sql.includes("DELETE FROM sessions"));
@@ -61,6 +61,8 @@ assert.ok(statements[4].sql.includes("password_hash=NULL"));
 assert.ok(statements[4].sql.includes("university_id=NULL"));
 assert.ok(statements[4].sql.includes("auth_version=auth_version+1"));
 assert.ok(statements[5].sql.includes("admin.user.deleted"));
+assert.ok(statements[6].sql.includes("DELETE FROM group_chat_confirmations"));
+assert.deepEqual(statements[6].bindings,[USER_ID]);
 assert.ok(!statements.some(item=>/DELETE FROM leader_transfers/i.test(item.sql)),"transfer history rows must be preserved");
 
 const blockedDb=makeDb({otherMembers:2});
