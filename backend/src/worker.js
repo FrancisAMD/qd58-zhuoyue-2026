@@ -1053,8 +1053,8 @@ if(path==="/api/teams/transfer" && method==="POST") {
       JOIN universities uni ON uni.id=t.university_id
       LEFT JOIN users sender ON sender.id=lt.from_user_id
       LEFT JOIN users recipient ON recipient.id=lt.to_user_id
-      WHERE lt.from_user_id=? OR lt.to_user_id=?
-      ORDER BY lt.created_at DESC LIMIT 30`).bind(user.id,user.id,user.id).all();
+      WHERE COALESCE(NULLIF(lt.university_id_snapshot,''),t.university_id)=(SELECT university_id FROM users WHERE id=? AND deleted_at='')
+      ORDER BY lt.created_at DESC LIMIT 100`).bind(user.id,user.id).all();
     return response({transfers:rows.results||[]},200,origin,env);
   }
   const transferParts=path.split("/");
