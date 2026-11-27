@@ -16,7 +16,7 @@ npm ci
 npx wrangler d1 migrations apply qd58-zhuoyue-db --remote --config backend/wrangler.toml
 ```
 
-迁移会依次应用仓库尚未应用的迁移，包括高校目录关系表、`0015_profile_registration_fields.sql` 和 `0016_profile_fields_refinement.sql`。这是新增列和新增表的迁移；执行前，建议在 Cloudflare D1 控制台确认已有备份。
+迁移会依次应用仓库尚未应用的迁移，包括高校目录关系表、`0015_profile_registration_fields.sql`、`0016_profile_fields_refinement.sql` 和 `0017_team_transfer_snapshots.sql`。这是新增列和新增表的迁移；执行前，建议在 Cloudflare D1 控制台确认已有备份。
 
 然后导入完整学校目录及表单选项：
 
@@ -42,7 +42,7 @@ npx wrangler deploy --config backend/wrangler.toml
 Invoke-RestMethod https://api.58er.eon21.space/api/health
 ```
 
-本轮 Worker 构建标记应为 `three-step-university-reassign-20261127`。若仍显示旧标记，说明 Worker 尚未更新。不要在新 D1 字段迁移前部署新 Worker。
+本轮 Worker 构建标记应为 `team-school-snapshot-reset-20261127`。若仍显示旧标记，说明 Worker 尚未更新。不要在新 D1 字段迁移前部署新 Worker。
 
 健康检查会额外返回不含密钥值的 `readiness` 状态：
 - `rateLimitConfigured`：`RATE_LIMIT_HMAC_SECRET` 是否存在且至少 32 位。
@@ -92,6 +92,28 @@ Invoke-RestMethod https://api.58er.eon21.space/api/health
 - 招生途径仅保留招生大类。旧具体招生类型如果能在招生 JSON 中找到父级大类，则自动映射；无法映射时清空。具体招生类型选项不再加载。
 - 清理脚本不会删除用户账号，不会删除大学或团队记录，不会改变组长关系。它只清理废弃字段和不符合格式的第二手机号、过长微信号等资料值。
 - 隐私说明版本更新为 `2026-11-27-v5`。已有成员需要重新确认新版隐私说明后，通讯录联系方式才重新展示。
+
+## H. 高校移除、资料重置与转让历史
+
+本轮增加 `POST /api/profile/reset`。前端第 01 步的“移除所选高校”现在会立即调用该接口，而不是只清空浏览器中的选择框。确认后会清空当前用户的姓名、高中学校、年级、性别、专业、招生大类、地区/城市、校区、第二手机号、微信号、寄语及隐私同意，并解除当前大学归属；注册手机号、密码、账号和登录会话保留。用户需要重新选择高校、填写资料并重新确认隐私说明。
+
+团队安全规则：
+- 如果用户是旧团队唯一成员兼组长，服务器先释放其旧团队组长位，再清空 `users.university_id`，顺序符合 `users_cannot_leave_led_team` 数据库触发器。
+- 如果用户仍是有其他成员的组长，拒绝移除并提示先转让组长身份。
+- 用户如果是旧团队待处理转让的接收方，退出学校时会把待处理记录改为 `expired`，不会删除记录。
+- 账号、大学团队行、已完成的转让记录和审计记录都保留。
+
+`0017_team_transfer_snapshots.sql` 为每条转让记录增加发起时的双方姓名、学校 ID 和学校名称快照，并回填迁移前已有记录。新转让创建时也会写入快照。转让历史页面会在每条记录上显示所属高校，并区分“当前团队/历史团队”；用户换校后，旧学校的转让记录仍属于原学校，不会被误认为新学校的组长申请。历史学校的待处理邀请不可再接受或拒绝。
+
+本轮上线顺序（先迁移，再部署 Worker）：
+
+```powershell
+git pull origin main
+npx wrangler d1 migrations apply qd58-zhuoyue-db --remote --config backend/wrangler.toml
+npx wrangler deploy --config backend/wrangler.toml
+```
+
+这次只需执行新增的 D1 迁移，不需要重新导入高校 JSON。部署后 `/api/health` 的 build 应为 `team-school-snapshot-reset-20261127`。
 
 ## G. 当前边界
 
