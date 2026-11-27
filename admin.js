@@ -173,11 +173,11 @@ async function loadAdmins(){
 /* The built-in demo uses fictional in-memory records only. It never calls the API. */
 const DEMO_DATA={
   people:[
-    {name:"林知远",highSchool:"高三(1)班",university:"山东大学",grade:"大一",province:"山东省",consent:true,created:"2026-11-18"},
-    {name:"陈予安",highSchool:"高三(3)班",university:"中国海洋大学",grade:"大一",province:"山东省",consent:true,created:"2026-11-19"},
-    {name:"周星禾",highSchool:"高三(6)班",university:"复旦大学",grade:"大一",province:"上海市",consent:true,created:"2026-11-20"},
-    {name:"许闻溪",highSchool:"高三(2)班",university:"香港大学",grade:"大一",province:"香港",consent:false,created:"2026-11-21"},
-    {name:"沈嘉树",highSchool:"高三(5)班",university:"University of Tokyo",grade:"大一",province:"日本",consent:true,created:"2026-11-22"}
+    {name:"林知远",highSchool:"青岛五十八中",university:"山东大学",grade:"大一",province:"山东省",consent:true,created:"2026-11-18"},
+    {name:"陈予安",highSchool:"青岛五十八中",university:"中国海洋大学",grade:"大一",province:"山东省",consent:true,created:"2026-11-19"},
+    {name:"周星禾",highSchool:"青岛五十八中",university:"复旦大学",grade:"大一",province:"上海市",consent:true,created:"2026-11-20"},
+    {name:"许闻溪",highSchool:"青岛五十八中",university:"香港大学",grade:"大一",province:"香港",consent:false,created:"2026-11-21"},
+    {name:"沈嘉树",highSchool:"青岛五十八中",university:"University of Tokyo",grade:"大一",province:"日本",consent:true,created:"2026-11-22"}
   ],
   teams:[
     {university:"山东大学",members:18,leader:"林知远",region:"山东省",status:"队伍正常"},
