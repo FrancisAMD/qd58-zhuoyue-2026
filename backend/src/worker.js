@@ -26,8 +26,13 @@ const PRIVACY_NOTICE_VERSION = "2026-11-27-v5";
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", ...headers } });
 }
+function isTrustedAppOrigin(origin, env) {
+  return typeof env.APP_ORIGIN === "string" &&
+    env.APP_ORIGIN.length > 0 &&
+    origin === env.APP_ORIGIN;
+}
 function corsHeaders(origin, env) {
-  if (!origin || origin !== env.APP_ORIGIN) return {};
+  if (!isTrustedAppOrigin(origin, env)) return {};
   return { "access-control-allow-origin": origin, "access-control-allow-credentials": "true", "access-control-allow-methods": "GET,POST,PUT,DELETE,OPTIONS", "access-control-allow-headers": "Content-Type", "vary": "Origin" };
 }
 function response(data, status, origin, env, extra = {}) { return json(data, status, { ...corsHeaders(origin, env), ...extra }); }
@@ -595,10 +600,18 @@ async function verifyPassword(password, stored) {
 }
 async function route(request, env) {
   const url=new URL(request.url), path=url.pathname, method=request.method, origin=request.headers.get("Origin");
-  if(method==="OPTIONS") return new Response(null,{status:204,headers:corsHeaders(origin,env)});
-  if(origin && origin!==env.APP_ORIGIN) return response({error:"origin_forbidden"},403,origin,env);
+  if(method==="OPTIONS") {
+    if(!isTrustedAppOrigin(origin,env)) return response({error:"origin_forbidden"},403,origin,env);
+    return new Response(null,{status:204,headers:corsHeaders(origin,env)});
+  }
+  // Browser-facing writes must prove they came from the exact configured app
+  // origin. Missing, opaque ("null"), and sibling/foreign origins fail closed.
+  // Safe reads remain available without Origin for health checks and catalog
+  // lookup; CORS alone is not treated as a CSRF defense for write requests.
+  if(method!=="GET" && method!=="HEAD" && !isTrustedAppOrigin(origin,env))
+    return response({error:"origin_forbidden"},403,origin,env);
   if(path==="/api/health" && method==="GET") return response({
-    ok:true,service:"zhuoyue-2026-api",build:"group-chat-confirmation-cleanup-20261127",
+    ok:true,service:"zhuoyue-2026-api",build:"strict-origin-guard-20261127",
     passwordKdf:"pbkdf2-sha256-100000",
     readiness:{
       rateLimitConfigured:typeof env.RATE_LIMIT_HMAC_SECRET==="string"&&env.RATE_LIMIT_HMAC_SECRET.length>=32,
