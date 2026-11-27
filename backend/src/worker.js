@@ -1350,7 +1350,7 @@ if(path==="/api/teams/transfer" && method==="POST") {
     if (!admin) return response({error:"unauthorized"},401,origin,env);
     if (!hasAdminPermission(admin,"audit:read")) return response({error:"forbidden"},403,origin,env);
     const page = adminPage(url.searchParams.get("page"),1,1000000);
-    const pageSize = adminPage(url.searchParams.get("pageSize"),50,100);
+    const pageSize = adminPage(url.searchParams.get("pageSize"),10,10);
     await writeAudit(env.DB,"admin",admin.id,"admin.audit.viewed","audit_collection",null,{page,pageSize});
     const count = await env.DB.prepare("SELECT COUNT(*) AS total FROM audit_logs").first();
     const rows = await env.DB.prepare("SELECT l.id,l.actor_type AS actorType,l.actor_id AS actorId,a.username AS actorUsername,l.action,l.target_type AS targetType,l.target_id AS targetId,l.metadata_json AS metadata,l.created_at AS createdAt FROM audit_logs l LEFT JOIN admin_users a ON l.actor_type='admin' AND a.id=l.actor_id ORDER BY l.created_at DESC LIMIT ? OFFSET ?")
