@@ -598,7 +598,7 @@ async function route(request, env) {
   if(method==="OPTIONS") return new Response(null,{status:204,headers:corsHeaders(origin,env)});
   if(origin && origin!==env.APP_ORIGIN) return response({error:"origin_forbidden"},403,origin,env);
   if(path==="/api/health" && method==="GET") return response({
-    ok:true,service:"zhuoyue-2026-api",build:"admin-group-chat-roster-20261127",
+    ok:true,service:"zhuoyue-2026-api",build:"group-chat-confirmation-cleanup-20261127",
     passwordKdf:"pbkdf2-sha256-100000",
     readiness:{
       rateLimitConfigured:typeof env.RATE_LIMIT_HMAC_SECRET==="string"&&env.RATE_LIMIT_HMAC_SECRET.length>=32,
@@ -862,7 +862,8 @@ async function route(request, env) {
           AND NOT EXISTS(SELECT 1 FROM teams WHERE leader_user_id=users.id)
           AND NOT EXISTS(SELECT 1 FROM leader_transfers WHERE status='pending' AND (from_user_id=users.id OR to_user_id=users.id))`).bind(timestamp,timestamp,user.id,account.password_hash,Number(account.auth_version)),
         env.DB.prepare("INSERT INTO audit_logs(id,actor_type,actor_id,action,target_type,target_id,metadata_json) VALUES(?,'system',NULL,'account.deleted','user',?,?)")
-          .bind(deletionIntent.record.eventId,user.id,JSON.stringify({method:"password_and_sms_anonymization"}))
+          .bind(deletionIntent.record.eventId,user.id,JSON.stringify({method:"password_and_sms_anonymization"})),
+        env.DB.prepare("DELETE FROM group_chat_confirmations WHERE user_id=?").bind(user.id)
       ];
       const results=await env.DB.batch(statements);
       if((results[5]?.meta?.changes||0)!==1) return response({error:"account_delete_conflict"},409,origin,env);
@@ -929,6 +930,7 @@ async function route(request, env) {
       statements.push(env.DB.prepare(`INSERT INTO audit_logs(id,actor_type,actor_id,action,target_type,target_id,metadata_json)
         VALUES(?,'user',?,'profile.university_removed','user',?,?)`)
         .bind(randomHex(16),user.id,user.id,JSON.stringify({previousUniversityId:previousUniversityId||null,transferHistoryPreserved:true})));
+      statements.push(env.DB.prepare("DELETE FROM group_chat_confirmations WHERE user_id=?").bind(user.id));
       const results=await env.DB.batch(statements);
       const userUpdateIndex=previousUniversityId?3:0;
       if(!results?.[userUpdateIndex]?.meta||Number(results[userUpdateIndex].meta.changes||0)!==1) {
@@ -1092,6 +1094,9 @@ async function route(request, env) {
       if(universityId) {
         statements.push(env.DB.prepare("UPDATE teams SET leader_user_id=? WHERE university_id=? AND leader_user_id IS NULL AND (SELECT COUNT(*) FROM users WHERE university_id=? AND deleted_at='')=1 AND EXISTS(SELECT 1 FROM users WHERE id=? AND university_id=? AND deleted_at='')").bind(user.id,universityId,universityId,user.id,universityId));
         statements.push(env.DB.prepare("INSERT OR IGNORE INTO teams(id,university_id,leader_user_id) SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM users WHERE id=? AND university_id=? AND deleted_at='')").bind(randomHex(16),universityId,user.id,user.id,universityId));
+      }
+      if(changingUniversity) {
+        statements.push(env.DB.prepare("DELETE FROM group_chat_confirmations WHERE user_id=?").bind(user.id));
       }
       const results=await env.DB.batch(statements);
       const userUpdateIndex=(universityId?1:0)+(changingUniversity&&previousUniversityId?3:0);
@@ -1659,7 +1664,8 @@ if(path==="/api/teams/transfer" && method==="POST") {
             reason:"admin_roster_cleanup",
             transferHistoryPreserved:true,
             previousUniversityId:target.university_id||null
-          }))
+          })),
+        env.DB.prepare("DELETE FROM group_chat_confirmations WHERE user_id=?").bind(targetUserId)
       ];
       const results = await env.DB.batch(statements);
       if (!results?.[4]?.meta || Number(results[4].meta.changes||0)!==1) {
