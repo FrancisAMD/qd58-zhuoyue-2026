@@ -43,6 +43,7 @@ function makeDb({ hash, otherMembers = 0, forceDeleteConflict = false } = {}) {
     forceDeleteConflict, rateLimits: new Map(), challenge: null,
     challengeDeleted: false, challengeConsumed: false, sessionsRevoked: false,
     leaderReleased: false, pendingTransfersExpired: false, profileFieldsCleared: false,
+    confirmationsDeleted: false,
     audit: null, batchCount: 0, scrubSql: ""
   };
   const db = {
@@ -166,6 +167,10 @@ function makeDb({ hash, otherMembers = 0, forceDeleteConflict = false } = {}) {
             state.challenge = null;
             return { meta: { changes: 1 } };
           }
+          if (sql.startsWith("DELETE FROM group_chat_confirmations")) {
+            state.confirmationsDeleted = true;
+            return { meta: { changes: 1 } };
+          }
           if (sql.startsWith("DELETE FROM rate_limits")) {
             for (const key of a) state.rateLimits.delete(key);
             return { meta: { changes: 1 } };
@@ -209,7 +214,7 @@ function makeDb({ hash, otherMembers = 0, forceDeleteConflict = false } = {}) {
         challenge: state.challenge ? { ...state.challenge } : null,
         challengeDeleted: state.challengeDeleted, sessionsRevoked: state.sessionsRevoked,
         leaderReleased: state.leaderReleased, pendingTransfersExpired: state.pendingTransfersExpired,
-        profileFieldsCleared: state.profileFieldsCleared, audit: state.audit
+        profileFieldsCleared: state.profileFieldsCleared, confirmationsDeleted: state.confirmationsDeleted, audit: state.audit
       };
       try {
         const results = [];
@@ -334,6 +339,7 @@ try {
   assert.equal(state.active, false);
   assert.equal(state.tombstone, true);
   assert.equal(state.profileFieldsCleared, true);
+  assert.equal(state.confirmationsDeleted, true,"account anonymization must remove historical group-chat confirmation rows");
 for (const field of [
   "gender='undisclosed'", "greeting=''", "major_group=''", "major_discipline_code=''",
   "admission_category_id=''", "admission_type_id=''", "campus_id=''",
