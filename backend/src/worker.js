@@ -237,8 +237,11 @@ function resolveGroupChatRegion(category, provinceCandidates = []) {
 async function getGroupChatContext(db, userId) {
   const row = await db.prepare(`SELECT u.id,u.university_id,u.province AS userProvince,
     uni.canonical_name AS university,uni.category AS category,
-    uni.province_name_zh AS mainProvince,uni.region_name AS legacyRegion
-    FROM users u LEFT JOIN universities uni ON uni.id=u.university_id
+    COALESCE(NULLIF(uni.province_name_zh,''),NULLIF(profile_catalog.province_name,'')) AS mainProvince,
+    uni.region_name AS legacyRegion
+    FROM users u
+    LEFT JOIN universities uni ON uni.id=u.university_id
+    LEFT JOIN profile_university_catalog profile_catalog ON profile_catalog.university_id=uni.id
     WHERE u.id=? AND u.deleted_at=''`).bind(userId).first();
   if (!row || !row.university_id) throw err("group_chat_university_required",409);
   const region = resolveGroupChatRegion(row.category,[row.mainProvince,row.legacyRegion,row.userProvince]);
@@ -1507,10 +1510,12 @@ if(path==="/api/teams/transfer" && method==="POST") {
       const asset=groupChatAssetMetadata(object);
       const rows=await env.DB.prepare(`SELECT u.id,u.name,u.grade,u.campus_name AS campusName,
         uni.canonical_name AS university,uni.category AS category,
-        uni.province_name_zh AS mainProvince,uni.region_name AS legacyRegion,u.province AS userProvince,
+        COALESCE(NULLIF(uni.province_name_zh,''),NULLIF(profile_catalog.province_name,'')) AS mainProvince,
+        uni.region_name AS legacyRegion,u.province AS userProvince,
         gc.confirmed_at AS confirmedAt,gc.qr_uploaded_at_snapshot AS qrUploadedAtSnapshot
         FROM users u
         JOIN universities uni ON uni.id=u.university_id
+        LEFT JOIN profile_university_catalog profile_catalog ON profile_catalog.university_id=uni.id
         LEFT JOIN group_chat_confirmations gc ON gc.user_id=u.id AND gc.region_key=?
         WHERE u.deleted_at='' ORDER BY uni.canonical_name,u.created_at`).bind(region.key).all();
       const members=(rows.results||[]).filter(item=>
