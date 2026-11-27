@@ -424,3 +424,15 @@ body.dark .transfer-school{color:#b7d4c0}
 .transfer-actions button{margin:0}
 #transferInbox{margin-top:20px}
 @media(max-width:600px){.transfer-record{align-items:flex-start;flex-direction:column}.transfer-record time{order:3}}
+
+
+/* Make user information visible directly in the admin roster. */
+.admin-profile-preview{display:flex;flex-wrap:wrap;gap:5px 6px;max-width:390px;margin:0 0 8px}
+.admin-profile-preview span{display:inline-flex;align-items:center;padding:4px 7px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font-size:10px;line-height:1.4;white-space:normal}
+.admin-profile-preview small{flex-basis:100%;display:block;color:var(--muted);font-size:10px;line-height:1.6;overflow-wrap:anywhere}
+.admin-detail-toggle{white-space:nowrap}
+#teamsPanel{display:block}
+#teamsPanel[hidden]{display:none!important}
+#auditPanel .admin-heading small{display:block;margin-top:5px}
+.admin-shell>section{margin-block:26px}
+.admin-team-grid,.admin-review-list,.admin-account-list{row-gap:16px}
