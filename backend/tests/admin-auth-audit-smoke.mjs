@@ -119,6 +119,16 @@ if(meResponse.status!==200 || (await meResponse.json()).admin?.role!=="owner") {
 
 // Missing RATE_LIMIT_HMAC_SECRET is a server configuration error, not a
 // password error. It must fail closed before looking up accounts or deriving.
+const viewerAccountDb=new AuditDB({
+  id:"admin-legacy-viewer",username:"legacyviewer",password_hash:bootstrapPasswordHash(ADMIN_PASSWORD),role:"viewer",active:1
+});
+const viewerLogin=await attempt({db:viewerAccountDb,username:"legacyviewer",password:ADMIN_PASSWORD,ip:"203.0.113.58"});
+if(viewerLogin.status!==401 || (await viewerLogin.json()).error!=="invalid_credentials") {
+  throw new Error("legacy viewer role must no longer authenticate");
+}
+assertAudit(viewerAccountDb,"unsupported_role",{username:"legacyviewer",password:ADMIN_PASSWORD,ip:"203.0.113.58"});
+if(viewerAccountDb.adminSession) throw new Error("legacy viewer account must not receive a session");
+
 const noSecretDb=new AuditDB({id:"admin-owner",username:"rootops",password_hash:goodHash,role:"owner",active:1});
 const noSecretRun=await countDerivations(()=>attempt({
   db:noSecretDb,username:"rootops",password:ADMIN_PASSWORD,ip:"203.0.113.57",rateLimitSecret:""

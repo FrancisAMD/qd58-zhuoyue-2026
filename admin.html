@@ -135,13 +135,13 @@
       <form id="createAdmin" class="admin-filters">
         <label>用户名<input id="newUsername" required minlength="3" maxlength="40"></label>
         <label>初始密码（至少14位）<input id="newPassword" type="password" required minlength="14" maxlength="128"></label>
-        <label>角色<select id="newRole"><option value="admin">管理员：名单、审计和导出</option><option value="viewer">只读：仅统计概览</option></select></label>
-        <div class="filter-actions"><button class="btn" type="submit">创建账号</button></div>
+        <div class="filter-actions"><button class="btn" type="submit">创建普通管理员</button></div>
       </form>
+      <p class="muted">普通管理员仅可查看统计概览、审核海外高校、管理地区群聊二维码。报名名单与用户资料、管理员操作审计、赞助名单管理和管理员账号管理均仅所有者可访问。</p>
       <p id="createAdminMsg" class="msg"></p><div id="adminAccounts" class="admin-account-list"></div>
     </section>
   </section>
 </main>
-<script src="admin.js?v=20261127-donor-list-v1" defer></script>
+<script src="admin.js?v=20261127-admin-rbac-v2" defer></script>
 </body>
 </html>

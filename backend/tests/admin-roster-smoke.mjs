@@ -3,7 +3,7 @@ import worker from "../src/worker.js";
 
 const ORIGIN="https://58er.eon21.space";
 const COOKIE="__Host-qd58_admin="+"d".repeat(64);
-const admin={id:"admin-1",username:"review-admin",role:"admin"};
+const admin={id:"admin-1",username:"review-admin",role:"owner"};
 const queries=[];
 const DB={
   prepare(sql){
@@ -119,3 +119,14 @@ const emptyProvinceFilter=await get("/api/admin/people?province=__empty__");
 assert.equal(emptyProvinceFilter.status,200);
 const emptyFilterQuery=queries.filter(item=>item.kind==="all"&&item.sql.startsWith("SELECT u.id,u.name,u.high_school")).at(-1);
 assert.match(emptyFilterQuery.sql,/COALESCE\(u\.province,''\)=''/);
+
+admin.role="admin";
+const forbiddenRoster=await get("/api/admin/people?page=1&pageSize=50");
+assert.equal(forbiddenRoster.status,403,"ordinary admins must not access registration records or profiles");
+const forbiddenAudit=await get("/api/admin/audit?page=1&pageSize=10");
+assert.equal(forbiddenAudit.status,403,"ordinary admins must not read the admin audit trail");
+const teamOverview=await get("/api/admin/overview");
+assert.equal(teamOverview.status,200,"ordinary admins retain high-level overview access");
+const teamOverviewBody=await teamOverview.json();
+assert.equal(teamOverviewBody.teams.length,1,"ordinary admins may see team-level summary without individual roster access");
+console.log("admin-roster-smoke: ordinary-admin access restrictions and team overview passed");

@@ -49,6 +49,11 @@ const ERROR_MESSAGES={
   group_qr_upload_failed:"二维码上传失败，请检查 R2 Bucket 和 Worker 日志。",
   group_qr_delete_failed:"删除二维码失败，请稍后重试。",
   group_chat_confirmations_failed:"入群确认名单加载失败，请稍后重试。",
+  admin_not_found:"管理员账号不存在，可能已被其他所有者删除。",
+  cannot_delete_self:"不能删除当前登录的管理员账号。",
+  owner_account_protected:"所有者账号受到保护，不能通过此操作删除。",
+  admin_account_delete_conflict:"管理员账号状态已变化，请刷新管理员列表后重试。",
+  admin_account_delete_failed:"删除管理员账号失败，请检查 Worker 日志。",
   admin_username_exists:"用户名已存在。",
   admin_password_too_weak:"管理员密码至少需要14位。",
   donation_nickname_invalid:"赞助昵称需填写 1–40 个字符，且不能包含控制字符。",
@@ -95,9 +100,9 @@ async function enter(options={}){
   $("dashboard").hidden=false;
   $("adminMsg").textContent="";
   $("adminIdentity").textContent=current.username;
-  $("adminRole").textContent="角色："+({owner:"所有者",admin:"管理员",viewer:"只读查看"}[current.role]||current.role);
+  $("adminRole").textContent="角色："+({owner:"所有者",admin:"普通管理员"}[current.role]||current.role);
   $("peoplePanel").hidden=!has("people:read");
-  $("teamsPanel").hidden=!has("people:read");
+  $("teamsPanel").hidden=!has("overview");
   $("auditPanel").hidden=!has("audit:read");
   $("managePanel").hidden=!has("admins:manage");
   $("universityReviewPanel").hidden=!has("universities:review");
@@ -105,7 +110,7 @@ async function enter(options={}){
   $("donationManagementPanel").hidden=!has("donations:manage");
   if(!overviewRefreshTimer){
     overviewRefreshTimer=setInterval(()=>{
-      if(current&&$("dashboard")&&!$("dashboard").hidden&&has("people:read")){
+      if(current&&$("dashboard")&&!$("dashboard").hidden&&has("overview")){
         loadOverview().catch(error=>console.warn("Automatic team refresh failed",error?.message||"unknown"));
       }
     },30000);
@@ -291,9 +296,16 @@ async function loadUniversityReviews(){
 }
 async function loadAdmins(){
   const data=await req("/admin/admins");
-  $("adminAccounts").innerHTML=(data.items||[]).map(item=>
-    '<div class="admin-account"><div><b>'+safe(item.username)+'</b><small>'+safe(item.role)+' · '+(item.active?"启用":"停用")+' · 最近登录：'+safe(item.lastLoginAt||"从未")+'</small></div><button class="ghost" data-admin-id="'+safe(item.id)+'" data-active="'+(!item.active)+'">'+(item.active?"停用":"重新启用")+'</button></div>'
-  ).join("");
+  $("adminAccounts").innerHTML=(data.items||[]).map(item=>{
+    const roleLabel=item.role==="owner"?"所有者":item.role==="viewer"?"历史只读账号（待删除）":"普通管理员";
+    const actions=item.role==="owner"
+      ? '<span class="muted">所有者账号受保护</span>'
+      : (item.role==="admin"?
+          '<button type="button" class="ghost" data-admin-id="'+safe(item.id)+'" data-active="'+(!item.active)+'">'+(item.active?"停用":"重新启用")+'</button>'
+          :"")+
+        '<button type="button" class="admin-delete-button" data-admin-delete="'+safe(item.id)+'" data-admin-name="'+safe(item.username)+'">删除账号</button>';
+    return '<div class="admin-account"><div><b>'+safe(item.username)+'</b><small>'+roleLabel+' · '+(item.active?"启用":"停用")+' · 最近登录：'+safe(item.lastLoginAt||"从未")+'</small></div><div class="admin-actions">'+actions+'</div></div>';
+  }).join("");
 }
 
 let adminDonationRows=[];
@@ -597,13 +609,25 @@ $("universityReviewRows").addEventListener("click",async event=>{
 $("createAdmin").onsubmit=async event=>{
   event.preventDefault();
   try {
-    await req("/admin/admins",{username:$("newUsername").value.trim(),password:$("newPassword").value,role:$("newRole").value});
+    await req("/admin/admins",{username:$("newUsername").value.trim(),password:$("newPassword").value,role:"admin"});
     $("newPassword").value="";
-    $("createAdminMsg").textContent="管理员账号已创建。";
+    $("createAdminMsg").textContent="普通管理员账号已创建。";
     await loadAdmins();
   } catch(error) { showError("createAdminMsg",error); }
 };
 $("adminAccounts").onclick=async event=>{
+  const deleteButton=event.target.closest("[data-admin-delete]");
+  if(deleteButton){
+    const id=deleteButton.dataset.adminDelete;
+    const username=deleteButton.dataset.adminName||"该账号";
+    if(!window.confirm("确定删除管理员“"+username+"”吗？删除后，该账号的所有登录会话都会立即失效，且无法恢复。"))return;
+    try {
+      await req("/admin/admins/"+id,null,"DELETE");
+      $("createAdminMsg").textContent="管理员账号已删除，其登录会话已撤销。";
+      await loadAdmins();
+    } catch(error) { showError("createAdminMsg",error); }
+    return;
+  }
   const button=event.target.closest("[data-admin-id]");
   if(!button)return;
   try {

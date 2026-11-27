@@ -6,7 +6,7 @@ const COOKIE="__Host-qd58_admin="+"e".repeat(64);
 const USER_ID="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const ADMIN_ID="admin-owner";
 
-function makeDb({role="admin",target=true,otherMembers=0,updateChanges=1}={}){
+function makeDb({role="owner",target=true,otherMembers=0,updateChanges=1}={}){
   const state={queries:[],batches:[]};
   const admin={id:ADMIN_ID,username:"rootops",role};
   const targetUser={id:USER_ID,phone:"13800000000",name:"测试垃圾数据",university_id:"university-1"};
@@ -75,6 +75,12 @@ const notFoundDb=makeDb({target:false});
 const notFound=await remove(notFoundDb.DB);
 assert.equal(notFound.status,404);
 assert.equal((await notFound.json()).error,"person_not_found");
+
+const adminDb=makeDb({role:"admin"});
+const ordinaryAdmin=await remove(adminDb.DB);
+assert.equal(ordinaryAdmin.status,403,"ordinary admins must not delete roster users");
+assert.equal((await ordinaryAdmin.json()).error,"forbidden");
+assert.equal(adminDb.state.batches.length,0);
 
 const viewerDb=makeDb({role:"viewer"});
 const viewer=await remove(viewerDb.DB);

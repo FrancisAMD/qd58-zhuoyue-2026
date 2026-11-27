@@ -92,9 +92,16 @@ const invalidResponse=await worker.fetch(request("/api/admin/donations",{method:
 assert.equal(invalidResponse.status,400);
 assert.equal(ownerDb.state.items.length,0);
 
+const ordinaryAdminDb=makeDb({role:"admin"});
+const ordinaryAdminRead=await worker.fetch(request("/api/admin/donations",{cookie:ADMIN_COOKIE}),{APP_ORIGIN:ORIGIN,DB:ordinaryAdminDb.DB});
+assert.equal(ordinaryAdminRead.status,403,"ordinary admins must not read or manage donation records");
+const ordinaryAdminWrite=await worker.fetch(request("/api/admin/donations",{method:"POST",cookie:ADMIN_COOKIE,body:{nickname:"普通管理员",amountCents:100,displayOrder:0}}),{APP_ORIGIN:ORIGIN,DB:ordinaryAdminDb.DB});
+assert.equal(ordinaryAdminWrite.status,403);
+assert.equal(ordinaryAdminDb.state.items.length,0);
+
 const viewerDb=makeDb({role:"viewer"});
-const forbiddenResponse=await worker.fetch(request("/api/admin/donations",{method:"POST",cookie:ADMIN_COOKIE,body:{nickname:"只读账号",amountCents:100,displayOrder:0}}),{APP_ORIGIN:ORIGIN,DB:viewerDb.DB});
+const forbiddenResponse=await worker.fetch(request("/api/admin/donations",{method:"POST",cookie:ADMIN_COOKIE,body:{nickname:"历史只读账号",amountCents:100,displayOrder:0}}),{APP_ORIGIN:ORIGIN,DB:viewerDb.DB});
 assert.equal(forbiddenResponse.status,403);
 assert.equal(viewerDb.state.items.length,0);
 
-console.log("Donations API smoke tests: PASS (public read, owner/admin CRUD, validation and viewer authorization).");
+console.log("Donations API smoke tests: PASS (public read, owner-only CRUD, validation and ordinary-admin authorization).");

@@ -215,13 +215,12 @@ async function currentAdmin(request, env) {
   const token = getNamedCookie(request, ADMIN_COOKIE);
   if (!token) return null;
   const digest = await sha256(token);
-  return await env.DB.prepare("SELECT a.id,a.username,a.role FROM admin_sessions s JOIN admin_users a ON a.id=s.admin_user_id WHERE s.token_hash=? AND s.expires_at>? AND a.active=1")
+  return await env.DB.prepare("SELECT a.id,a.username,a.role FROM admin_sessions s JOIN admin_users a ON a.id=s.admin_user_id WHERE s.token_hash=? AND s.expires_at>? AND a.active=1 AND a.role IN ('owner','admin')")
     .bind(digest, now()).first();
 }
 const ADMIN_PERMISSIONS = {
   owner: ["overview", "people:read", "people:export", "people:delete", "audit:read", "admins:manage", "universities:import", "universities:review", "group-chat:manage", "donations:manage"],
-  admin: ["overview", "people:read", "people:export", "people:delete", "audit:read", "universities:review", "group-chat:manage", "donations:manage"],
-  viewer: ["overview"]
+  admin: ["overview", "universities:review", "group-chat:manage"]
 };
 function hasAdminPermission(admin, permission) {
   return !!admin && (ADMIN_PERMISSIONS[admin.role] || []).includes(permission);
@@ -1484,11 +1483,12 @@ if(path==="/api/teams/transfer" && method==="POST") {
       const account = await env.DB.prepare("SELECT id,username,password_hash,role,active FROM admin_users WHERE username=? COLLATE NOCASE")
         .bind(username).first();
       const passwordMatches = await verifyPassword(password, account?.password_hash);
-      if (!account || Number(account.active) !== 1 || !passwordMatches) {
+      const supportedRole = ["owner","admin"].includes(account?.role);
+      if (!account || Number(account.active) !== 1 || !passwordMatches || !supportedRole) {
         // Record credential rejection without storing the submitted username, IP,
         // password, or any other caller-controlled identifier in the audit trail.
         // Rate-limited requests are intentionally not logged here to avoid audit flooding.
-        const reason = !account ? "unknown_account" : Number(account.active) !== 1 ? "inactive_account" : "password_mismatch";
+        const reason = !account ? "unknown_account" : Number(account.active) !== 1 ? "inactive_account" : !supportedRole ? "unsupported_role" : "password_mismatch";
         try {
           await writeAudit(env.DB,"system",null,"admin.login.failed","admin_authentication",null,{reason});
         } catch {
@@ -1924,7 +1924,7 @@ if(path==="/api/teams/transfer" && method==="POST") {
       const role = String(d.role||"admin");
       if (!/^[A-Za-z0-9._-]{3,40}$/.test(username)) return response({error:"invalid_admin_username"},400,origin,env);
       if (password.length < 14 || password.length > 128) return response({error:"admin_password_too_weak"},400,origin,env);
-      if (!["admin","viewer"].includes(role)) return response({error:"invalid_admin_role"},400,origin,env);
+      if (role !== "admin") return response({error:"invalid_admin_role"},400,origin,env);
       const salt = crypto.getRandomValues(new Uint8Array(16));
       const derived = await derivePassword(password,salt);
       const hash = "pbkdf2-sha256$" + PBKDF2_ITERATIONS + "$" + b64(salt) + "$" + b64(derived);
@@ -1951,9 +1951,9 @@ if(path==="/api/teams/transfer" && method==="POST") {
       const d = await body(request);
       const role = d.role === undefined ? target.role : String(d.role);
       const active = d.active === undefined ? Number(target.active) : (d.active === true ? 1 : d.active === false ? 0 : -1);
-      if (!["admin","viewer"].includes(role) || ![0,1].includes(active)) return response({error:"invalid_admin_update"},400,origin,env);
+      if (role !== "admin" || ![0,1].includes(active)) return response({error:"invalid_admin_update"},400,origin,env);
       if (targetId === admin.id && active === 0) return response({error:"cannot_disable_self"},400,origin,env);
-      const result = await env.DB.prepare("UPDATE admin_users SET role=?,active=?,updated_at=? WHERE id=? AND role IN ('admin','viewer')")
+      const result = await env.DB.prepare("UPDATE admin_users SET role=?,active=?,updated_at=? WHERE id=? AND role='admin'")
         .bind(role,active,new Date().toISOString(),targetId).run();
       if ((result.meta?.changes||0)!==1) return response({error:"admin_update_conflict"},409,origin,env);
       await writeAudit(env.DB,"admin",admin.id,"admin.account.updated","admin_user",targetId,{role,active});
@@ -1963,8 +1963,30 @@ if(path==="/api/teams/transfer" && method==="POST") {
     }
   }
 
+  if (adminAccountMatch && method === "DELETE") {
+    const admin = await currentAdmin(request,env);
+    if (!admin) return response({error:"unauthorized"},401,origin,env);
+    if (!hasAdminPermission(admin,"admins:manage")) return response({error:"forbidden"},403,origin,env);
+    const targetId = adminAccountMatch[1];
+    const target = await env.DB.prepare("SELECT id,role FROM admin_users WHERE id=?").bind(targetId).first();
+    if (!target) return response({error:"admin_not_found"},404,origin,env);
+    if (target.role === "owner") return response({error:"owner_account_protected"},403,origin,env);
+    if (targetId === admin.id) return response({error:"cannot_delete_self"},400,origin,env);
+    if (!["admin","viewer"].includes(target.role)) return response({error:"admin_account_delete_conflict"},409,origin,env);
+    try {
+      // admin_sessions.admin_user_id has ON DELETE CASCADE; deleting this account
+      // also revokes every session belonging to the deleted administrator.
+      const result = await env.DB.prepare("DELETE FROM admin_users WHERE id=? AND role IN ('admin','viewer')").bind(targetId).run();
+      if ((result.meta?.changes||0)!==1) return response({error:"admin_account_delete_conflict"},409,origin,env);
+      await writeAudit(env.DB,"admin",admin.id,"admin.account.deleted","admin_user",targetId,{role:target.role});
+      return response({ok:true,deleted:true,id:targetId},200,origin,env);
+    } catch (error) {
+      console.error("Admin account deletion failed",error?.message||"unknown");
+      return response({error:"admin_account_delete_failed"},500,origin,env);
+    }
+  }
+
   return response({error:"not_found"},404,origin,env);
-}
 export default {
   fetch(request,env) {
     return route(request,env).catch(e=>{

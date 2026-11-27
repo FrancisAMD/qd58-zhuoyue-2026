@@ -83,3 +83,8 @@ assert.doesNotMatch(html,/group-chat-confirmation-block/,"confirmation status mu
 assert.doesNotMatch(html,/groupChatConfirmationRows|groupChatConfirmationRegion/);
 assert.ok(html.indexOf('id="universityReviewPanel"')<html.indexOf('id="peoplePanel"'),"overseas review must be near the top of the dashboard");
 assert.ok(html.indexOf('id="groupChatQrPanel"')<html.indexOf('id="peoplePanel"'),"regional QR management must be near the top of the dashboard");
+assert.doesNotMatch(html,/value="viewer"/,"new administrator creation must not offer a read-only role");
+assert.match(html,/普通管理员仅可查看统计概览、审核海外高校、管理地区群聊二维码/);
+assert.match(js,/teamsPanel"\)\.hidden=!has\("overview"\)/,"ordinary admins retain team-level overview without roster access");
+assert.match(js,/data-admin-delete/,"owner UI must provide admin deletion actions");
+assert.match(js,/历史只读账号（待删除）/,"legacy viewer accounts must be identifiable for cleanup");
