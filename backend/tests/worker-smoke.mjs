@@ -52,8 +52,18 @@ const missingOriginPreflight=await worker.fetch(new Request("https://api.58er.eo
 if(missingOriginPreflight.status!==403) throw new Error("preflight without Origin must be rejected");
 const preflight=await worker.fetch(new Request("https://api.58er.eon21.space/api/auth/login",{method:"OPTIONS",headers:{origin:"https://58er.eon21.space","access-control-request-method":"POST"}}),env);
 if(preflight.status!==204 || preflight.headers.get("access-control-allow-origin")!=="https://58er.eon21.space" || preflight.headers.get("access-control-allow-credentials")!=="true") throw new Error("trusted CORS preflight failed");
+const protectedReadWithoutOrigin=await worker.fetch(new Request("https://api.58er.eon21.space/api/teams/transfers"),env);
+if(protectedReadWithoutOrigin.status!==403 || (await protectedReadWithoutOrigin.json()).error!=="origin_forbidden")
+  throw new Error("authenticated GET routes must require the exact app Origin");
+const adminReadWithoutOrigin=await worker.fetch(new Request("https://api.58er.eon21.space/api/admin/me"),env);
+if(adminReadWithoutOrigin.status!==403 || (await adminReadWithoutOrigin.json()).error!=="origin_forbidden")
+  throw new Error("admin GET routes must require the exact app Origin");
+const foreignOriginHealth=await worker.fetch(new Request("https://api.58er.eon21.space/api/health",{headers:{origin:"https://evil.example"}}),env);
+if(foreignOriginHealth.status!==403) throw new Error("foreign Origin must be rejected even for public GET routes");
 const safeReadWithoutOrigin=await worker.fetch(new Request("https://api.58er.eon21.space/api/health"),env);
-if(safeReadWithoutOrigin.status!==200) throw new Error("safe health read without Origin must remain available");
+if(safeReadWithoutOrigin.status!==200) throw new Error("public health read without Origin must remain available");
+const publicCatalogWithoutOrigin=await worker.fetch(new Request("https://api.58er.eon21.space/api/universities?q=青岛"),env);
+if(publicCatalogWithoutOrigin.status===403) throw new Error("public university-catalog read without Origin must remain available");
 const registrationWithoutConsent=await worker.fetch(new Request("https://api.58er.eon21.space/api/auth/register/request-code",{method:"POST",headers:{"content-type":"application/json",origin:"https://58er.eon21.space"},body:JSON.stringify({phone:"13812345678",turnstileToken:"unused"})}),{APP_ORIGIN:"https://58er.eon21.space"});
 const registrationWithoutConsentBody=await registrationWithoutConsent.json();
 if(registrationWithoutConsent.status!==400 || registrationWithoutConsentBody.error!=="consent_required") throw new Error("registration SMS must require privacy consent");
