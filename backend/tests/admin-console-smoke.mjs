@@ -48,3 +48,11 @@ assert.doesNotMatch(js,/item\.phone|item\.secondaryPhone|item\.wechatId/,"admin 
 assert.match(css,/\.admin-profile-details/);
 assert.match(css,/\.admin-team-grid/);
 assert.match(css,/justify-self:center/);
+
+assert.match(html,/资料概览 \/ 完整资料/);
+assert.match(html,/仅显示最近 10 条记录/);
+assert.match(js,/function renderProfilePreview\(item\)/);
+assert.match(js,/pageSize=10/);
+assert.match(js,/slice\(0,10\)/);
+assert.match(js,/30_000|30000/);
+assert.match(css,/\.admin-profile-preview/);
