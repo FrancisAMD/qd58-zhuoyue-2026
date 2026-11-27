@@ -1,0 +1,69 @@
+/* Public landing-page FAQ accordion. Edit the questions and answers in index.html. */
+.home-faq{
+  width:min(1100px,calc(100% - 56px));
+  margin:26px auto 46px;
+  padding:24px 28px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:var(--paper);
+  box-shadow:0 12px 32px #2d50370a;
+}
+.home-faq-heading{margin-bottom:16px}
+.home-faq-heading .eyebrow{margin-bottom:7px}
+.home-faq-heading h2{margin:0;font:600 clamp(22px,3vw,30px) "Noto Serif SC",serif;color:var(--ink)}
+.home-faq-heading p{margin:8px 0 0;color:var(--muted);font-size:12px;line-height:1.8}
+.home-faq-list{display:grid;gap:9px}
+.home-faq-list details{border:1px solid var(--line);border-radius:10px;background:var(--bg);overflow:hidden}
+.home-faq-list summary{position:relative;display:flex;align-items:center;gap:12px;padding:14px 17px;list-style:none;cursor:pointer;color:var(--ink);font-size:13px;font-weight:650}
+.home-faq-list summary::-webkit-details-marker{display:none}
+.home-faq-list summary::after{content:"＋";margin-left:auto;color:var(--green);font-size:17px;font-weight:400;transition:transform .2s}
+.home-faq-list details[open] summary::after{content:"－"}
+.home-faq-number{color:var(--green);font-size:10px;letter-spacing:.08em}
+.home-faq-answer{padding:0 17px 16px 46px;color:var(--muted);font-size:12px;line-height:1.9}
+.home-faq-answer p{margin:0}
+
+/* Student directory sponsorship module. The illustration is intentionally 3:4. */
+.donation-module{
+  display:grid;
+  grid-template-columns:minmax(190px,.72fr) minmax(0,1.28fr);
+  gap:clamp(20px,4vw,38px);
+  align-items:center;
+  margin:0!important;
+  padding:clamp(18px,3vw,28px);
+  border:1px solid var(--line);
+  border-radius:15px;
+  background:linear-gradient(135deg,var(--paper),var(--bg));
+}
+.donation-image-wrap{min-width:0;overflow:hidden;border-radius:12px;background:#f3e7d1;aspect-ratio:3/4}
+.donation-image{display:block;width:100%;height:100%;object-fit:cover;aspect-ratio:3/4}
+.donation-copy{min-width:0}
+.donation-copy .eyebrow{margin:0 0 8px}
+.donation-copy h3{margin:0 0 12px;color:var(--ink);font:600 clamp(20px,2.7vw,28px) "Noto Serif SC",serif;line-height:1.5}
+.donation-copy>p{margin:0;color:var(--muted);font-size:12px;line-height:1.95}
+.donation-qr-area{display:flex;align-items:center;gap:15px;margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+.donation-qr-placeholder{display:grid;place-content:center;gap:7px;flex:0 0 118px;width:118px;aspect-ratio:1;border:1px dashed #a5b2a6;border-radius:9px;background:var(--paper);color:var(--green);text-align:center}
+.donation-qr-placeholder strong{font-size:12px}
+.donation-qr-placeholder span{font-size:10px;color:var(--muted)}
+.donation-qr-note{max-width:290px;margin:0;color:var(--muted);font-size:10px;line-height:1.8}
+.donation-qr-image{display:block;width:118px;height:118px;flex:0 0 118px;object-fit:contain;padding:5px;border:1px solid var(--line);border-radius:9px;background:#fff}
+.donation-footnote{margin-top:12px!important;font-size:10px!important}
+
+/* Clear visual lock when leadership eligibility has not passed. */
+#deletePreflightMsg{margin:12px 0;padding:10px 12px;border-radius:8px;background:var(--bg);font-size:12px;line-height:1.8}
+#deletePreflightMsg.bad{background:#fff0ed;color:#9b443b;border:1px solid #e6c2bb}
+#deleteCaptchaHint{margin:0;padding:10px 12px;border:1px dashed var(--line);border-radius:8px;color:var(--muted);font-size:11px;line-height:1.7}
+#deleteCaptcha.challenge-disabled{opacity:.38;filter:grayscale(1);pointer-events:none;user-select:none}
+#deleteAccountForm input:disabled,#deleteAccountForm button:disabled{opacity:.48;cursor:not-allowed}
+body.dark #deletePreflightMsg.bad{background:#412b29;color:#efc1ba;border-color:#76504a}
+body.dark .donation-qr-placeholder{background:var(--paper);border-color:#657768;color:#b7d4c0}
+body.dark .donation-qr-placeholder span{color:var(--muted)}
+
+@media(max-width:700px){
+  .home-faq{width:calc(100% - 32px);margin:19px auto 30px;padding:18px 15px}
+  .home-faq-list summary{padding:13px 12px;font-size:12px}
+  .home-faq-answer{padding:0 12px 14px 38px}
+  .donation-module{grid-template-columns:1fr;gap:17px;padding:15px}
+  .donation-image-wrap{width:min(100%,300px);justify-self:center}
+  .donation-copy h3{font-size:22px}
+  .donation-qr-area{align-items:flex-start}
+}
