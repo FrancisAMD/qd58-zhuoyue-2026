@@ -37,7 +37,7 @@ assert.doesNotMatch(js.slice(renderStart,renderEnd),/\breq\s*\(/,"demo renderer 
 console.log("Admin console UI tests: PASS (login/session separation, panel isolation and API-free fictional demo).");
 
 assert.match(html,/ACTIVE UNIVERSITY TEAMS/);
-assert.match(html,/用户资料/);
+assert.match(html,/资料概览 \/ 完整资料/);
 assert.match(js,/function renderPersonDetails\(item\)/);
 assert.match(js,/data-profile-toggle/);
 assert.match(js,/尚未选择高校/);
