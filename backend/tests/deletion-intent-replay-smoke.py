@@ -133,7 +133,7 @@ with tempfile.TemporaryDirectory(prefix="qd58-deletion-replay-smoke-") as tempor
     assert restored.execute("SELECT COUNT(*) FROM otp_challenges WHERE phone=?",(phone,)).fetchone()[0]==0
     assert restored.execute("SELECT COUNT(*) FROM rate_limits WHERE bucket_key IN ("+",".join("?" for _ in keys)+")",keys).fetchone()[0]==0
     assert restored.execute("SELECT status FROM leader_transfers WHERE id='transfer-replay-001'").fetchone()[0]=="expired"
-    assert restored.execute("SELECT action,target_id FROM audit_logs WHERE id=?","1"*32).fetchone()==("account.deleted",uid)
+    assert restored.execute("SELECT action,target_id FROM audit_logs WHERE id=?",("1"*32,)).fetchone()==("account.deleted",uid)
     restored.close()
 
     out2=private/"replayed-again.sql"
@@ -148,6 +148,7 @@ with tempfile.TemporaryDirectory(prefix="qd58-deletion-replay-smoke-") as tempor
     expect_replay_error("rate_limit_secret_invalid",lambda:replay.apply_intents(build_database()[0],intents,b"short"))
 
     manual_db,manual_uid=build_database(extra_member=True)
+    manual_db.row_factory=sqlite3.Row
     manual_intent=record(manual_uid,"3"*32,"2026-11-27T01:04:00.000Z")
     expect_replay_error("replay_manual_review_team_leader",lambda:replay.preflight(manual_db,[manual_intent]))
     manual_db.close()
