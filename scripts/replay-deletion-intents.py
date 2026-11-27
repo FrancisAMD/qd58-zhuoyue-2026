@@ -24,7 +24,7 @@ TIMESTAMP = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$")
 DEFAULT_MIGRATION = "0014_university_catalog_import_staging.sql"
 REQUIRED_USER_COLUMNS = {
     "id", "phone", "password_hash", "name", "high_school", "class_name",
-    "university_id", "grade", "province", "city", "bio", "gender",
+    "university_id", "grade", "province", "city", "bio", "greeting", "greeting", "gender",
     "secondary_phone", "wechat_id", "major_group", "major_discipline_code", "admission_category_id",
     "admission_type_id", "campus_id", "campus_name", "campus_tag",
     "secondary_phone", "wechat_id", "profile_review_status",
@@ -282,7 +282,7 @@ def apply_intents(db, records, rate_limit_secret):
             )
             result = db.execute(
                 """UPDATE users SET phone='deleted:'||id,password_hash=NULL,name=NULL,high_school=NULL,class_name=NULL,
-                   university_id=NULL,grade=NULL,province=NULL,city=NULL,bio=NULL,gender='undisclosed',major_group='',
+                   university_id=NULL,grade=NULL,province=NULL,city=NULL,bio=NULL,greeting=NULL,gender='undisclosed',major_group='',
                    major_discipline_code='',admission_category_id='',admission_type_id='',campus_id='',campus_name='',
                    campus_tag='',secondary_phone='',wechat_id='',profile_review_status='rejected',
                    profile_review_submitted_at='',profile_reviewed_at='',overseas_university_name='',
