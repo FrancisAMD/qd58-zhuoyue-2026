@@ -568,3 +568,6 @@ body.dark .group-qr-missing{background:#40302d;color:#e0b2a8}
   #confirmGroupChat{max-width:none}
 }
 body.dark .group-chat-status{background:var(--bg);color:var(--ink)}
+
+.group-chat-panel[hidden]{display:none!important}
+#groupChatQrImage[hidden]{display:none!important}
