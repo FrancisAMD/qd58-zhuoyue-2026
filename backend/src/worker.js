@@ -491,7 +491,7 @@ async function route(request, env) {
   if(method==="OPTIONS") return new Response(null,{status:204,headers:corsHeaders(origin,env)});
   if(origin && origin!==env.APP_ORIGIN) return response({error:"origin_forbidden"},403,origin,env);
   if(path==="/api/health" && method==="GET") return response({
-    ok:true,service:"zhuoyue-2026-api",build:"admin-profile-school-scoped-20261127",
+    ok:true,service:"zhuoyue-2026-api",build:"admin-visible-profiles-audit10-20261127",
     passwordKdf:"pbkdf2-sha256-100000",
     readiness:{
       rateLimitConfigured:typeof env.RATE_LIMIT_HMAC_SECRET==="string"&&env.RATE_LIMIT_HMAC_SECRET.length>=32,
