@@ -126,8 +126,8 @@ with tempfile.TemporaryDirectory(prefix="qd58-deletion-replay-smoke-") as tempor
     restored=sqlite3.connect(":memory:")
     restored.execute("PRAGMA foreign_keys=ON")
     restored.executescript(out.read_text(encoding="utf-8"))
-    user=restored.execute("SELECT phone,password_hash,name,university_id,deleted_at,gender FROM users WHERE id=?",(uid,)).fetchone()
-    assert user[0]=="deleted:"+uid and user[1] is None and user[2] is None and user[3] is None and user[4]!="" and user[5]=="undisclosed"
+    user=restored.execute("SELECT phone,password_hash,name,university_id,deleted_at,gender,secondary_phone,wechat_id FROM users WHERE id=?",(uid,)).fetchone()
+    assert user[0]=="deleted:"+uid and user[1] is None and user[2] is None and user[3] is None and user[4]!="" and user[5]=="undisclosed" and user[6]=="" and user[7]==""
     assert restored.execute("SELECT leader_user_id FROM teams WHERE id='synthetic-team'").fetchone()[0] is None
     assert restored.execute("SELECT COUNT(*) FROM sessions WHERE user_id=?",(uid,)).fetchone()[0]==0
     assert restored.execute("SELECT COUNT(*) FROM otp_challenges WHERE phone=?",(phone,)).fetchone()[0]==0
