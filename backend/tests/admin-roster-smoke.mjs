@@ -23,18 +23,35 @@ const DB={
       all:async()=>{
         queries.push({kind:"all",sql,bindings});
         if(sql.startsWith("SELECT u.id,u.name,u.high_school")){
-          return {results:[{
-            id:"user-1",name:"测试同学",highSchool:"青岛五十八中",university:null,universityCategory:null,
-            grade:"大一",province:null,city:null,gender:"female",majorDisciplineCode:"08",majorDiscipline:"工学",
-            admissionCategoryId:"C04",admissionCategory:"强基计划",campusName:null,campusTag:null,
-            greeting:"一路顺风",profileReviewStatus:"approved",overseasUniversityName:"",
-            consentVersion:"2026-11-27-v5",accountConsentVersion:"2026-11-27-v5",
-            createdAt:"2026-11-20T00:00:00Z",updatedAt:"2026-11-27T00:00:00Z",consentGiven:1
-          }]};
+          return {results:[
+            {
+              id:"user-1",name:"未选高校同学",highSchool:"青岛五十八中",university:null,universityCategory:null,
+              grade:"大一",province:null,city:null,gender:"female",majorDisciplineCode:"08",majorDiscipline:"工学",
+              admissionCategoryId:"C04",admissionCategory:"强基计划",campusName:null,campusTag:null,
+              greeting:"一路顺风",profileReviewStatus:"approved",overseasUniversityName:"",
+              consentVersion:"2026-11-27-v5",accountConsentVersion:"2026-11-27-v5",
+              createdAt:"2026-11-20T00:00:00Z",updatedAt:"2026-11-27T00:00:00Z",consentGiven:1,
+              universityMainProvince:"",profileCatalogProvince:"",universityLegacyRegion:""
+            },
+            {
+              id:"user-2",name:"威海校区同学",highSchool:"青岛五十八中",university:"哈尔滨工业大学",universityCategory:"mainland",
+              grade:"大一",province:"山东省",city:"威海市",gender:"male",majorDisciplineCode:"08",majorDiscipline:"工学",
+              admissionCategoryId:"C04",admissionCategory:"强基计划",campusName:"威海校区",campusTag:"异地校区",
+              greeting:"一路顺风",profileReviewStatus:"approved",overseasUniversityName:"",
+              consentVersion:"2026-11-27-v5",accountConsentVersion:"2026-11-27-v5",
+              createdAt:"2026-11-21T00:00:00Z",updatedAt:"2026-11-27T00:00:00Z",consentGiven:1,
+              universityMainProvince:"黑龙江省",profileCatalogProvince:"",universityLegacyRegion:"黑龙江省"
+            }
+          ]};
+        }
+        if(sql.includes("FROM group_chat_confirmations WHERE user_id IN (")){
+          return {results:[{userId:"user-2",regionKey:"heilongjiang",universityIdSnapshot:"university-2",qrUploadedAtSnapshot:"2026-11-27T11:00:00.000Z",confirmedAt:"2026-11-27T11:20:00.000Z"}]};
         }
         if(sql.startsWith("SELECT t.id,uni.canonical_name AS university")){
           assert.match(sql,/HAVING COUNT\(u.id\)>0/);
-          return {results:[{id:"team-active",university:"上海交通大学",memberCount:2,leaderName:"组长",leaderProvince:"上海市"}]};
+          assert.match(sql,/COALESCE\(NULLIF\(uni\.province_name_zh,''\),NULLIF\(profile_catalog\.province_name,''\),NULLIF\(uni\.region_name,''\),''\) AS leaderProvince/);
+          assert.equal(sql.includes("leader.province"),false,"team province must never use first registrant or leader profile province");
+          return {results:[{id:"team-active",university:"哈尔滨工业大学",memberCount:2,leaderName:"威海校区组长",leaderProvince:"黑龙江省"}]};
         }
         if(sql.startsWith("SELECT l.id,l.actor_type")){
           return {results:Array.from({length:Number(bindings[0]||0)},(_,index)=>({
@@ -48,17 +65,25 @@ const DB={
     };
   }
 };
+const GROUP_QR={async head(key){
+  assert.equal(key,"group-chat-qr/heilongjiang");
+  return {size:1234,customMetadata:{uploadedAt:"2026-11-27T11:00:00.000Z"},httpMetadata:{contentType:"image/png"}};
+}};
 async function get(path){
-  return worker.fetch(new Request(ORIGIN+path,{headers:{origin:ORIGIN,cookie:COOKIE}}),{APP_ORIGIN:ORIGIN,DB});
+  return worker.fetch(new Request(ORIGIN+path,{headers:{origin:ORIGIN,cookie:COOKIE}}),{APP_ORIGIN:ORIGIN,DB,GROUP_QR});
 }
 const roster=await get("/api/admin/people?page=1&pageSize=50");
 assert.equal(roster.status,200);
 const rosterBody=await roster.json();
-assert.equal(rosterBody.items.length,1);
+assert.equal(rosterBody.items.length,2);
 assert.equal(rosterBody.items[0].majorDiscipline,"工学");
 assert.equal(rosterBody.items[0].admissionCategory,"强基计划");
 assert.equal(rosterBody.items[0].greeting,"一路顺风");
 assert.equal(rosterBody.items[0].university,null,"university-cleared accounts must not retain the old school association");
+assert.equal(rosterBody.items[1].groupChatRegionLabel,"黑龙江省","Weihai campus must use Harbin Institute of Technology's main-campus province");
+assert.equal(rosterBody.items[1].groupChatStatus,"confirmed");
+assert.equal(rosterBody.items[1].groupChatStatusLabel,"已确认加入");
+assert.equal(rosterBody.items[1].groupChatConfirmedAt,"2026-11-27T11:20:00.000Z");
 const rosterSql=queries.find(item=>item.kind==="all"&&item.sql.startsWith("SELECT u.id,u.name,u.high_school")).sql;
 assert.match(rosterSql,/major\.label AS majorDiscipline/);
 assert.match(rosterSql,/admission\.label AS admissionCategory/);
