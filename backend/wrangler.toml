@@ -10,9 +10,6 @@ database_name = "qd58-zhuoyue-db"
 database_id = "3d32e597-57e9-4e52-833b-98bdec7ffb0b"
 migrations_dir = "migrations"
 [[r2_buckets]]
-binding = "DELETE_LEDGER"
-bucket_name = "qd58-account-deletion-ledger"
-[[r2_buckets]]
 binding = "GROUP_QR"
 bucket_name = "qd58-group-chat-qr"
 [vars]
