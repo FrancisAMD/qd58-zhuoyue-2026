@@ -584,7 +584,6 @@ $("profile").onsubmit=async event=>{
     await load();
     if(result.reviewStatus==="pending")return;
     msg("profileMsg","资料保存成功");
-    if(!$("goDirectory").hidden)showDirectoryStage();
   }catch(error){
     const errors={
       consent_required:"请先阅读并同意新版个人信息保护说明",
