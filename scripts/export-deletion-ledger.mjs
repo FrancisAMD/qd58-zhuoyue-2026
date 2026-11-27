@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { createInterface } from "node:readline";
 import { mkdir, lstat, writeFile } from "node:fs/promises";
 import { resolve, dirname, relative } from "node:path";
-import { fileURLToPath, pathToURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const hashHex = value => createHash("sha256").update(value).digest("hex");
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
