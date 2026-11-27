@@ -17,9 +17,14 @@ assert.match(css,/#profile textarea\[name="greeting"\][\s\S]*?max-height:132px/,
 assert.match(css,/padding:0!important/,"step number badges must not inherit the legacy pill padding");
 assert.match(css,/\.profile-stage-panel[\s\S]*?margin-top:18px/,"profile stage cards must have visual separation");
 assert.match(css,/@media\(min-width:761px\)[\s\S]*?#join>#profile\s*\{[^}]*width:100%[^}]*max-width:none/,"desktop registration form must fill the section width and align with the journey and account bars");
-assert.match(html,/id="registerFields" class="register-fields" disabled/,"registration SMS/password fields must start locked");
+assert.match(html,/id="registerFields" class="register-fields"(?! disabled)/,"registration fields must stay usable while phone status is checked");
+assert.match(html,/id="regCreate" disabled/,"account creation must stay disabled until the phone check succeeds");
+assert.match(html,/app\\.js\\?v=20261128-registration-phone-flow-v2/,"registration fix must bust the cached frontend script");
 assert.match(html,/id="regPhoneStatus"/,"registration form must show phone-check status");
 assert.match(html,/id="regGoLogin"/,"registered phone must have a direct login action");
 assert.match(js,/\/auth\/register\/check-phone/,"frontend must call the Worker phone precheck");
 assert.match(js,/registrationPhoneVerifiedValue/,"SMS sending and registration must require successful phone verification");
+assert.match(js,/setRegistrationPhoneActionsEnabled/,"phone checking should gate only the create-account action");
+assert.match(js,/timeoutMs:10000/,"phone checking must time out instead of leaving the UI pending indefinitely");
+assert.doesNotMatch(js,/registerFields"\)\.disabled/,"phone checking must not disable the entire registration fieldset");
 console.log("Profile UI smoke tests: defaults, fixed textarea, centered badges and stage spacing passed.");

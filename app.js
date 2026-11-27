@@ -1,5 +1,5 @@
 const API="https://api.58er.eon21.space/api",SITEKEY="0x4AAAAAAF8tZfD0j4LHU8uN",$=id=>document.getElementById(id);let widgets={},tokens={},consumedTokens={},view="members",directory=null,categoryLocked=false;
-let registrationPhoneCheckTimer=null,registrationPhoneCheckSequence=0,registrationPhoneVerifiedValue="",registrationPhoneLastValue="";const phoneOK=p=>/^1[3-9]\d{9}$/.test(p);
+let registrationPhoneCheckTimer=null,registrationPhoneCheckSequence=0,registrationPhoneVerifiedValue="",registrationPhoneLastValue="",registrationPhoneKnownPhone="",registrationPhoneKnownStatus="";const phoneOK=p=>/^1[3-9]\d{9}$/.test(p);
 async function call(path,data,options={}){
   const timeoutMs=Number(options.timeoutMs)||0;
   const controller=timeoutMs>0?new AbortController():null;
@@ -28,7 +28,7 @@ async function sendCode(v){
   const m=isDelete?"deleteMsg":v==="register"?"regMsg":"resetMsg";
   if(b.disabled)return;
   if(v==="register"&&!$("accountConsent").checked)return msg(m,"请先阅读隐私说明并勾选同意",true);
-  if(v==="register"&&registrationPhoneVerifiedValue!==p)return msg(m,"请先完成手机号状态核验；如果该手机号已经注册，请直接登录。",true);
+  if(v==="register"&&registrationPhoneKnownPhone===p&&registrationPhoneKnownStatus==="registered")return msg(m,"该手机号已经注册，请直接登录原有账号。",true);if(v==="register"&&registrationPhoneVerifiedValue!==p)return msg(m,"请先完成手机号状态核验；如果该手机号已经注册，请直接登录。",true);
   if(!isDelete&&!phoneOK(p))return msg(m,"请输入正确的 11 位手机号",true);
   if(!tokens[v]){
     if(consumedTokens[v]){resetCaptcha(v);return msg(m,"上一次人机验证已使用，请重新完成验证。",true)}
@@ -55,45 +55,80 @@ function setRegistrationPhoneStatus(message,state="idle"){
   $("regGoLogin").hidden=state!=="registered";
   $("regPhoneRetry").hidden=state!=="retry";
 }
+function setRegistrationPhoneActionsEnabled(enabled){
+  $("regCreate").disabled=!enabled;
+}
 function updateRegistrationPhoneCheck(immediate=false){
   if(registrationPhoneCheckTimer!==null)clearTimeout(registrationPhoneCheckTimer);
   registrationPhoneCheckTimer=null;
   const sequence=++registrationPhoneCheckSequence;
   const phone=$("regPhone").value.trim();
-  $("registerFields").disabled=true;
-  registrationPhoneVerifiedValue="";
-  if(phone!==registrationPhoneLastValue){
+  const changed=phone!==registrationPhoneLastValue;
+  if(changed){
+    registrationPhoneVerifiedValue="";
+    registrationPhoneKnownPhone="";
+    registrationPhoneKnownStatus="";
     $("regCode").value="";
     $("regPass").value="";
     $("regPass2").value="";
     if(tokens.register)resetCaptcha("register");
     registrationPhoneLastValue=phone;
   }
-  if(!phone){setRegistrationPhoneStatus("请先填写手机号并勾选同意，系统将检查该手机号是否已有账号。");return;}
-  if(!phoneOK(phone)){setRegistrationPhoneStatus("请输入正确的 11 位中国大陆手机号。");return;}
-  if(!$("accountConsent").checked){
-    setRegistrationPhoneStatus("手机号格式正确。请先勾选并同意个人信息保护说明，再进行账号状态核验。");
+  setRegistrationPhoneActionsEnabled(false);
+  if(!phone){
+    registrationPhoneVerifiedValue="";
+    setRegistrationPhoneStatus("请先填写手机号，系统会在同意隐私说明后检查该手机号是否已有账号。");
     return;
   }
+  if(!phoneOK(phone)){
+    registrationPhoneVerifiedValue="";
+    setRegistrationPhoneStatus("请输入正确的 11 位中国大陆手机号。");
+    return;
+  }
+  if(!$("accountConsent").checked){
+    registrationPhoneVerifiedValue="";
+    setRegistrationPhoneStatus("手机号格式正确。请先阅读并勾选同意个人信息保护说明，再进行账号状态核验。");
+    return;
+  }
+  if(registrationPhoneKnownPhone===phone&&registrationPhoneKnownStatus==="available"){
+    registrationPhoneVerifiedValue=phone;
+    setRegistrationPhoneActionsEnabled(true);
+    setRegistrationPhoneStatus("该手机号尚未注册，可以继续完成短信验证和密码设置。","success");
+    return;
+  }
+  if(registrationPhoneKnownPhone===phone&&registrationPhoneKnownStatus==="registered"){
+    registrationPhoneVerifiedValue="";
+    setRegistrationPhoneStatus("该手机号已经注册。请直接登录原有账号；如忘记密码，请使用登录页的“忘记密码”。","registered");
+    return;
+  }
+  registrationPhoneVerifiedValue="";
   setRegistrationPhoneStatus("正在核验手机号是否已经注册…","checking");
   const check=async()=>{
     try{
-      const result=await call("/auth/register/check-phone",{phone,accountConsent:true});
+      const result=await call("/auth/register/check-phone",{phone,accountConsent:true},{timeoutMs:10000});
       if(sequence!==registrationPhoneCheckSequence||phone!==$("regPhone").value.trim()||!$("accountConsent").checked)return;
       if(result.registered===true){
-        $("registerFields").disabled=true;
+        registrationPhoneKnownPhone=phone;
+        registrationPhoneKnownStatus="registered";
+        registrationPhoneVerifiedValue="";
+        setRegistrationPhoneActionsEnabled(false);
         setRegistrationPhoneStatus("该手机号已经注册。请直接登录原有账号；如忘记密码，请使用登录页的“忘记密码”。","registered");
         return;
       }
       if(result.registered!==false)throw new Error("registration_phone_check_unavailable");
+      registrationPhoneKnownPhone=phone;
+      registrationPhoneKnownStatus="available";
       registrationPhoneVerifiedValue=phone;
-      $("registerFields").disabled=false;
+      setRegistrationPhoneActionsEnabled(true);
       setRegistrationPhoneStatus("该手机号尚未注册，可以继续完成短信验证和密码设置。","success");
     }catch(error){
-      if(sequence!==registrationPhoneCheckSequence)return;
-      $("registerFields").disabled=true;
-      const message=error.message==="rate_limited"?"手机号核验请求过于频繁，请稍后再试。":errorText(error);
-      setRegistrationPhoneStatus(message+" 核验完成前，注册表单会保持锁定。","retry");
+      if(sequence!==registrationPhoneCheckSequence||phone!==$("regPhone").value.trim()||!$("accountConsent").checked)return;
+      registrationPhoneVerifiedValue="";
+      setRegistrationPhoneActionsEnabled(false);
+      const message=error.message==="rate_limited"
+        ?"手机号核验请求过于频繁，请"+formatWait(error.details?.retryAfter||3600)+"再试。"
+        :errorText(error);
+      setRegistrationPhoneStatus(message+" 其他输入项仍可填写；核验通过前不能发送注册验证码或创建账号。","retry");
     }
   };
   registrationPhoneCheckTimer=setTimeout(check,immediate?0:450);
@@ -715,7 +750,7 @@ $("continueToDetails").onclick=()=>showRegistrationStep("profile");
 $("backToUniversityStep").onclick=showRegistrationStep.bind(null,"university");
 $("clearSelectedUniversity").onclick=clearSelectedUniversity;$("changePassword").onclick=()=>auth("changePassword");document.querySelectorAll("[data-auth]").forEach(x=>x.onclick=()=>auth(x.dataset.auth));$("forgot").onclick=()=>auth("reset");$("backLogin").onclick=()=>auth("login");$("cancelPasswordChange").onclick=()=>$("modal").classList.remove("show");$("deleteAccountOpen").onclick=()=>auth("deleteAccount");$("cancelDeleteAccount").onclick=()=>$("modal").classList.remove("show");$("deleteSend").onclick=()=>sendCode("deleteAccount");$("regSend").onclick=()=>sendCode("register");$("resetSend").onclick=()=>sendCode("reset");
 $("loginForm").onsubmit=async e=>{e.preventDefault();try{await call("/auth/login",{phone:$("loginPhone").value.trim(),password:$("loginPassword").value});$("modal").classList.remove("show");await load()}catch(x){msg("loginMsg",errorText(x),true)}};
-$("registerForm").onsubmit=async e=>{e.preventDefault();const phone=$("regPhone").value.trim();if(registrationPhoneVerifiedValue!==phone||$("registerFields").disabled)return msg("regMsg","请先完成手机号状态核验。",true);if($("regPass").value!==$("regPass2").value)return msg("regMsg","两次密码不一致",true);try{await call("/auth/register",{phone,code:$("regCode").value.trim(),password:$("regPass").value,accountConsent:$("accountConsent").checked});$("modal").classList.remove("show");await load()}catch(x){if(x.message==="phone_already_registered"){registrationPhoneVerifiedValue="";$("registerFields").disabled=true;setRegistrationPhoneStatus("该手机号已经注册，请直接登录原有账号。","registered")}msg("regMsg",errorText(x),true)}};
+$("registerForm").onsubmit=async e=>{e.preventDefault();const phone=$("regPhone").value.trim();if(registrationPhoneVerifiedValue!==phone)return msg("regMsg","请先完成手机号状态核验。",true);if($("regPass").value!==$("regPass2").value)return msg("regMsg","两次密码不一致",true);try{await call("/auth/register",{phone,code:$("regCode").value.trim(),password:$("regPass").value,accountConsent:$("accountConsent").checked});$("modal").classList.remove("show");await load()}catch(x){if(x.message==="phone_already_registered"){registrationPhoneVerifiedValue="";registrationPhoneKnownPhone=phone;registrationPhoneKnownStatus="registered";setRegistrationPhoneActionsEnabled(false);setRegistrationPhoneStatus("该手机号已经注册，请直接登录原有账号。","registered")}msg("regMsg",errorText(x),true)}};
 $("resetForm").onsubmit=async e=>{e.preventDefault();if($("resetPass").value!==$("resetPass2").value)return msg("resetMsg","两次密码不一致",true);try{await call("/auth/password/reset",{phone:$("resetPhone").value.trim(),code:$("resetCode").value.trim(),newPassword:$("resetPass").value});msg("resetMsg","密码已重置，请返回登录");setTimeout(()=>auth("login"),900)}catch(x){msg("resetMsg",errorText(x),true)}};
 $("deleteAccountForm").onsubmit=async e=>{e.preventDefault();if($("deleteConfirm").value.trim()!=="DELETE")return msg("deleteMsg","请输入 DELETE 完成二次确认",true);try{await call("/account/delete",{password:$("deletePassword").value,code:$("deleteCode").value.trim(),confirmText:"DELETE"});msg("deleteMsg","账号资料已匿名化，正在退出…");$("deleteAccountForm").reset();location.replace("index.html")}catch(x){msg("deleteMsg",errorText(x),true);if(x.message==="unauthorized")setTimeout(()=>auth("login"),900)}};
 $("changePasswordForm").onsubmit=async e=>{e.preventDefault();const currentPassword=$("currentPassword").value,newPassword=$("newPassword").value;if(newPassword!==$("confirmNewPassword").value)return msg("changePassMsg","两次新密码不一致",true);if(newPassword.length<10)return msg("changePassMsg","新密码至少需要 10 位",true);try{await call("/auth/password/change",{currentPassword,newPassword});msg("changePassMsg","密码修改成功，其他设备已退出登录");$("changePasswordForm").reset();document.querySelectorAll("#changePasswordForm .password-toggle").forEach(b=>{const input=$(b.dataset.togglePassword);input.type="password";b.textContent="显示"});setTimeout(()=>$("modal").classList.remove("show"),1200)}catch(x){msg("changePassMsg",errorText(x),true);if(x.message==="unauthorized")setTimeout(()=>auth("login"),900)}};
