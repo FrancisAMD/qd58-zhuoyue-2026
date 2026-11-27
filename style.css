@@ -582,3 +582,13 @@ body.dark .group-chat-status{background:var(--bg);color:var(--ink)}
 @media(max-width:760px){.group-chat-roster-cell{min-width:100px}}
 body.dark .group-chat-roster-status.confirmed{background:#22392d;color:#b8dfc6;border-color:#365443}
 body.dark .group-chat-roster-status.pending{background:#3d3524;color:#e4cf9b;border-color:#5d4c2b}
+
+/* Keep registration form edges aligned with the journey navigation,
+   the classmates page and the account action bar on desktop. */
+@media(min-width:761px){
+  #join>#profile{
+    width:100%;
+    max-width:none;
+    margin:20px 0 0;
+  }
+}
