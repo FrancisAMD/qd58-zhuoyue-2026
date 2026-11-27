@@ -383,3 +383,32 @@ body.dark .danger-outline,body.dark .danger-link{background:#382a28;border-color
 
 .transfer-school{font-weight:700;color:var(--green)}
 body.dark .transfer-school{color:#b7d4c0}
+
+
+/* Admin roster profile details and current-school teams. */
+.admin-team-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:16px}
+.admin-team-card{min-width:0;padding:17px;border:1px solid var(--line);border-radius:10px;background:var(--paper);display:grid;gap:10px}
+.admin-team-card>div{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.admin-team-card>div b{font:600 15px "Noto Serif SC",serif;overflow-wrap:anywhere}
+.admin-team-card>div span{font-size:10px;color:var(--muted);white-space:nowrap}
+.admin-team-card>strong{font:600 25px Georgia;color:var(--green)}
+.admin-team-card>strong small{font:400 11px system-ui,sans-serif}
+.admin-team-card>p{margin:0;padding-top:9px;border-top:1px solid var(--line);color:var(--muted);font-size:11px}
+.admin-profile-detail-row>td{padding:12px!important;background:var(--bg);white-space:normal}
+.admin-profile-details{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}
+.admin-profile-field{min-width:0;padding:11px 12px;border:1px solid var(--line);border-radius:8px;background:var(--paper)}
+.admin-profile-field small{display:block;margin-bottom:5px;color:var(--muted);font-size:10px}
+.admin-profile-field b{display:block;color:var(--ink);font-size:12px;font-weight:600;overflow-wrap:anywhere;line-height:1.6}
+.admin-profile-greeting{grid-column:1/-1}
+.admin-profile-greeting p{margin:0;color:var(--ink);font-size:12px;line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere}
+.admin-detail-toggle{padding:7px 10px;font-size:11px}
+.admin-shell>section{margin:24px 0}
+.admin-stats{gap:16px}
+.admin-review-list,.admin-account-list{gap:14px}
+.admin-review-card,.admin-account{margin:0}
+.cards,.demo-note-grid,.demo-team-grid{gap:16px}
+.classmate-card{margin:0}
+.journey-steps button{text-align:center;justify-content:center;align-items:center}
+.journey-steps button>span{display:grid;place-items:center;text-align:center;line-height:1;justify-self:center;margin-inline:auto;flex:0 0 25px}
+@media(max-width:760px){.admin-profile-details{grid-template-columns:repeat(2,minmax(0,1fr))}.admin-team-grid{grid-template-columns:1fr}}
+@media(max-width:460px){.admin-profile-details{grid-template-columns:1fr}}
