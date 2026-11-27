@@ -216,7 +216,6 @@ function selectUniversity(item,selectedCampusId=""){
     populateMajorDisciplines(profileReferenceData,item.tags||[]);
     $("admissionFields").hidden=false;
     $("admissionCategoryId").required=true;
-    $("admissionTypeId").required=true;
   }else{
     $("campusSelectionWrap").hidden=true;
     $("campusSelect").required=false;
