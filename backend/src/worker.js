@@ -987,7 +987,7 @@ async function route(request, env) {
         statements.push(env.DB.prepare("INSERT OR IGNORE INTO teams(id,university_id,leader_user_id) SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM users WHERE id=? AND university_id=? AND deleted_at='')").bind(randomHex(16),universityId,user.id,user.id,universityId));
       }
       const results=await env.DB.batch(statements);
-      const userUpdateIndex=universityId?1:0;
+      const userUpdateIndex=(universityId?1:0)+(changingUniversity&&previousUniversityId?3:0);
       if(!results?.[userUpdateIndex]?.meta||Number(results[userUpdateIndex].meta.changes||0)!==1) return response({error:"university_change_requires_support"},409,origin,env);
       return response({ok:true,reviewStatus,profileReviewStatus:reviewStatus},200,origin,env);
     }catch(error){
