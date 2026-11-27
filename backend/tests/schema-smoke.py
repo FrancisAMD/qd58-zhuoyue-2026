@@ -26,8 +26,8 @@ for migration in migrations:
             ("legacy-sino-foreign", "示例中外合作大学", "sino_foreign:示例中外合作大学", "sino_foreign", "上海", "undergraduate", "Partner University"),
         )
         db.execute(
-            "INSERT INTO users(id,phone,consent_at,university_id) VALUES(?,?,?,?)",
-            ("legacy-catalog-user", "13800000009", "2026-11-20T00:00:00Z", "legacy-sino-foreign"),
+            "INSERT INTO users(id,phone,name,consent_at,university_id) VALUES(?,?,?,?,?)",
+            ("legacy-catalog-user", "13800000009", "历史组长", "2026-11-20T00:00:00Z", "legacy-sino-foreign"),
         )
         db.execute(
             "INSERT INTO teams(id,university_id,leader_user_id) VALUES(?,?,?)",
