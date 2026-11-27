@@ -30,7 +30,7 @@ const DB={
               admissionCategoryId:"C04",admissionCategory:"强基计划",campusName:null,campusTag:null,
               greeting:"一路顺风",profileReviewStatus:"approved",overseasUniversityName:"",
               consentVersion:"2026-11-27-v5",accountConsentVersion:"2026-11-27-v5",
-              createdAt:"2026-11-20T00:00:00Z",updatedAt:"2026-11-27T00:00:00Z",consentGiven:1,
+              createdAt:"2026-11-22T00:00:00Z",updatedAt:"2026-11-27T00:00:00Z",consentGiven:1,
               universityMainProvince:"",profileCatalogProvince:"",universityLegacyRegion:""
             },
             {
