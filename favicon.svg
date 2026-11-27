@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <title>卓越·2026 — 58</title>
+  <rect width="256" height="256" rx="58" fill="#244b39"/>
+  <path d="M37 34h182" fill="none" stroke="#ffffff" stroke-opacity=".12" stroke-width="2" stroke-linecap="round"/>
+  <text x="119" y="158" text-anchor="middle" fill="#f5f1e6"
+    font-family="Georgia, 'Times New Roman', serif" font-size="112" font-weight="700"
+    letter-spacing="-9">58</text>
+  <path d="M43 186c38 16 97 18 159-4" fill="none" stroke="#a9cdb1" stroke-width="7" stroke-linecap="round"/>
+  <path d="M176 43l7 15 15 7-15 7-7 15-7-15-15-7 15-7z" fill="#e8bd69"/>
+  <circle cx="207" cy="104" r="4" fill="#e8bd69" opacity=".78"/>
+</svg>

@@ -12,6 +12,7 @@
 | `index.html`、`app.js`、`style.css`、`theme.js` | 学生端页面、系统深浅色适配、注册手机号预检查 |
 | `admin.html`、`admin.js` | 独立管理员后台 |
 | `privacy.html` | 隐私说明 |
+| `favicon.svg` | 全站统一站点图标（SVG 矢量） |
 | `account-deletion-ui.js`、`ui-sections.css`、`donations.css` | 账号删除交互、页面补充样式、赞助名单样式 |
 | `assets/` | 页面图片资源，包括赞助二维码和插画 |
 | `data/profile-sources/` | 前端登记表使用的高校、校区、专业门类和招生类型 JSON |
