@@ -1,16 +1,65 @@
-# 青岛五十八中 卓越·2026返校宣讲
+# 青岛五十八中「卓越·2026」返校宣讲平台
 
-- Pages: https://58er.eon21.space
-- Worker API: https://api.58er.eon21.space
-- D1: qd58-zhuoyue-db
+面向青岛五十八中校友的登记、大学组队和同校联系平台。前端部署在 Cloudflare Pages，业务 API 运行在 Cloudflare Workers，数据存储使用 D1 和 R2。
 
-项目已包含手机号密码认证与短信注册/找回密码接口、Turnstile 服务端核验、阿里云 PNVS 适配、个人资料、大学自动组队、组长转让和同校目录。管理员独立认证、RBAC、名单查询/筛选、审计与 CSV 导出已在主线实现。
+- 网站：<https://58er.eon21.space>
+- API：<https://api.58er.eon21.space>
 
-**当前仍不可直接作为真实报名入口开放：** 迁移 0006 尚未应用到远程 D1；尚未初始化 owner 账号；数据删除/匿名化、正式保留期限、组织者联系渠道、备份恢复演练和真实环境端到端验证待完成。请先阅读 OPERATIONS-SECURITY.md、privacy.html 和 PROJECT-STATUS.md。
+## 项目结构
 
+| 目录 / 文件 | 用途 |
+| --- | --- |
+| `index.html`、`app.js`、`style.css` | 学生端页面：登录注册、选择高校、完善资料、同校目录 |
+| `admin.html`、`admin.js` | 独立管理员后台 |
+| `privacy.html` | 隐私说明 |
+| `account-deletion-ui.js`、`ui-sections.css`、`donations.css` | 账号删除交互、页面补充样式、赞助名单样式 |
+| `assets/` | 页面图片资源，包括赞助二维码和插画 |
+| `data/profile-sources/` | 前端登记表使用的高校、校区、专业门类和招生类型 JSON |
+| `data/university-catalog.*` | 高校目录导入的数据格式、Schema 和模板 |
+| `backend/src/worker-entry.js` | Worker 入口；先处理账号删除资格检查，再转交主 Worker |
+| `backend/src/worker.js` | API 主逻辑：认证、资料、组队、转让、目录、管理员等 |
+| `backend/src/xlsx.js` | 管理后台 Excel 导出 |
+| `backend/src/account-deletion-ledger.js` | 账号删除意图的 R2 台账逻辑 |
+| `backend/src/university-catalog-import.js` | 高校目录导入与校验逻辑 |
+| `backend/migrations/` | 按编号顺序执行的 D1 数据库迁移 |
+| `backend/tests/`、`scripts/` | 自动化测试、数据校验和运维脚本 |
+| `backend/wrangler.toml` | Worker、D1、R2、域名和定时任务配置 |
 
-## 用户账号删除与隐私
+## 使用的 Cloudflare 服务
 
-登录用户可在个人资料页面发起账号删除，需当前密码、绑定手机号短信验证和二次确认。服务端对在线资料执行不可逆匿名化，保留随机标识以维护历史转让/审计关联；删除后的账号不会出现在目录和管理员名单中。详见 `privacy.html` 与 `OPERATIONS-SECURITY.md`。
+- **Pages**：从 GitHub 的 `main` 分支发布仓库根目录的静态前端。
+- **Workers**：提供 `api.58er.eon21.space`，入口文件为 `backend/src/worker-entry.js`。
+- **D1**：数据库名为 `qd58-zhuoyue-db`；表结构变更保存在 `backend/migrations/`。
+- **R2**：`GROUP_QR` 用于各地区群聊二维码，Bucket 为 `qd58-group-chat-qr`。账号删除台账代码还依赖 `DELETE_LEDGER`（建议私有 Bucket 名为 `qd58-account-deletion-ledger`）；当前仓库的 `backend/wrangler.toml` 尚未声明该绑定，正式使用账号删除功能前需先核对并补齐 R2 配置。
 
-新增 D1 迁移 `0008_account_anonymization.sql`。尚未应用远程迁移或部署 Worker。
+验证码由 Cloudflare Turnstile 与阿里云 PNVS 配合处理。AccessKey、Turnstile Secret 和限流 HMAC Secret 应通过 Worker Secrets 配置，不要写入 Git。
+
+## 本地检查
+
+需要 Node.js、npm、Python。常用命令：
+
+```powershell
+npm ci
+npm run check:worker
+npm run test:worker
+npm run test:catalog
+python backend/tests/schema-smoke.py
+npm run test:backup
+```
+
+## 部署
+
+Pages 在 `main` 有新提交后由 Cloudflare Git 集成自动发布。Worker 从仓库根目录部署：
+
+```powershell
+npx wrangler deploy --config backend/wrangler.toml
+```
+
+只有新增了 D1 migration 时才需要检查并应用远程迁移：
+
+```powershell
+npx wrangler d1 migrations list qd58-zhuoyue-db --remote --config backend/wrangler.toml
+npx wrangler d1 migrations apply qd58-zhuoyue-db --remote --config backend/wrangler.toml
+```
+
+不要把 D1 导出、备份、管理员引导 SQL、密码或任何密钥提交到仓库。备份与恢复要求见 [docs/d1-backup-restore.md](docs/d1-backup-restore.md)，管理员和安全运维说明见 [OPERATIONS-SECURITY.md](OPERATIONS-SECURITY.md)。

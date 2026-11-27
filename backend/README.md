@@ -1,24 +1,39 @@
-# 卓越 2026 API（账号生命周期与管理员 RBAC）
+# Worker API 与 D1 后端
 
-Cloudflare Worker + D1 后端。已提交手机号密码认证、Turnstile 服务端校验、阿里云 PNVS 接口适配、个人资料、大学自动组队、组长转让、同校目录，以及独立管理员认证与角色权限。
+本目录是 Cloudflare Workers + D1 的后端实现。Worker 配置位于 `wrangler.toml`，入口为 `src/worker-entry.js`；入口会先处理账号删除资格预检，再把其余请求交给 `src/worker.js`。
 
-## 管理员 API
+主要模块：
 
-- POST /api/admin/login：独立管理员用户名/密码登录，IP 和用户名摘要双重限流，签发独立 Secure / HttpOnly / SameSite=Strict Cookie。
-- POST /api/admin/logout、GET /api/admin/me。
-- GET /api/admin/overview：统计概览；viewer 仅获得汇总数字。
-- GET /api/admin/people：owner/admin 名单查询，支持 q、province、university、grade、category、page、pageSize。
-- GET /api/admin/people?format=csv：最多导出 5000 行，执行公式注入转义；不含手机号和个人备注。\n- GET /api/admin/people?format=xlsx：原生 OOXML 工作簿，沿用相同权限、筛选和上限；所有用户可控单元格均作为文本，不含手机号和个人备注。
-- GET /api/admin/audit：查看管理员审计记录。
-- GET/POST /api/admin/admins：owner 创建 admin/viewer；POST /api/admin/admins/:id 更新角色或停用状态。
+- `src/worker.js`：登录注册、Turnstile/阿里云 PNVS、资料、高校组队、组长转让、同校目录、管理员 API。
+- `src/xlsx.js`：原生 XLSX 导出。
+- `src/university-catalog-import.js`：高校目录分阶段导入。
+- `src/account-deletion-ledger.js`：账号删除意图 R2 台账。
+- `migrations/`：D1 数据库迁移；只按迁移系统检查并应用，不要手动重复执行 SQL。
+- `tests/`：Worker 与 D1 行为的隔离 smoke tests。
 
-### RBAC
+## 管理员权限
 
-- owner：统计、名单、导出、审计、管理员账号管理。
-- admin：统计、名单、导出、审计。
-- viewer：仅统计概览。
-- owner 账号不允许通过普通管理 API 修改或停用；D1 迁移触发器保护最后一个 active owner。
-- 管理员名单和 CSV 不返回手机号、个人备注或验证码。手机号只在同校目录中按本人明确授权展示。
+- **owner**：全部后台权限，包括报名名单、CSV/Excel 导出、用户删除、操作审计、赞助名单、高校目录导入/审核、群聊二维码，以及管理员账号管理。
+- **admin**：仅统计概览、高校审核和地区群聊二维码管理。
+- **viewer**：已废弃；旧只读账号不能再登录，新账号也不能创建。所有者可在后台删除遗留账号。
+
+管理员独立使用 `__Host-qd58_admin` Cookie。普通管理员无法读取或修改报名名单、导出用户资料、查看审计或管理管理员账号；这些限制同时由 Worker API 服务端执行。
+
+## 常用命令
+
+在仓库根目录运行：
+
+```powershell
+npm ci
+npm run check:worker
+npm run test:worker
+python backend/tests/schema-smoke.py
+npx wrangler deploy --config backend/wrangler.toml
+```
+
+远程 D1 迁移前，先执行 `wrangler d1 migrations list` 确认状态。管理员初始化、Secrets、备份和恢复操作说明见仓库根目录的 `OPERATIONS-SECURITY.md` 与 `docs/d1-backup-restore.md`。
+
+---
 
 ## D1 迁移
 

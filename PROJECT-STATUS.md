@@ -1,18 +1,18 @@
-# 项目状态
+# 项目开发记录（历史）
 
-最后更新：2026-11-25
+最后更新：2026-11-27
 
-## 已提交
-- Cloudflare Pages/Worker 域名与 D1 配置。
-- 手机号密码登录、短信注册/找回密码、PBKDF2-SHA256 密码摘要、会话 Cookie 和登录限流。
-- Turnstile 服务端 Siteverify；阿里云 PNVS ACS3 签名发送/核验适配。
-- 个人资料、高校类别/规范化、并发安全大学自动组队、同校目录和同省组长列表。
-- 组长转让 pending/accepted/rejected/expired 状态；默认 7 天到期，API 惰性清理 + 每 15 分钟 Cron 清理，并写入系统审计。
-- 注册/资料明确同意记录与隐私说明初稿。
-- 管理员独立登录/登出/会话校验，独立 HttpOnly Cookie，登录 IP/用户名摘要限流。
-- owner/admin/viewer RBAC；名单分页、关键词/省份/大学/年级/类别筛选；最多 5000 行公式安全 CSV/XLSX；审计查询；owner 创建/停用 admin/viewer。
-- 管理员名单和 CSV/XLSX 不包含手机号与个人备注；viewer 仅可查看汇总统计。
-- 高校目录已具备 owner-only staging/finalize Worker API；默认由 `UNIVERSITY_CATALOG_IMPORT_ENABLED` 关闭，需显式启用；服务端重验目录证据与 D1 目标身份，最终 batch 不修改 users/teams。
+> 本文按时间保留开发过程和历史验证记录，不作为当前配置或部署状态的唯一依据。当前目录结构、服务职责和部署入口以仓库根目录 `README.md` 为准；管理员当前权限以 `OPERATIONS-SECURITY.md` 和 Worker 实际实现为准。
+
+## 当前实现概览
+
+- Cloudflare Pages 静态前端、Workers API、D1 数据库和 R2 资源存储。
+- 手机号密码认证、Turnstile、阿里云 PNVS 短信验证、个人资料、高校组队和组长转让。
+- 基于 JSON 的高校与登记选项数据，配套目录校验和导入工具。
+- 独立管理员登录与两级权限：owner 拥有完整后台权限；普通 admin 仅有统计概览、海外高校审核和地区群聊二维码管理。历史 viewer 已废弃。
+- 同校目录、赞助名单、区域群聊二维码、账号删除与删除意图台账等功能已进入代码库；远程绑定、配置和生产环境行为仍应以 Cloudflare 实际设置及运维检查为准。
+
+## 历史开发记录
 
 ## 本次里程碑（2026-11-13）
 - 新增 backend/migrations/0006_admin_rbac.sql：管理员生命周期字段、大小写不敏感用户名唯一索引、会话/审计索引和最后一个 active owner 保护。

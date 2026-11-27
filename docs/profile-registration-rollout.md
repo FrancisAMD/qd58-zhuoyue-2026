@@ -42,7 +42,7 @@ npx wrangler deploy --config backend/wrangler.toml
 Invoke-RestMethod https://api.58er.eon21.space/api/health
 ```
 
-本轮 Worker 构建标记应为 `team-school-snapshot-reset-20261127`。若仍显示旧标记，说明 Worker 尚未更新。不要在新 D1 字段迁移前部署新 Worker。
+本轮 Worker 构建标记应为 `admin-rbac-20261127`。若仍显示旧标记，说明 Worker 尚未更新。不要在新 D1 字段迁移前部署新 Worker。
 
 健康检查会额外返回不含密钥值的 `readiness` 状态：
 - `rateLimitConfigured`：`RATE_LIMIT_HMAC_SECRET` 是否存在且至少 32 位。
@@ -113,7 +113,7 @@ npx wrangler d1 migrations apply qd58-zhuoyue-db --remote --config backend/wrang
 npx wrangler deploy --config backend/wrangler.toml
 ```
 
-这次只需执行新增的 D1 迁移，不需要重新导入高校 JSON。部署后 `/api/health` 的 build 应为 `team-school-snapshot-reset-20261127`。
+这次只需执行新增的 D1 迁移，不需要重新导入高校 JSON。部署后 `/api/health` 的 build 应为 `admin-rbac-20261127`。
 
 ## G. 当前边界
 

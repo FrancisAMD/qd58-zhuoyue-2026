@@ -12,6 +12,7 @@ admin-bootstrap.sql
 
 # D1 exports and local restore artifacts contain personal data; never commit them.
 private-backups/
+.private-backups/
 *.d1-export.sql
 *.d1-backup.*
 *.sqlite
