@@ -491,7 +491,7 @@ async function route(request, env) {
   if(method==="OPTIONS") return new Response(null,{status:204,headers:corsHeaders(origin,env)});
   if(origin && origin!==env.APP_ORIGIN) return response({error:"origin_forbidden"},403,origin,env);
   if(path==="/api/health" && method==="GET") return response({
-    ok:true,service:"zhuoyue-2026-api",build:"three-step-university-reassign-20261127",
+    ok:true,service:"zhuoyue-2026-api",build:"team-school-snapshot-reset-20261127",
     passwordKdf:"pbkdf2-sha256-100000",
     readiness:{
       rateLimitConfigured:typeof env.RATE_LIMIT_HMAC_SECRET==="string"&&env.RATE_LIMIT_HMAC_SECRET.length>=32,
@@ -772,6 +772,70 @@ async function route(request, env) {
     const token=getCookie(request); if(token) await env.DB.prepare("DELETE FROM sessions WHERE token_hash=?").bind(await sha256(token)).run();
     return response({ok:true},200,origin,env,{"set-cookie":cookie("",0)});
   }
+  if(path==="/api/profile/reset" && method==="POST") {
+    const user=await currentUser(request,env);
+    if(!user) return response({error:"unauthorized"},401,origin,env);
+    try {
+      const previousUniversityId=user.university_id||"";
+      let oldTeam=null;
+      if(previousUniversityId) {
+        oldTeam=await env.DB.prepare(`SELECT t.id,t.leader_user_id AS leaderUserId,
+          (SELECT COUNT(*) FROM users member WHERE member.university_id=t.university_id AND member.deleted_at='') AS memberCount
+          FROM teams t WHERE t.university_id=? LIMIT 1`).bind(previousUniversityId).first();
+        if(oldTeam?.leaderUserId===user.id&&Number(oldTeam.memberCount||0)>1) {
+          return response({error:"team_leader_transfer_required"},409,origin,env);
+        }
+      }
+      const timestamp=new Date().toISOString();
+      const statements=[];
+      if(previousUniversityId) {
+        statements.push(env.DB.prepare(`UPDATE leader_transfers SET status='expired',responded_at=?
+          WHERE status='pending' AND team_id IN (SELECT id FROM teams WHERE university_id=?)
+            AND (from_user_id=? OR to_user_id=?)`).bind(timestamp,previousUniversityId,user.id,user.id));
+        statements.push(env.DB.prepare(`INSERT OR IGNORE INTO audit_logs(id,actor_type,actor_id,action,target_type,target_id,metadata_json)
+          SELECT 'transfer-left-school-'||id,'user',?,'team.transfer.expired_on_school_reset','team',team_id,
+            json_object('transferId',id,'universityId',?)
+          FROM leader_transfers
+          WHERE status='expired' AND responded_at=? AND team_id IN (SELECT id FROM teams WHERE university_id=?)
+            AND (from_user_id=? OR to_user_id=?)`)
+          .bind(user.id,previousUniversityId,timestamp,previousUniversityId,user.id,user.id));
+        // The team-leader membership trigger requires releasing a sole-member leader
+        // before the user row is detached from the old university.
+        statements.push(env.DB.prepare(`UPDATE teams SET leader_user_id=NULL
+          WHERE university_id=? AND leader_user_id=?
+            AND NOT EXISTS(SELECT 1 FROM users member
+              WHERE member.university_id=? AND member.deleted_at='' AND member.id<>?)`)
+          .bind(previousUniversityId,user.id,previousUniversityId,user.id));
+      }
+      statements.push(env.DB.prepare(`UPDATE users SET
+        university_id=NULL,name=NULL,high_school=NULL,class_name='',
+        grade=NULL,province=NULL,city=NULL,bio=NULL,greeting='',
+        gender='undisclosed',major_group='',major_discipline_code='',
+        admission_category_id='',admission_type_id='',campus_id='',campus_name='',campus_tag='',
+        secondary_phone='',wechat_id='',phone_visible_to_team=0,
+        profile_review_status='approved',overseas_university_name='',
+        profile_review_submitted_at='',profile_reviewed_at='',
+        consent_given=0,consent_at='',consent_version='',
+        account_consent_at='',account_consent_version='',updated_at=?
+        WHERE id=? AND deleted_at='' AND COALESCE(university_id,'')=?`)
+        .bind(timestamp,user.id,previousUniversityId));
+      statements.push(env.DB.prepare(`INSERT INTO audit_logs(id,actor_type,actor_id,action,target_type,target_id,metadata_json)
+        VALUES(?,'user',?,'profile.university_removed','user',?,?)`)
+        .bind(randomHex(16),user.id,user.id,JSON.stringify({previousUniversityId:previousUniversityId||null,transferHistoryPreserved:true})));
+      const results=await env.DB.batch(statements);
+      const userUpdateIndex=previousUniversityId?3:0;
+      if(!results?.[userUpdateIndex]?.meta||Number(results[userUpdateIndex].meta.changes||0)!==1) {
+        return response({error:"profile_reset_conflict"},409,origin,env);
+      }
+      return response({ok:true,profileReset:true,transferHistoryPreserved:true},200,origin,env);
+    } catch(error) {
+      const reason=String(error?.message||"");
+      if(reason.includes("leader_must_transfer_team_first")) return response({error:"team_leader_transfer_required"},409,origin,env);
+      console.error("Profile reset failed",reason||"unknown");
+      return response({error:"profile_reset_failed"},500,origin,env);
+    }
+  }
+
   if(path==="/api/profile" && method==="GET") {
     const user=await currentUser(request,env); if(!user) return response({error:"unauthorized"},401,origin,env);
     let uni=null,profileCatalog=null;
@@ -871,8 +935,6 @@ async function route(request, env) {
       const previousUniversityId=user.university_id||null;
       const changingUniversity=(previousUniversityId||null)!==(universityId||null);
       if(changingUniversity&&previousUniversityId){
-        const pendingTransfer=await env.DB.prepare("SELECT id FROM leader_transfers WHERE status='pending' AND (from_user_id=? OR to_user_id=?) LIMIT 1").bind(user.id,user.id).first();
-        if(pendingTransfer) return response({error:"leader_transfer_pending"},409,origin,env);
         const oldTeam=await env.DB.prepare(`SELECT t.leader_user_id AS leaderUserId,
           (SELECT COUNT(*) FROM users member WHERE member.university_id=t.university_id AND member.deleted_at='') AS memberCount
           FROM teams t WHERE t.university_id=? LIMIT 1`).bind(previousUniversityId).first();
@@ -898,14 +960,28 @@ async function route(request, env) {
         statements.push(env.DB.prepare("UPDATE universities SET region_name=CASE WHEN region_name='' THEN ? ELSE region_name END,education_level=CASE WHEN education_level='' THEN ? ELSE education_level END,partner_name=CASE WHEN partner_name='' THEN ? ELSE partner_name END WHERE id=?")
           .bind(regionName,educationLevel,partnerName,universityId));
       }
-      statements.push(env.DB.prepare("UPDATE users SET name=?,class_name='',high_school=?,university_id=?,grade=?,province=?,city=?,bio=NULL,greeting=?,gender=?,major_group='',major_discipline_code=?,admission_category_id=?,admission_type_id='',campus_id=?,campus_name=?,campus_tag=?,secondary_phone=?,wechat_id=?,phone_visible_to_team=1,profile_review_status=?,overseas_university_name=?,profile_review_submitted_at=CASE WHEN ?='pending' THEN ? ELSE '' END,profile_reviewed_at='',consent_given=1,consent_at=CASE WHEN consent_given=0 OR consent_version<>? THEN ? ELSE consent_at END,consent_version=?,account_consent_at=CASE WHEN account_consent_at='' OR account_consent_version<>? THEN ? ELSE account_consent_at END,account_consent_version=?,updated_at=? WHERE id=? AND deleted_at='' AND COALESCE(university_id,'')=?")
-        .bind(name,highSchool,universityId,grade,province,city,greeting,gender,majorDisciplineCode,admissionCategoryId,campusId,campusName,campusTag,secondaryPhone,wechatId,reviewStatus,overseasUniversityName,reviewStatus,savedAt,PRIVACY_NOTICE_VERSION,savedAt,PRIVACY_NOTICE_VERSION,PRIVACY_NOTICE_VERSION,savedAt,PRIVACY_NOTICE_VERSION,savedAt,user.id,previousUniversityId||""));
       if(changingUniversity&&previousUniversityId){
+        // Pending offers in the school being left are closed as expired, not deleted.
+        statements.push(env.DB.prepare(`UPDATE leader_transfers SET status='expired',responded_at=?
+          WHERE status='pending' AND team_id IN (SELECT id FROM teams WHERE university_id=?)
+            AND (from_user_id=? OR to_user_id=?)`).bind(savedAt,previousUniversityId,user.id,user.id));
+        statements.push(env.DB.prepare(`INSERT OR IGNORE INTO audit_logs(id,actor_type,actor_id,action,target_type,target_id,metadata_json)
+          SELECT 'transfer-left-school-'||id,'user',?,'team.transfer.expired_on_school_change','team',team_id,
+            json_object('transferId',id,'universityId',?)
+          FROM leader_transfers
+          WHERE status='expired' AND responded_at=? AND team_id IN (SELECT id FROM teams WHERE university_id=?)
+            AND (from_user_id=? OR to_user_id=?)`)
+          .bind(user.id,previousUniversityId,savedAt,previousUniversityId,user.id,user.id));
+        // Release a sole-member leadership before changing users.university_id;
+        // the database trigger rejects the reverse ordering.
         statements.push(env.DB.prepare(`UPDATE teams SET leader_user_id=NULL
           WHERE university_id=? AND leader_user_id=?
-            AND NOT EXISTS(SELECT 1 FROM users WHERE university_id=? AND deleted_at='')`)
-          .bind(previousUniversityId,user.id,previousUniversityId));
+            AND NOT EXISTS(SELECT 1 FROM users member
+              WHERE member.university_id=? AND member.deleted_at='' AND member.id<>?)`)
+          .bind(previousUniversityId,user.id,previousUniversityId,user.id));
       }
+      statements.push(env.DB.prepare("UPDATE users SET name=?,class_name='',high_school=?,university_id=?,grade=?,province=?,city=?,bio=NULL,greeting=?,gender=?,major_group='',major_discipline_code=?,admission_category_id=?,admission_type_id='',campus_id=?,campus_name=?,campus_tag=?,secondary_phone=?,wechat_id=?,phone_visible_to_team=1,profile_review_status=?,overseas_university_name=?,profile_review_submitted_at=CASE WHEN ?='pending' THEN ? ELSE '' END,profile_reviewed_at='',consent_given=1,consent_at=CASE WHEN consent_given=0 OR consent_version<>? THEN ? ELSE consent_at END,consent_version=?,account_consent_at=CASE WHEN account_consent_at='' OR account_consent_version<>? THEN ? ELSE account_consent_at END,account_consent_version=?,updated_at=? WHERE id=? AND deleted_at='' AND COALESCE(university_id,'')=?")
+        .bind(name,highSchool,universityId,grade,province,city,greeting,gender,majorDisciplineCode,admissionCategoryId,campusId,campusName,campusTag,secondaryPhone,wechatId,reviewStatus,overseasUniversityName,reviewStatus,savedAt,PRIVACY_NOTICE_VERSION,savedAt,PRIVACY_NOTICE_VERSION,PRIVACY_NOTICE_VERSION,savedAt,PRIVACY_NOTICE_VERSION,savedAt,user.id,previousUniversityId||""));
       if(universityId) {
         statements.push(env.DB.prepare("UPDATE teams SET leader_user_id=? WHERE university_id=? AND leader_user_id IS NULL AND (SELECT COUNT(*) FROM users WHERE university_id=? AND deleted_at='')=1 AND EXISTS(SELECT 1 FROM users WHERE id=? AND university_id=? AND deleted_at='')").bind(user.id,universityId,universityId,user.id,universityId));
         statements.push(env.DB.prepare("INSERT OR IGNORE INTO teams(id,university_id,leader_user_id) SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM users WHERE id=? AND university_id=? AND deleted_at='')").bind(randomHex(16),universityId,user.id,user.id,universityId));
@@ -916,7 +992,9 @@ async function route(request, env) {
       return response({ok:true,reviewStatus,profileReviewStatus:reviewStatus},200,origin,env);
     }catch(error){
       if(error?.error)return response({error:error.error},error.status||400,origin,env);
-      console.error("Profile save failed",error?.message||"unknown");
+      const reason=String(error?.message||"");
+      if(reason.includes("leader_must_transfer_team_first")) return response({error:"team_leader_transfer_required"},409,origin,env);
+      console.error("Profile save failed",reason||"unknown");
       return response({error:"profile_save_failed"},400,origin,env);
     }
   }
@@ -935,12 +1013,19 @@ if(path==="/api/teams/transfer" && method==="POST") {
       const ttlSeconds = Number.isInteger(configuredTtl) && configuredTtl >= 3600 && configuredTtl <= 2592000 ? configuredTtl : 604800;
       const expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString();
       const inserted=await env.DB.batch([
-        env.DB.prepare(`INSERT INTO leader_transfers(id,team_id,from_user_id,to_user_id,status,created_at,expires_at)
-          SELECT ?,t.id,?,?, 'pending',?,? FROM teams t
+        env.DB.prepare(`INSERT INTO leader_transfers(
+            id,team_id,from_user_id,to_user_id,status,created_at,expires_at,
+            from_name_snapshot,to_name_snapshot,university_id_snapshot,university_name_snapshot
+          )
+          SELECT ?,t.id,?,?, 'pending',?,?,sender.name,recipient.name,t.university_id,uni.canonical_name
+          FROM teams t
+          JOIN universities uni ON uni.id=t.university_id
+          JOIN users sender ON sender.id=?
+          JOIN users recipient ON recipient.id=? AND recipient.university_id=t.university_id
           WHERE t.id=? AND t.leader_user_id=?
-            AND EXISTS(SELECT 1 FROM users target WHERE target.id=? AND target.university_id=t.university_id)
+            AND sender.university_id=t.university_id
             AND NOT EXISTS(SELECT 1 FROM leader_transfers pending WHERE pending.team_id=t.id AND pending.status='pending')`)
-          .bind(transferId,user.id,targetId,createdAt,expiresAt,team.id,user.id,targetId),
+          .bind(transferId,user.id,targetId,createdAt,expiresAt,user.id,targetId,team.id,user.id),
         env.DB.prepare(`INSERT OR IGNORE INTO audit_logs(id,actor_type,actor_id,action,target_type,target_id,metadata_json)
           SELECT ?, 'user', ?, 'team.transfer.requested', 'team', team_id, ?
           FROM leader_transfers WHERE id=? AND status='pending'`)
@@ -956,15 +1041,20 @@ if(path==="/api/teams/transfer" && method==="POST") {
   if(path==="/api/teams/transfers" && method==="GET") {
     const user=await currentUser(request,env); if(!user) return response({error:"unauthorized"},401,origin,env);
     await expirePendingTransfers(env.DB);
-    const rows=await env.DB.prepare(`SELECT lt.id,lt.team_id,lt.from_user_id,lt.to_user_id,lt.status,lt.created_at,lt.expires_at AS expiresAt,lt.responded_at,
-      sender.name AS fromName,recipient.name AS toName,uni.canonical_name AS university
+    const rows=await env.DB.prepare(`SELECT lt.id,lt.team_id,lt.from_user_id,lt.to_user_id,lt.status,
+      lt.created_at,lt.expires_at AS expiresAt,lt.responded_at,
+      COALESCE(NULLIF(lt.from_name_snapshot,''),sender.name,'') AS fromName,
+      COALESCE(NULLIF(lt.to_name_snapshot,''),recipient.name,'') AS toName,
+      COALESCE(NULLIF(lt.university_name_snapshot,''),uni.canonical_name,'未知高校') AS university,
+      COALESCE(NULLIF(lt.university_id_snapshot,''),t.university_id) AS universityId,
+      CASE WHEN t.university_id=(SELECT university_id FROM users WHERE id=?) THEN 1 ELSE 0 END AS isCurrentTeam
       FROM leader_transfers lt
       JOIN teams t ON t.id=lt.team_id
       JOIN universities uni ON uni.id=t.university_id
-      JOIN users sender ON sender.id=lt.from_user_id
-      JOIN users recipient ON recipient.id=lt.to_user_id
+      LEFT JOIN users sender ON sender.id=lt.from_user_id
+      LEFT JOIN users recipient ON recipient.id=lt.to_user_id
       WHERE lt.from_user_id=? OR lt.to_user_id=?
-      ORDER BY lt.created_at DESC LIMIT 30`).bind(user.id,user.id).all();
+      ORDER BY lt.created_at DESC LIMIT 30`).bind(user.id,user.id,user.id).all();
     return response({transfers:rows.results||[]},200,origin,env);
   }
   const transferParts=path.split("/");
