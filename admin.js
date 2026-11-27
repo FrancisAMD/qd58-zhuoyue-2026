@@ -1,5 +1,5 @@
 const API="https://api.58er.eon21.space/api", $=id=>document.getElementById(id);
-let current=null,page=1,pageSize=50,totalPages=1,filters={};
+let current=null,page=1,pageSize=50,totalPages=1,filters={},overviewRefreshTimer=null;
 
 async function req(path,data){
   let response;
@@ -82,6 +82,13 @@ async function enter(options={}){
   $("auditPanel").hidden=!has("audit:read");
   $("managePanel").hidden=!has("admins:manage");
   $("universityReviewPanel").hidden=!has("universities:review");
+  if(!overviewRefreshTimer){
+    overviewRefreshTimer=setInterval(()=>{
+      if(current&&$("dashboard")&&!$("dashboard").hidden&&has("people:read")){
+        loadOverview().catch(error=>console.warn("Automatic team refresh failed",error?.message||"unknown"));
+      }
+    },30000);
+  }
 
   // Authentication is complete at /admin/me. A later panel failure must not
   // send a valid administrator back to the login screen.
@@ -145,6 +152,19 @@ function profileReviewLabel(item){
   if(item.profileReviewStatus==="rejected")return "海外高校审核未通过";
   return item.university?"已完成高校归属":"尚未选择高校";
 }
+function renderProfilePreview(item){
+  const gender=({male:"男",female:"女",undisclosed:"不愿透露"})[item.gender]||"性别未填";
+  const major=item.majorDiscipline||"专业未填";
+  const admission=item.admissionCategory||"招生大类未填";
+  const campus=[item.campusName,item.campusTag].filter(Boolean).join(" · ");
+  const greeting=String(item.greeting||"").trim();
+  const greetingText=greeting.length>34?greeting.slice(0,34)+"…":greeting;
+  return '<div class="admin-profile-preview">'+
+    '<span>'+safe(gender)+'</span><span>'+safe(major)+'</span><span>'+safe(admission)+'</span>'+
+    (campus?'<span>'+safe(campus)+'</span>':'')+
+    (greetingText?'<small>寄语：'+safe(greetingText)+'</small>':'')+
+  '</div>';
+}
 function renderPersonDetails(item){
   const gender=({male:"男",female:"女",undisclosed:"不愿透露"})[item.gender]||"未填写";
   const category=({mainland:"中国内地",hmt:"港澳台",sino_foreign:"中外合作办学",overseas:"海外"})[item.universityCategory]||"未选择";
@@ -165,11 +185,11 @@ async function loadPeople(){
   const pagination=data.pagination||{};
   totalPages=Math.max(1,pagination.totalPages||1);
   const items=data.items||[];
-  $("peopleMeta").textContent="共 "+(pagination.total||0)+" 条账号记录。点击“查看资料”可展开登记信息；手机号、第二手机号、微信号和密码不会在管理员页面或导出中展示。";
+  $("peopleMeta").textContent="共 "+(pagination.total||0)+" 条账号记录。每行直接显示性别、专业、招生大类和寄语摘要；点击“完整资料”查看详细信息。手机号、第二手机号、微信号和密码不会在管理员页面或导出中展示。";
   $("peopleRows").innerHTML=items.map(item=>{
     const school=item.university||"尚未选择高校";
     const state=item.profileReviewStatus==="pending"?" · 待审核":"";
-    return '<tr><td>'+safe(item.name||"未填写")+'</td><td>'+safe(item.highSchool||"")+'</td><td>'+safe(school)+safe(state)+'</td><td>'+safe(item.grade||"")+'</td><td>'+safe(item.province||"")+'</td><td>'+(item.consentGiven?"已同意":"未同意")+'</td><td>'+safe(item.createdAt||"")+'</td><td><button type="button" class="ghost admin-detail-toggle" data-profile-toggle="'+safe(item.id)+'" aria-expanded="false">查看资料</button></td></tr>'+
+    return '<tr><td>'+safe(item.name||"未填写")+'</td><td>'+safe(item.highSchool||"")+'</td><td>'+safe(school)+safe(state)+'</td><td>'+safe(item.grade||"")+'</td><td>'+safe(item.province||"")+'</td><td>'+(item.consentGiven?"已同意":"未同意")+'</td><td>'+safe(item.createdAt||"")+'</td><td>'+renderProfilePreview(item)+'<button type="button" class="ghost admin-detail-toggle" data-profile-toggle="'+safe(item.id)+'" aria-expanded="false">完整资料</button></td></tr>'+
       renderPersonDetails(item);
   }).join("")||'<tr><td colspan="8">没有符合条件的记录</td></tr>';
   $("pageLabel").textContent="第 "+(pagination.page||1)+" / "+totalPages+" 页";
@@ -177,8 +197,8 @@ async function loadPeople(){
   $("nextPage").disabled=page>=totalPages;
 }
 async function loadAudit(){
-  const data=await req("/admin/audit?page=1&pageSize=50");
-  $("auditRows").innerHTML=(data.items||[]).map(item=>
+  const data=await req("/admin/audit?page=1&pageSize=10");
+  $("auditRows").innerHTML=(data.items||[]).slice(0,10).map(item=>
     '<tr><td>'+safe(item.createdAt)+'</td><td>'+safe(item.actorUsername||item.actorType)+'</td><td>'+safe(item.action)+'</td><td>'+safe(item.targetType)+' / '+safe(item.targetId)+'</td><td>'+safe(item.metadata)+'</td></tr>'
   ).join("")||'<tr><td colspan="5">暂无审计记录</td></tr>';
 }
