@@ -136,6 +136,11 @@ with tempfile.TemporaryDirectory(prefix="qd58-deletion-replay-smoke-") as tempor
     assert restored.execute("SELECT action,target_id FROM audit_logs WHERE id=?",("1"*32,)).fetchone()==("account.deleted",uid)
     restored.close()
 
+    symlink_path=private/"symlink.sql"
+    symlink_path.symlink_to(private/"target.sql")
+    expect_replay_error("replay_output_must_be_new_private_file",lambda:replay.replay_backup(backup,ledger,symlink_path,SECRET,private_dir=private))
+    symlink_path.unlink()
+
     out2=private/"replayed-again.sql"
     second=replay.replay_backup(out,ledger,out2,SECRET,private_dir=private)
     assert second["replayedCount"]==0 and second["alreadyDeletedCount"]==1 and second["notFoundCount"]==1
