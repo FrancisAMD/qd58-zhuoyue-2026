@@ -129,7 +129,7 @@ const recipientDb={
     return {bind(...args){
       return {first:async()=>{
         if(sql.startsWith("SELECT u.id")) return {id:"u2",phone:"13800000002",name:"测试接收者",university_id:"uni1"};
-        if(sql.startsWith("SELECT id,to_user_id,status FROM leader_transfers")) return {id:args[0],to_user_id:"u3",status:"pending"};
+        if(sql.startsWith("SELECT lt.id,lt.to_user_id,lt.status,t.university_id AS transferUniversityId")) return {id:args[0],to_user_id:"u3",status:"pending",transferUniversityId:"uni1"};
         return null;
       }};
     }};
