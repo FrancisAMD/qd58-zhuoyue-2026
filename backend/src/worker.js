@@ -1987,6 +1987,7 @@ if(path==="/api/teams/transfer" && method==="POST") {
   }
 
   return response({error:"not_found"},404,origin,env);
+}
 export default {
   fetch(request,env) {
     return route(request,env).catch(e=>{
