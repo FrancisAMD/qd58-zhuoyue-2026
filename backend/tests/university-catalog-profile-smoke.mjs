@@ -32,7 +32,6 @@ function makeDb({
       first:async()=>{
         state.queries.push({method:"first",sql,bindings});
         if(sql.startsWith("SELECT u.id,u.phone"))return user;
-        if(sql.startsWith("SELECT id FROM leader_transfers WHERE status='pending'"))return pendingTransfer;
         if(sql.startsWith("SELECT t.leader_user_id AS leaderUserId"))return oldTeam;
         if(sql.startsWith("SELECT source_id,university_id,category,canonical_name"))return catalog;
         if(sql.startsWith("SELECT id,canonical_name,category,region_name,education_level,partner_name FROM universities"))return uni;
@@ -49,7 +48,8 @@ function makeDb({
       state.batchCalls++;
       state.statements=statements.map(statement=>statement.sql);
       state.batchBindings=statements.map(statement=>statement.bindings);
-      return statements.map((_,index)=>({meta:{changes:index===1?batchChanges:1}}));
+      const userIndex=statements.findIndex(item=>item.sql.includes("UPDATE users SET"));
+      return statements.map((_,index)=>({meta:{changes:index===userIndex?batchChanges:1}}));
     }
   };
   return {DB,state};
@@ -143,7 +143,11 @@ const changed=await save(changedDb.DB,{});
 assert.equal(changed.status,200,"an ordinary team member may reassign to another university");
 assert.equal(changedDb.state.batchCalls,1);
 assert.ok(changedDb.state.statements.some(sql=>sql.includes("COALESCE(university_id,'')=?")));
-assert.ok(changedDb.state.statements.some(sql=>sql.includes("UPDATE teams SET leader_user_id=NULL")===false),"a non-leader must not release the existing team leader");
+const changedRelease=changedDb.state.statements.findIndex(sql=>sql.includes("UPDATE teams SET leader_user_id=NULL"));
+const changedUser=changedDb.state.statements.findIndex(sql=>sql.includes("UPDATE users SET"));
+assert.ok(changedRelease>=0&&changedRelease<changedUser,"old team leader slot handling must run before user university_id changes");
+assert.ok(changedDb.state.statements.some(sql=>sql.includes("UPDATE leader_transfers SET status='expired'")),"pending transfer rows must be closed when leaving the old school");
+assert.ok(!changedDb.state.statements.some(sql=>/DELETE FROM leader_transfers/i.test(sql)),"transfer history must not be deleted");
 
 const blockedLeaderDb=makeDb({
   user:{...baseUser,university_id:"another-university"},
@@ -164,12 +168,13 @@ assert.ok(soleLeaderDb.state.statements.some(sql=>sql.includes("UPDATE teams SET
 
 const pendingTransferDb=makeDb({
   user:{...baseUser,university_id:"another-university"},
+  oldTeam:{leaderUserId:"another-leader",memberCount:2},
   pendingTransfer:{id:"pending-transfer"}
 });
 const pendingTransfer=await save(pendingTransferDb.DB,{});
-assert.equal(pendingTransfer.status,409);
-assert.equal((await pendingTransfer.json()).error,"leader_transfer_pending");
-assert.equal(pendingTransferDb.state.batchCalls,0);
+assert.equal(pendingTransfer.status,200,"a recipient of an old-school pending transfer can leave; the pending row is expired and retained");
+assert.ok(pendingTransferDb.state.statements.some(sql=>sql.includes("UPDATE leader_transfers SET status='expired'")));
+assert.equal(pendingTransferDb.state.statements.some(sql=>/DELETE FROM leader_transfers/i.test(sql)),false);
 
 const getDb=makeDb({user:{...baseUser,university_id:university.id,consent_given:1,consent_at:"now",consent_version:NOTICE,
   account_consent_at:"now",account_consent_version:NOTICE,gender:"female",major_discipline_code:"08",greeting:"一路顺风",campus_id:"CN-10001-MAIN",
