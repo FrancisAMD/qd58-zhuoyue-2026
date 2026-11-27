@@ -377,3 +377,6 @@ body.dark .danger-outline,body.dark .danger-link{background:#382a28;border-color
   .section{padding-left:16px;padding-right:16px}
   .step-actions{flex-wrap:wrap}
 }
+
+
+.journey-steps[hidden],.account-bottom[hidden],.profile-stage-panel[hidden]{display:none!important}
