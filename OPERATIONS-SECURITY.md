@@ -123,3 +123,13 @@ Remove-Variable rateLimitSecret
 ## PNVS 签名与模板启用前检查
 
 `ALIBABA_SIGN_NAME` 和 `ALIBABA_TEMPLATE_CODE` 是非密钥配置，但必须使用号码认证服务控制台中已获批、适用于当前业务场景的实际值。文档中的“恒创联众”和“100001”只是接口示例，不应直接作为生产默认值。请确认模板变量名与 Worker 发送的 `code`、`min` 一致后，再写入 `backend/wrangler.toml` 的 `[vars]`。任一值缺失时 Worker 会拒绝发送；不要通过聊天传递 AccessKey Secret。
+
+
+## 浏览器 API 请求来源校验（2026-11-27）
+
+- 前端来源配置为 `APP_ORIGIN=https://58er.eon21.space`；API 位于独立子域名 `api.58er.eon21.space`。浏览器请求到 API 时，`Origin` 应是前端来源，而不是 API 主机名。
+- Worker 对所有非安全方法（除 GET、HEAD 外的请求方法）强制要求 `Origin` 与非空的 `APP_ORIGIN` 完全相等。缺失、`null`、外部来源、同站其他子域名来源以及 APP_ORIGIN 未配置时，统一返回 403 `origin_forbidden`。
+- `OPTIONS` 预检同样必须带有完全匹配的 Origin；未匹配的预检返回 403，不发出允许跨域的响应头。
+- 只有公开的 GET/HEAD 健康检查（`/api/health`）和高校目录读取（`/api/universities`）允许在没有 Origin 时访问；如果这两个公开端点携带了 Origin，该 Origin 仍必须精确匹配。其他所有路由（包括会延迟处理过期转让或追加审计日志的 GET）都必须带精确匹配的 Origin。不得把会改变用户资料、队伍归属或权限的操作设计为 GET/HEAD。
+- 此校验是浏览器写请求的来源防护；CORS 本身不等于 CSRF 防护。当前 API 面向指定网站浏览器使用，缺少 Origin 的非浏览器写请求会被拒绝。
+- 修改后应通过 Worker smoke test 验证：正确 Origin、缺失 Origin、`Origin: null`、错误来源、正确/错误预检，以及无 Origin 的安全 GET。

@@ -9,7 +9,7 @@ const derivedOtherSalt=await derivePassword("worker-smoke-password",new Uint8Arr
 if(derived.length!==32 || derived.some((v,i)=>v!==derivedAgain[i]) || derived.every((v,i)=>v===derivedOtherSalt[i])) throw new Error("PBKDF2 100000 smoke test failed");
 const ok=await worker.fetch(new Request("https://api.58er.eon21.space/api/health"),env);
 const health=await ok.json();
-if(ok.status!==200 || !health.ok || health.build!=="group-chat-confirmation-cleanup-20261127" || health.passwordKdf!=="pbkdf2-sha256-100000") throw new Error("health route/build marker failed");
+if(ok.status!==200 || !health.ok || health.build!=="strict-origin-guard-20261127" || health.passwordKdf!=="pbkdf2-sha256-100000") throw new Error("health route/build marker failed");
 if(!health.readiness||health.readiness.rateLimitConfigured!==true||health.readiness.turnstileConfigured!==false||health.readiness.smsCredentialsConfigured!==false||health.readiness.smsTemplateConfigured!==false) throw new Error("health readiness must report missing configuration without exposing values");
 const configuredHealth=await worker.fetch(new Request("https://api.58er.eon21.space/api/health"),{
   APP_ORIGIN:"https://58er.eon21.space",
@@ -23,9 +23,47 @@ const configuredHealth=await worker.fetch(new Request("https://api.58er.eon21.sp
 const configuredReadiness=(await configuredHealth.json()).readiness;
 if(configuredReadiness.rateLimitConfigured!==true||configuredReadiness.turnstileConfigured!==true||configuredReadiness.smsCredentialsConfigured!==true||configuredReadiness.smsTemplateConfigured!==true) throw new Error("health readiness must recognize complete test configuration");
 const blocked=await worker.fetch(new Request("https://api.58er.eon21.space/api/auth/login",{method:"POST",headers:{"content-type":"application/json",origin:"https://evil.example"},body:JSON.stringify({phone:"13800000000",password:"test"})}),env);
-if(blocked.status!==403) throw new Error("origin guard failed");
+if(blocked.status!==403 || (await blocked.json()).error!=="origin_forbidden") throw new Error("foreign Origin must be rejected");
+for (const method of ["POST","PUT","DELETE"]) {
+  const missingOrigin=await worker.fetch(new Request("https://api.58er.eon21.space/api/auth/login",{
+    method,
+    headers:{"content-type":"application/json"},
+    body:JSON.stringify({phone:"13800000000",password:"test"})
+  }),env);
+  if(missingOrigin.status!==403 || (await missingOrigin.json()).error!=="origin_forbidden")
+    throw new Error(method+" without Origin must fail closed");
+}
+const opaqueOrigin=await worker.fetch(new Request("https://api.58er.eon21.space/api/auth/login",{
+  method:"POST",
+  headers:{"content-type":"application/json",origin:"null"},
+  body:JSON.stringify({phone:"13800000000",password:"test"})
+}),env);
+if(opaqueOrigin.status!==403 || (await opaqueOrigin.json()).error!=="origin_forbidden")
+  throw new Error("opaque null Origin must be rejected");
+const untrustedPreflight=await worker.fetch(new Request("https://api.58er.eon21.space/api/auth/login",{
+  method:"OPTIONS",
+  headers:{origin:"https://evil.example","access-control-request-method":"POST"}
+}),env);
+if(untrustedPreflight.status!==403) throw new Error("foreign preflight Origin must be rejected");
+const missingOriginPreflight=await worker.fetch(new Request("https://api.58er.eon21.space/api/auth/login",{
+  method:"OPTIONS",
+  headers:{"access-control-request-method":"POST"}
+}),env);
+if(missingOriginPreflight.status!==403) throw new Error("preflight without Origin must be rejected");
 const preflight=await worker.fetch(new Request("https://api.58er.eon21.space/api/auth/login",{method:"OPTIONS",headers:{origin:"https://58er.eon21.space","access-control-request-method":"POST"}}),env);
-if(preflight.status!==204 || preflight.headers.get("access-control-allow-credentials")!=="true") throw new Error("CORS preflight failed");
+if(preflight.status!==204 || preflight.headers.get("access-control-allow-origin")!=="https://58er.eon21.space" || preflight.headers.get("access-control-allow-credentials")!=="true") throw new Error("trusted CORS preflight failed");
+const protectedReadWithoutOrigin=await worker.fetch(new Request("https://api.58er.eon21.space/api/teams/transfers"),env);
+if(protectedReadWithoutOrigin.status!==403 || (await protectedReadWithoutOrigin.json()).error!=="origin_forbidden")
+  throw new Error("authenticated GET routes must require the exact app Origin");
+const adminReadWithoutOrigin=await worker.fetch(new Request("https://api.58er.eon21.space/api/admin/me"),env);
+if(adminReadWithoutOrigin.status!==403 || (await adminReadWithoutOrigin.json()).error!=="origin_forbidden")
+  throw new Error("admin GET routes must require the exact app Origin");
+const foreignOriginHealth=await worker.fetch(new Request("https://api.58er.eon21.space/api/health",{headers:{origin:"https://evil.example"}}),env);
+if(foreignOriginHealth.status!==403) throw new Error("foreign Origin must be rejected even for public GET routes");
+const safeReadWithoutOrigin=await worker.fetch(new Request("https://api.58er.eon21.space/api/health"),env);
+if(safeReadWithoutOrigin.status!==200) throw new Error("public health read without Origin must remain available");
+const publicCatalogWithoutOrigin=await worker.fetch(new Request("https://api.58er.eon21.space/api/universities?q=青岛"),env);
+if(publicCatalogWithoutOrigin.status===403) throw new Error("public university-catalog read without Origin must remain available");
 const registrationWithoutConsent=await worker.fetch(new Request("https://api.58er.eon21.space/api/auth/register/request-code",{method:"POST",headers:{"content-type":"application/json",origin:"https://58er.eon21.space"},body:JSON.stringify({phone:"13812345678",turnstileToken:"unused"})}),{APP_ORIGIN:"https://58er.eon21.space"});
 const registrationWithoutConsentBody=await registrationWithoutConsent.json();
 if(registrationWithoutConsent.status!==400 || registrationWithoutConsentBody.error!=="consent_required") throw new Error("registration SMS must require privacy consent");
