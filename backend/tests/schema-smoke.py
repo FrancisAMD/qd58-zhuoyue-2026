@@ -56,7 +56,7 @@ assert legacy == ("sino_foreign", "Partner University", None, "draft", "active")
 assert db.execute("SELECT university_id FROM users WHERE id='legacy-catalog-user'").fetchone()[0] == "legacy-sino-foreign"
 assert db.execute("SELECT leader_user_id FROM teams WHERE id='legacy-catalog-team'").fetchone()[0] == "legacy-catalog-user"
 user_columns = {row[1] for row in db.execute("PRAGMA table_info(users)")}
-assert {"consent_given", "consent_version", "account_consent_at", "account_consent_version", "auth_version", "greeting"} <= user_columns
+assert {"consent_given", "consent_version", "account_consent_at", "account_consent_version", "auth_version", "greeting", "greeting"} <= user_columns
 
 profile_columns = {
     "gender", "major_group", "major_discipline_code", "admission_category_id",
