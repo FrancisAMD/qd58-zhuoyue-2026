@@ -1,6 +1,7 @@
 name = "zhuoyue-2026-api"
 main = "src/worker-entry.js"
 compatibility_date = "2026-11-01"
+keep_vars = true
 [[routes]]
 pattern = "api.58er.eon21.space"
 custom_domain = true

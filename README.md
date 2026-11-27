@@ -32,7 +32,7 @@
 - **D1**：数据库名为 `qd58-zhuoyue-db`；表结构变更保存在 `backend/migrations/`。
 - **R2**：`GROUP_QR` 用于各地区群聊二维码，Bucket 为 `qd58-group-chat-qr`。账号删除台账代码还依赖 `DELETE_LEDGER`（建议私有 Bucket 名为 `qd58-account-deletion-ledger`）；当前仓库的 `backend/wrangler.toml` 尚未声明该绑定，正式使用账号删除功能前需先核对并补齐 R2 配置。
 
-验证码由 Cloudflare Turnstile 与阿里云 PNVS 配合处理。注册前会先核验手机号是否已有账号；该接口要求同意隐私说明，并按 IP 和手机号双重限流。AccessKey、Turnstile Secret 和限流 HMAC Secret 应通过 Worker Secrets 配置，不要写入 Git。短信签名名称与模板编号属于非密钥配置，应写入 `backend/wrangler.toml` 的 `[vars]`，不要只在 Dashboard 临时设置，否则下一次 Wrangler 部署可能清除它们。
+验证码由 Cloudflare Turnstile 与阿里云 PNVS 配合处理。注册前会先核验手机号是否已有账号；该接口要求同意隐私说明，并按 IP 和手机号双重限流。AccessKey、Turnstile Secret 和限流 HMAC Secret 应通过 Worker Secrets 配置，不要写入 Git。短信签名名称与模板编号属于非密钥配置，可写入 `backend/wrangler.toml` 的 `[vars]`。配置中的 `keep_vars = true` 也会保留在 Cloudflare Dashboard 单独管理的普通变量，避免下一次 Wrangler 部署将其清除。
 
 ## 本地检查
 
