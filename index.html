@@ -4,9 +4,9 @@
 <section class="home-faq" id="homeFaq" aria-labelledby="homeFaqTitle">
   <div class="home-faq-heading"><p class="eyebrow">QUESTIONS & ANSWERS</p><h2 id="homeFaqTitle">关于返校宣讲，你可能想知道</h2></div>
   <div class="home-faq-list">
-    <details><summary><span class="home-faq-number">Q 01</span>这是什么？不会是什么钓鱼页面吧...</summary><div class="home-faq-answer"><p>这是青岛五十八中2026届毕业生回校宣讲的官方数据平台，校友们可以通过填写数据，精确匹配组队，解决传统文档收集方法弊端。域名eon21.space是开发者个人所有，可以去blog.eon21.space关注他！（）</p></div></details>
-    <details><summary><span class="home-faq-number">Q 02</span>这是谁开发的？有没有信用背书？</summary><div class="home-faq-answer"><p>开发者为上海交通大学材料科学与工程学院，山东省青岛第五十八中2026届校友张展飞。（是的就是他！）班主任是DXD老师和SZ老师🥳是2026届一班的一名同学，同时是青岛五十八中第三十八届学生联合会秘书处秘书长。我将严肃向每一位58校友（也可能是2中校友？）保证，手机号、微信号仅同校同学可见，招生方式仅后台管理员本人（也就是zzf）可见。当然，开发者不只是张展飞，当然少不了他的ChatGPT，Qoder，本地StrataQwen😇</p></div></details>
-    <details><summary><span class="home-faq-number">Q 03</span>这个页面使用了哪些Web服务？</summary><div class="home-faq-answer"><p>我使用了Cloudflare的全套解决方案（Workers，Pages，D1 SQLite Database，R2 Storage，Challenge，Cloudflare DNS），阿里云PNVS验证服务。项目已在Github开源：https://github.com/FrancisAMD/qd58-zhuoyue-2026，数据安全有基本保障。</p></div></details>
+    <details><summary><span class="home-faq-number">Q 01</span>这是什么？不会是什么钓鱼页面吧...</summary><div class="home-faq-answer"><p>这是青岛五十八中2026届毕业生回校宣讲的官方数据平台，校友们可以通过填写数据，精确匹配组队，解决传统文档收集方法弊端。域名<b>eon21.space</b>是开发者个人所有，可以去<a href="https://blog.eon21.space">他的个人网站 ↗</a>关注他！（）</p></div></details>
+    <details><summary><span class="home-faq-number">Q 02</span>这是谁开发的？有没有信用背书？</summary><div class="home-faq-answer"><p>开发者为上海交通大学材料科学与工程学院，山东省青岛第五十八中2026届校友张展飞。（是的就是他！）班主任是DXD老师和SZ老师🥳是2026届一班的一名同学，同时是青岛五十八中第三十八届学生联合会秘书处秘书长。我将严肃向每一位58校友（也可能是2中校友？）保证，手机号、微信号仅同校同学可见，招生方式等信息仅后台管理员本人（也就是zzf）可见。当然，开发者不只是张展飞，当然少不了他的ChatGPT，Qoder，本地StrataQwen😇</p></div></details>
+    <details><summary><span class="home-faq-number">Q 03</span>这个页面使用了哪些Web服务？</summary><div class="home-faq-answer"><p>我使用了Cloudflare的全套解决方案（Workers，Pages，D1 SQLite Database，R2 Storage，Challenge，Cloudflare DNS），阿里云PNVS验证服务。项目已<a href="https://github.com/FrancisAMD/qd58-zhuoyue-2026">在Github开源 ↗</a>，数据安全有基本保障。</p></div></details>
   </div>
 </section></section>
 <section id="appStage" hidden>
@@ -15,7 +15,7 @@
 <button type="button" data-journey-step="profile"><span>02</span><b>完善资料</b></button>
 <button type="button" data-journey-step="directory"><span>03</span><b>查看同校同学</b></button>
 </nav>
-<section id="join" class="section"><p class="eyebrow">01 / JOIN THE COMMUNITY</p><h2>留下你的坐标</h2><p class="lead">登录后完善个人资料，系统会自动将你加入所在大学的返校小队。</p><div id="gate" class="panel"><div><h3>锚定自我，觅同路人。</h3><p>用户名为注册手机号，需要创建密码登录。首次注册及找回密码需要短信验证。</p></div><button class="btn" id="gateLogin">登录 / 注册</button></div><form id="profile" class="panel" hidden>
+<section id="join" class="section"><p class="eyebrow">JOIN THE COMMUNITY</p><h2>留下你的坐标</h2><p class="lead">登录后完善个人资料，系统会自动将你加入所在大学的返校小队。</p><div id="gate" class="panel"><div><h3>锚定自我，觅同路人。</h3><p>用户名为注册手机号，需要创建密码登录。首次注册及找回密码需要短信验证。</p></div><button class="btn" id="gateLogin">登录 / 注册</button></div><form id="profile" class="panel" hidden>
 <h3>返校信息登记</h3>
 <section id="registrationUniversityPanel" class="profile-stage-panel">
 <section id="universityTypeStep" class="university-type-step">
@@ -91,7 +91,7 @@
 <div class="panel"><strong id="reviewUniversityName">—</strong><p>已收到你的海外高校登记资料。组织者核实并归入对应高校团队后，你就可以查看同校同学和组长信息。</p><p>审核期间，每次登录都会显示此页面。你可以手动刷新审核状态。</p><button type="button" class="btn" id="reviewRefresh">刷新审核状态</button><p id="reviewMsg" class="msg" aria-live="polite"></p></div>
 </section>
 <section id="groups" class="section directory-stage" hidden>
-<p class="eyebrow">03 / FIND YOUR CLASSMATES</p>
+<p class="eyebrow">FIND YOUR TEAMMATES</p>
 <h2>回到温暖的原乡，<br>让我们再次携手</h2>
 <p class="lead">这里汇集与你就读同一所高校的五十八中同学，通讯信息仅对同校团队成员展示。</p>
 <div class="directory-school panel"><div><span>你的就读高校</span><strong id="directorySchoolTitle">—</strong></div><span class="directory-count" id="directoryCount">正在加载同学资料…</span></div>
