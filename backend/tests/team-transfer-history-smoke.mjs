@@ -28,11 +28,11 @@ function makeDb({currentUniversity="uni-new",transferUniversity="uni-old"}={}){
         all:async()=>{
           state.allQueries.push({sql,bindings:this.bindings});
           if(sql.includes("from_name_snapshot")&&sql.includes("AS isCurrentTeam")){
-            return {results:[{
-              id:TRANSFER_ID,team_id:"team-old",from_user_id:USER_ID,to_user_id:TARGET_ID,status:"accepted",
+            return {results:currentUniversity?[{
+              id:TRANSFER_ID,team_id:"team-current",from_user_id:"other-user-1",to_user_id:"other-user-2",status:"accepted",
               created_at:"2026-11-20T00:00:00Z",fromName:"历史组长",toName:"历史接收人",
-              university:"上海交通大学",universityId:"uni-old",isCurrentTeam:0
-            }]};
+              university:"当前高校",universityId:currentUniversity,isCurrentTeam:1
+            }]:[]};
           }
           throw new Error("Unexpected all query: "+sql);
         }
@@ -72,12 +72,22 @@ assert.equal(history.status,200);
 const result=await history.json();
 assert.equal(result.transfers[0].fromName,"历史组长");
 assert.equal(result.transfers[0].toName,"历史接收人");
-assert.equal(result.transfers[0].university,"上海交通大学");
-assert.equal(result.transfers[0].isCurrentTeam,0);
+assert.equal(result.transfers[0].university,"当前高校");
+assert.equal(result.transfers[0].universityId,"uni-new");
+assert.equal(result.transfers[0].isCurrentTeam,1,"all members of the current school can see that school history, even when not participants");
 const historySql=historyDb.state.allQueries[0].sql;
 assert.match(historySql,/COALESCE\(NULLIF\(lt\.from_name_snapshot/);
 assert.match(historySql,/COALESCE\(NULLIF\(lt\.university_name_snapshot/);
 assert.match(historySql,/AS isCurrentTeam/);
+assert.match(historySql,/WHERE COALESCE\(NULLIF\(lt\.university_id_snapshot/);
+assert.doesNotMatch(historySql,/WHERE lt\.from_user_id=\? OR lt\.to_user_id=\?/);
+assert.deepEqual(historyDb.state.allQueries[0].bindings,["11111111111111111111111111111111","11111111111111111111111111111111"]);
+
+
+const unassignedDb=makeDb({currentUniversity:null});
+const unassignedHistory=await worker.fetch(request("/api/teams/transfers"),{APP_ORIGIN:ORIGIN,DB:unassignedDb.DB});
+assert.equal(unassignedHistory.status,200);
+assert.deepEqual((await unassignedHistory.json()).transfers,[],"users who removed their school must not see old-school history");
 
 const mismatchDb=makeDb({currentUniversity:"uni-new",transferUniversity:"uni-old"});
 const mismatch=await worker.fetch(request("/api/teams/transfer/"+TRANSFER_ID+"/accept",{method:"POST",body:{}}),{APP_ORIGIN:ORIGIN,DB:mismatchDb.DB});
