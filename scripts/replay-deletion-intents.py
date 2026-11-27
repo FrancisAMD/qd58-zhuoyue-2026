@@ -248,6 +248,7 @@ def apply_intents(db, records, rate_limit_secret):
     if not isinstance(rate_limit_secret, bytes) or len(rate_limit_secret) < 32:
         raise ReplayError("rate_limit_secret_invalid")
     _check_schema(db)
+    db.row_factory = sqlite3.Row
     plans = preflight(db, records)
     replayed, already_deleted, not_found = 0, 0, 0
     db.execute("BEGIN IMMEDIATE")
