@@ -49,7 +49,7 @@ function makeDb({category="mainland",mainProvince="黑龙江省",legacyRegion="�
       let bindings=[];
       return {
         sql,
-        bind(...values){bindings=values;return this;},
+        bind(...values){bindings=values;this.bindings=values;return this;},
         first:async()=>{
           state.queries.push({type:"first",sql,bindings});
           if(sql.startsWith("SELECT u.id,u.phone,u.name"))return currentUser;
