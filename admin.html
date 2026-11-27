@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>卓越2026 · 管理后台</title>
-  <link rel="stylesheet" href="style.css?v=20261126-profile-team-admin">
+  <link rel="stylesheet" href="style.css?v=20261127-admin-profile-details">
 </head>
 <body>
 <header>
@@ -52,6 +52,11 @@
     </div>
     <p id="adminPanelStatus" class="admin-panel-status" role="status" aria-live="polite"></p>
     <div class="admin-stats" id="summary"></div>
+    <section id="teamsPanel" class="panel" hidden>
+      <div class="admin-heading"><div><p class="eyebrow">ACTIVE UNIVERSITY TEAMS</p><h3>当前高校团队</h3></div></div>
+      <p id="teamsMeta" class="muted">仅展示当前有成员的高校团队；空团队不会显示，但历史转让记录仍然保留。</p>
+      <div id="teamsGrid" class="admin-team-grid"></div>
+    </section>
 
     <section id="peoplePanel" class="panel">
       <div class="admin-heading">
@@ -70,7 +75,7 @@
         <div class="filter-actions"><button class="btn" type="submit">筛选</button><button type="reset" id="clearFilters" class="ghost">清空</button></div>
       </form>
       <p id="peopleMeta" class="muted"></p>
-      <div class="table-wrap"><table class="admin-table"><thead><tr><th>姓名</th><th>高中学校</th><th>大学</th><th>年级</th><th>省份</th><th>资料同意</th><th>登记时间</th></tr></thead><tbody id="peopleRows"></tbody></table></div>
+      <div class="table-wrap"><table class="admin-table"><thead><tr><th>姓名</th><th>高中学校</th><th>大学</th><th>年级</th><th>省份</th><th>资料同意</th><th>登记时间</th><th>用户资料</th></tr></thead><tbody id="peopleRows"></tbody></table></div>
       <div class="pagination"><button id="prevPage" class="ghost" type="button">上一页</button><span id="pageLabel"></span><button id="nextPage" class="ghost" type="button">下一页</button></div>
     </section>
 
@@ -98,6 +103,6 @@
     </section>
   </section>
 </main>
-<script src="admin.js?v=20261126-overseas-review" defer></script>
+<script src="admin.js?v=20261127-admin-profile-details" defer></script>
 </body>
 </html>
