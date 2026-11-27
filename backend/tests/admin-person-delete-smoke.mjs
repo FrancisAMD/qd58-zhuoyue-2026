@@ -42,7 +42,7 @@ const preflight=await worker.fetch(new Request(ORIGIN+"/api/admin/people/"+USER_
   method:"OPTIONS",headers:{origin:ORIGIN,"access-control-request-method":"DELETE"}
 }),{APP_ORIGIN:ORIGIN});
 assert.equal(preflight.status,204);
-assert.match(preflight.headers.get("access-control-allow-methods")||/never/,"DELETE");
+assert.match(preflight.headers.get("access-control-allow-methods")||"",/DELETE/);
 
 const successDb=makeDb();
 const success=await remove(successDb.DB);
