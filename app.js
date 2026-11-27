@@ -437,18 +437,81 @@ async function loadDirectory(){
   $("directoryMsg").textContent="";
   $("directoryCount").textContent="正在加载同学资料…";
   try{
-    const [data,transferData]=await Promise.all([
+    const [data,transferData,groupChatData]=await Promise.all([
       call("/directory"),
-      call("/teams/transfers").catch(error=>({transfers:[],transferError:error.message}))
+      call("/teams/transfers").catch(error=>({transfers:[],transferError:error.message})),
+      call("/group-chat/status").catch(error=>({error:error.message}))
     ]);
-    directory={...data,transfers:transferData.transfers||[],transferError:transferData.transferError||""};
+    directory={...data,transfers:transferData.transfers||[],transferError:transferData.transferError||"",groupChat:groupChatData};
     render();
+    await renderGroupChat();
   }catch(error){
     $("directoryCount").textContent="暂时无法加载";
     $("directoryMsg").textContent=error.message==="unauthorized"?"登录状态已失效，请重新登录。":error.message==="consent_required"?"请先返回高校资料页，阅读并勾选新版隐私说明，然后保存资料，再查看同校通讯录。":"同学资料加载失败，请稍后重试。";
     if(error.message==="unauthorized")showAuthStage();
   }
 }
+let groupChatObjectUrl="";
+async function renderGroupChat(){
+  const panel=$("groupChatPanel"),state=directory?.groupChat||{};
+  panel.hidden=false;
+  $("groupChatQrImage").hidden=true;
+  $("groupChatQrPlaceholder").hidden=false;
+  $("confirmGroupChat").hidden=true;
+  if(state.error){
+    $("groupChatRegionTitle").textContent="省份群聊";
+    $("groupChatStatusBadge").textContent="暂不可用";
+    $("groupChatStatusText").textContent=state.error==="group_chat_university_required"?"请先完成高校登记后查看对应群聊。":"群聊信息暂时无法加载，请稍后刷新页面。";
+    return;
+  }
+  $("groupChatRegionTitle").textContent=(state.regionLabel||"所在地区")+"群聊";
+  $("groupChatRuleNote").textContent=state.mappingRule||"内地按高校校本部所在省份分组，不按本人就读的异地校区分组。港澳台统一使用港澳台群，海外统一使用海外群。";
+  if(!state.configured){
+    $("groupChatStatusBadge").textContent="二维码待上传";
+    $("groupChatStatusText").textContent="管理员尚未上传"+(state.regionLabel||"该地区")+"的群聊二维码。";
+    return;
+  }
+  $("groupChatQrPlaceholder").textContent="正在加载群聊二维码…";
+  try{
+    const response=await fetch(API+"/group-chat/qr-image",{credentials:"include",cache:"no-store"});
+    if(!response.ok)throw new Error("group_qr_image_unavailable");
+    const blob=await response.blob();
+    if(groupChatObjectUrl)URL.revokeObjectURL(groupChatObjectUrl);
+    groupChatObjectUrl=URL.createObjectURL(blob);
+    $("groupChatQrImage").src=groupChatObjectUrl;
+    $("groupChatQrImage").alt=state.regionLabel+"群聊二维码";
+    $("groupChatQrImage").hidden=false;
+    $("groupChatQrPlaceholder").hidden=true;
+    if(state.confirmed){
+      $("groupChatStatusBadge").textContent="已确认加入";
+      $("groupChatStatusText").textContent="你已于 "+state.confirmedAt+" 确认加入该地区群聊。";
+    }else{
+      $("groupChatStatusBadge").textContent=state.needsReconfirm?"需要重新确认":"待确认";
+      $("groupChatStatusText").textContent=state.needsReconfirm?"管理员更新了群聊二维码，请核对并重新加入后确认。":"请使用微信扫描上方二维码加入群聊，完成后点击下方按钮。";
+      $("confirmGroupChat").hidden=false;
+      $("confirmGroupChat").disabled=false;
+      $("confirmGroupChat").textContent="确认已加入群聊";
+    }
+  }catch(error){
+    $("groupChatQrPlaceholder").hidden=false;
+    $("groupChatQrPlaceholder").textContent="二维码加载失败，请刷新页面重试。";
+    $("groupChatStatusText").textContent="无法读取群聊二维码。";
+  }
+}
+$("confirmGroupChat").onclick=async()=>{
+  const button=$("confirmGroupChat");
+  button.disabled=true;
+  button.textContent="正在保存确认状态…";
+  try{
+    await call("/group-chat/confirm",{});
+    directory.groupChat=await call("/group-chat/status");
+    await renderGroupChat();
+  }catch(error){
+    button.disabled=false;
+    button.textContent="确认已加入群聊";
+    $("groupChatStatusText").textContent=error.message==="group_qr_not_configured"?"管理员尚未上传该地区二维码。":"确认状态保存失败，请稍后重试。";
+  }
+};
 function transferStatusLabel(status){
   return ({pending:"等待对方处理",accepted:"已完成转让",rejected:"对方已拒绝",expired:"已过期"})[status]||"状态未知";
 }

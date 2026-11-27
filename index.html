@@ -1,4 +1,4 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f3f6f2"><title>青岛五十八中 卓越·2026</title><link rel="stylesheet" href="style.css?v=20261127-admin-delete-select-spacing-v1"><script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" defer></script></head><body class="session-checking">
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f3f6f2"><title>青岛五十八中 卓越·2026</title><link rel="stylesheet" href="style.css?v=20261127-regional-group-chat-qr-v1"><script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" defer></script></head><body class="session-checking">
 <div id="bootScreen" class="boot-screen"><span class="boot-mark">58</span><p id="bootMessage">正在确认登录状态…</p><button id="retrySession" class="ghost" hidden>重新检查</button></div>
 <main id="mainContent" hidden><section id="authStage" class="auth-stage"><section class="hero" id="home"><div><p class="eyebrow">2026 · 冬日返校计划</p><h1>从五十八中出发，<br><em>在更大的世界</em>重逢。</h1><p class="lead">无论你现在身在何处，读到哪所大学，都欢迎回家，和曾经的同学再次并肩。</p><div class="auth-actions"><button class="btn" id="authStageLogin">账号登录 ↗</button><button class="ghost" id="authStageRegister">注册账号</button></div><p class="note">青岛五十八中 · 2026 届　/　让青春有迹可循</p></div><div class="art"><div class="sun"></div><div class="float a">01 / 同窗<b>山海有归期</b></div><div class="float b">02 / 重逢<b>再见，少年</b></div><strong>58</strong><small>THE JOURNEY CONTINUES · 2026</small></div></section><div class="auth-required-panel"><span class="auth-required-kicker">MEMBERS ONLY · 58TH</span><strong>请先登录，再开始填写返校资料</strong><p>账号登录成功后，将自动进入第二页，选择你目前就读的高校并完善个人信息。</p></div></section>
 <section id="appStage" hidden>
@@ -105,6 +105,13 @@
 <div id="transferItems"></div>
 </section>
 </div>
+<section id="groupChatPanel" class="panel group-chat-panel" hidden>
+  <div class="group-chat-heading"><div><p class="eyebrow">REGIONAL GROUP CHAT</p><h3 id="groupChatRegionTitle">省份群聊</h3></div><span id="groupChatStatusBadge" class="group-chat-status">待确认</span></div>
+  <p id="groupChatRuleNote" class="field-help">群聊按高校校本部所在省份分组，不按本人就读的异地校区分组。</p>
+  <div class="group-chat-qr-frame"><img id="groupChatQrImage" alt="本地区群聊二维码" hidden><p id="groupChatQrPlaceholder">该地区群聊二维码尚未上传，请稍后查看。</p></div>
+  <p id="groupChatStatusText" class="msg" aria-live="polite"></p>
+  <button type="button" id="confirmGroupChat" class="btn" hidden>确认已加入群聊</button>
+</section>
 <div id="directory" class="directory-panel"><div class="directory-toolbar"><div><strong>同校同学</strong><span>CLASSMATES</span></div><input id="search" placeholder="搜索姓名 / 高中学校 / 年级 / 地区" aria-label="搜索同校同学"></div><div id="results" class="cards"></div><p id="directoryMsg" class="msg" aria-live="polite"></p></div>
 <div class="step-actions directory-actions"><button type="button" id="backToProfile" class="ghost">← 返回高校资料</button></div>
 </section>
@@ -140,4 +147,4 @@
 <label>当前登录密码<div class="password-box"><input id="deletePassword" type="password" autocomplete="current-password" required><button type="button" class="password-toggle" data-toggle-password="deletePassword">显示</button></div></label>
 <label>输入 DELETE 确认<input id="deleteConfirm" autocomplete="off" required></label>
 <button class="btn wide danger-button">永久删除账号</button><button type="button" class="text" id="cancelDeleteAccount">取消</button><p id="deleteMsg" class="msg" aria-live="polite"></p>
-</form></section></div><script src="app.js?v=20261127-profile-defaults-layout-v1" defer></script></body></html>
+</form></section></div><script src="app.js?v=20261127-regional-group-chat-qr-v1" defer></script></body></html>

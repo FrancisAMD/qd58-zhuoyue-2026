@@ -41,6 +41,14 @@ const ERROR_MESSAGES={
   person_not_found:"该报名记录不存在，可能已被其他管理员删除。",
   admin_delete_conflict:"删除状态发生冲突，请刷新名单后重试。",
   admin_person_delete_failed:"删除报名记录失败，请稍后重试。",
+  group_qr_storage_not_configured:"Worker 尚未绑定 GROUP_QR R2 Bucket，请先创建并绑定 qd58-group-chat-qr。",
+  group_qr_region_invalid:"所选地区不正确，请刷新页面后重试。",
+  group_qr_file_too_large:"二维码图片不能超过 5 MB。",
+  group_qr_file_empty:"请先选择二维码图片。",
+  group_qr_image_type_invalid:"仅支持 PNG、JPG 或 WebP 图片，请确认文件格式。",
+  group_qr_upload_failed:"二维码上传失败，请检查 R2 Bucket 和 Worker 日志。",
+  group_qr_delete_failed:"删除二维码失败，请稍后重试。",
+  group_chat_confirmations_failed:"入群确认名单加载失败，请稍后重试。",
   admin_username_exists:"用户名已存在。",
   admin_password_too_weak:"管理员密码至少需要14位。"
 };
@@ -86,6 +94,7 @@ async function enter(options={}){
   $("auditPanel").hidden=!has("audit:read");
   $("managePanel").hidden=!has("admins:manage");
   $("universityReviewPanel").hidden=!has("universities:review");
+  $("groupChatQrPanel").hidden=!has("group-chat:manage");
   if(!overviewRefreshTimer){
     overviewRefreshTimer=setInterval(()=>{
       if(current&&$("dashboard")&&!$("dashboard").hidden&&has("people:read")){
@@ -101,13 +110,14 @@ async function enter(options={}){
     ["people",()=>has("people:read")?loadPeople():Promise.resolve(),()=>setPanelFailure("peopleMeta","名单加载失败，请检查 people:read 权限及接口响应。")],
     ["audit",()=>has("audit:read")?loadAudit():Promise.resolve(),()=>setPanelFailure("auditRows","审计记录加载失败，请稍后刷新。")],
     ["admins",()=>has("admins:manage")?loadAdmins():Promise.resolve(),()=>setPanelFailure("createAdminMsg","管理员账户列表加载失败。")],
-    ["universityReviews",()=>has("universities:review")?loadUniversityReviews():Promise.resolve(),()=>setPanelFailure("universityReviewMsg","海外高校审核队列加载失败。")]
+    ["universityReviews",()=>has("universities:review")?loadUniversityReviews():Promise.resolve(),()=>setPanelFailure("universityReviewMsg","海外高校审核队列加载失败。")],
+    ["groupChatQr",()=>has("group-chat:manage")?loadGroupQrAssets():Promise.resolve(),()=>setPanelFailure("groupQrAssetList","群聊二维码配置加载失败，请检查 GROUP_QR R2 绑定。")]
   ];
   const results=await Promise.allSettled(jobs.map(job=>job[1]()));
   results.forEach((result,index)=>{
     if(result.status==="rejected"){
       jobs[index][2]();
-      const panelName={overview:"统计",people:"名单",audit:"审计",admins:"管理员列表",universityReviews:"海外高校审核"}[jobs[index][0]];
+      const panelName={overview:"统计",people:"名单",audit:"审计",admins:"管理员列表",universityReviews:"海外高校审核",groupChatQr:"群聊二维码"}[jobs[index][0]];
       console.error("Admin panel load failed:",jobs[index][0],result.reason?.message||"unknown");
       const status=$("adminPanelStatus");
       if(status) status.textContent="已登录；部分面板加载失败："+panelName+"。这不影响当前登录会话。";
@@ -207,6 +217,62 @@ async function loadAudit(){
   $("auditRows").innerHTML=(data.items||[]).slice(0,10).map(item=>
     '<tr><td>'+safe(item.createdAt)+'</td><td>'+safe(item.actorUsername||item.actorType)+'</td><td>'+safe(item.action)+'</td><td>'+safe(item.targetType)+' / '+safe(item.targetId)+'</td><td>'+safe(item.metadata)+'</td></tr>'
   ).join("")||'<tr><td colspan="5">暂无审计记录</td></tr>';
+}
+const formatQrSize=value=>{
+  const bytes=Number(value||0);
+  return bytes>=1024*1024?(bytes/1024/1024).toFixed(2)+" MB":Math.max(1,Math.round(bytes/1024))+" KB";
+};
+async function loadGroupQrAssets(){
+  const data=await req("/admin/group-chat/qr");
+  const regions=data.regions||[];
+  const options=regions.map(item=>'<option value="'+safe(item.key)+'">'+safe(item.label)+'</option>').join("");
+  const currentQrRegion=$("groupQrRegion").value;
+  const currentConfirmRegion=$("groupChatConfirmationRegion").value;
+  $("groupQrRegion").innerHTML=options;
+  $("groupChatConfirmationRegion").innerHTML=options;
+  if(regions.some(item=>item.key===currentQrRegion))$("groupQrRegion").value=currentQrRegion;
+  if(regions.some(item=>item.key===currentConfirmRegion))$("groupChatConfirmationRegion").value=currentConfirmRegion;
+  $("groupQrAssetList").innerHTML=regions.map(item=>
+    '<article class="group-qr-asset-card"><div><b>'+safe(item.label)+'</b><span class="'+(item.configured?"group-qr-ready":"group-qr-missing")+'">'+(item.configured?"已上传":"未上传")+'</span></div>'+
+    (item.asset?'<small>'+safe(item.asset.fileName)+' · '+formatQrSize(item.asset.sizeBytes)+'</small><small>更新时间：'+safe(item.asset.uploadedAt||"")+'</small>':'<small>尚未配置该区域二维码</small>')+
+    '<div class="group-qr-card-actions"><button type="button" class="ghost" data-qr-select="'+safe(item.key)+'">选择此区域</button>'+
+    (item.configured?'<button type="button" class="admin-delete-button" data-qr-delete="'+safe(item.key)+'" data-qr-label="'+safe(item.label)+'">删除二维码</button>':'')+
+    '</div></article>'
+  ).join("");
+  if(!regions.some(item=>item.key===currentConfirmRegion)&&regions.length)$("groupChatConfirmationRegion").value=regions[0].key;
+  await loadGroupChatConfirmations();
+}
+async function loadGroupChatConfirmations(){
+  const regionKey=$("groupChatConfirmationRegion").value;
+  if(!regionKey)return;
+  const data=await req("/admin/group-chat/confirmations?regionKey="+encodeURIComponent(regionKey));
+  $("groupChatConfirmationSummary").textContent=data.configured
+    ?"当前 "+data.regionLabel+"：共 "+data.total+" 人，已确认 "+data.confirmed+" 人，待确认 "+data.pending+" 人。"
+    :"当前 "+data.regionLabel+" 尚未上传二维码；该地区共有 "+data.total+" 位同学。";
+  $("groupChatConfirmationRows").innerHTML=(data.members||[]).map(item=>{
+    const status=item.confirmed?"已确认加入":item.hasPriorConfirmation?"二维码更新，待重新确认":"尚未确认";
+    return '<tr><td>'+safe(item.name||"未填写")+'</td><td>'+safe(item.university||"")+'</td><td>'+safe(item.grade||"")+'</td><td>'+safe(item.campusName||"未填写")+'</td><td><span class="'+(item.confirmed?"group-qr-ready":"group-qr-missing")+'">'+status+'</span></td><td>'+safe(item.confirmedAt||"—")+'</td></tr>';
+  }).join("")||'<tr><td colspan="6">该地区目前没有已审核并完成高校登记的同学。</td></tr>';
+}
+async function uploadGroupQr(){
+  const regionKey=$("groupQrRegion").value,file=$("groupQrFile").files?.[0];
+  if(!regionKey)return showError("groupQrUploadMsg",new Error("group_qr_region_invalid"));
+  if(!file)return showError("groupQrUploadMsg",new Error("group_qr_file_empty"));
+  if(file.size>5*1024*1024)return showError("groupQrUploadMsg",new Error("group_qr_file_too_large"));
+  if(!["image/png","image/jpeg","image/webp"].includes(file.type))return showError("groupQrUploadMsg",new Error("group_qr_image_type_invalid"));
+  const button=$("uploadGroupQr");button.disabled=true;
+  $("groupQrUploadMsg").textContent="正在上传二维码…";
+  try{
+    const response=await fetch(API+"/admin/group-chat/qr/"+encodeURIComponent(regionKey)+"?fileName="+encodeURIComponent(file.name),{
+      method:"PUT",credentials:"include",headers:{"Content-Type":file.type},body:file,cache:"no-store"
+    });
+    let payload={};try{payload=await response.json()}catch{}
+    if(!response.ok){const error=new Error(payload.error||"group_qr_upload_failed");error.status=response.status;throw error;}
+    $("groupQrFile").value="";
+    $("groupQrUploadMsg").textContent=payload.regionLabel+"二维码已保存到 R2。";
+    await loadGroupQrAssets();
+  }catch(error){showError("groupQrUploadMsg",error);}
+  finally{button.disabled=false;}
 }
 async function loadUniversityReviews(){
   const data=await req("/admin/universities/review/pending");
@@ -406,6 +472,25 @@ $("exportXlsx").onclick=()=>{
 };
 $("refreshAudit").onclick=()=>loadAudit().catch(error=>showError("auditRows",error));
 $("refreshUniversityReviews").onclick=()=>loadUniversityReviews().catch(error=>showError("universityReviewMsg",error));
+$("uploadGroupQr").onclick=uploadGroupQr;
+$("refreshGroupQr").onclick=()=>loadGroupQrAssets().catch(error=>showError("groupQrUploadMsg",error));
+$("refreshGroupChatConfirmations").onclick=()=>loadGroupChatConfirmations().catch(error=>showError("groupChatConfirmationSummary",error));
+$("groupChatConfirmationRegion").onchange=()=>loadGroupChatConfirmations().catch(error=>showError("groupChatConfirmationSummary",error));
+$("groupQrAssetList").addEventListener("click",async event=>{
+  const selectButton=event.target.closest("[data-qr-select]");
+  if(selectButton){$("groupQrRegion").value=selectButton.dataset.qrSelect;$("groupQrFile").focus();return;}
+  const deleteButton=event.target.closest("[data-qr-delete]");
+  if(!deleteButton)return;
+  const regionKey=deleteButton.dataset.qrDelete,label=deleteButton.dataset.qrLabel||"该地区";
+  if(!confirm("确定删除"+label+"的群聊二维码？删除后同学端将暂时无法查看二维码。"))return;
+  deleteButton.disabled=true;
+  try{
+    await req("/admin/group-chat/qr/"+encodeURIComponent(regionKey),null,"DELETE");
+    $("groupQrUploadMsg").textContent=label+"二维码已删除。";
+    await loadGroupQrAssets();
+  }catch(error){showError("groupQrUploadMsg",error);deleteButton.disabled=false;}
+});
+
 $("universityReviewRows").addEventListener("click",async event=>{
   const button=event.target.closest("[data-review-action]");
   if(!button)return;
