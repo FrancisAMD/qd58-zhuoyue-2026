@@ -323,6 +323,16 @@ $("peopleRows").addEventListener("click",event=>{
   button.setAttribute("aria-expanded",String(expanded));
   button.textContent=expanded?"收起资料":"查看资料";
 });
+$("refreshAdminData").onclick=async()=>{
+  const button=$("refreshAdminData");button.disabled=true;
+  try{
+    await Promise.all([loadOverview(),loadPeople()]);
+    $("adminPanelStatus").textContent="名单和高校团队已刷新。";
+  }catch(error){
+    $("adminPanelStatus").textContent="刷新失败，请稍后重试。";
+    console.error("Admin data refresh failed",error?.message||"unknown");
+  }finally{button.disabled=false;}
+};
 $("filters").onsubmit=async event=>{
   event.preventDefault();
   readFilters();
