@@ -37,6 +37,25 @@ required = {"profile", "loginForm", "registerForm", "resetForm", "changePassword
 missing = sorted(required - parser.ids)
 if missing:
     parser.errors.append("Missing form id(s): " + ", ".join(missing))
+html_text = html_path.read_text(encoding="utf-8")
+for marker in [
+    'data-journey-step="university"',
+    'data-journey-step="profile"',
+    'data-journey-step="directory"',
+    'id="registrationUniversityPanel"',
+    'id="registrationDetailsPanel"',
+    'id="clearSelectedUniversity"',
+    'id="continueToDetails"',
+    'id="backToUniversityStep"',
+    'id="accountBottom"',
+    'id="deleteAccountOpen"',
+]:
+    if marker not in html_text:
+        parser.errors.append("Missing three-step UI marker: " + marker)
+if "<header" in html_text:
+    parser.errors.append("The old global header must remain removed from the member UI.")
+if html_text.find('id="accountBottom"') < html_text.find('id="groups"'):
+    parser.errors.append("Account actions and account deletion must be placed after the directory page.")
 if parser.errors:
-    raise SystemExit("\n".join(parser.errors))
+    raise SystemExit("\\n".join(parser.errors))
 print("Frontend HTML form structure smoke test passed.")
