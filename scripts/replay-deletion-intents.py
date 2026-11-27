@@ -290,7 +290,7 @@ def apply_intents(db, records, rate_limit_secret):
                    WHERE id=? AND deleted_at='' AND phone=?
                    AND NOT EXISTS(SELECT 1 FROM teams WHERE leader_user_id=users.id)
                    AND NOT EXISTS(SELECT 1 FROM leader_transfers WHERE status='pending'
-                     AND (from_user_id=users.id OR to_user_id=users.id)""",
+                     AND (from_user_id=users.id OR to_user_id=users.id))""",
                 (requested_at, requested_at, user_id, phone),
             )
             if result.rowcount != 1:
@@ -323,12 +323,13 @@ def dump_database(db, path):
 
 
 def replay_backup(sql_path, ledger_path, out_path, rate_limit_secret, expected_migration=DEFAULT_MIGRATION, private_dir=None):
+    private_raw = Path(private_dir) if private_dir is not None else (ROOT / "private-backups")
+    if private_raw.is_symlink():
+        raise ReplayError("replay_private_directory_unsafe")
+    private = private_raw.resolve()
     output_path = Path(out_path).resolve()
-    private = Path(private_dir).resolve() if private_dir is not None else (ROOT / "private-backups").resolve()
     if output_path.parent != private or output_path.exists() or output_path.is_symlink():
         raise ReplayError("replay_output_must_be_new_private_file")
-    if private.is_symlink():
-        raise ReplayError("replay_private_directory_unsafe")
     private.mkdir(parents=True,exist_ok=True)
     try:
         verifier.verify_sql_export(sql_path,expected_migration=expected_migration)
