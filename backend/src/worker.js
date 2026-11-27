@@ -604,11 +604,13 @@ async function route(request, env) {
     if(!isTrustedAppOrigin(origin,env)) return response({error:"origin_forbidden"},403,origin,env);
     return new Response(null,{status:204,headers:corsHeaders(origin,env)});
   }
-  // Browser-facing writes must prove they came from the exact configured app
-  // origin. Missing, opaque ("null"), and sibling/foreign origins fail closed.
-  // Safe reads remain available without Origin for health checks and catalog
-  // lookup; CORS alone is not treated as a CSRF defense for write requests.
-  if(method!=="GET" && method!=="HEAD" && !isTrustedAppOrigin(origin,env))
+  // Only the public health and university-catalog reads may omit Origin.
+  // Other routes must prove the exact app origin, including GET handlers that
+  // also expire transfers or append security audit records.
+  const originlessPublicRead = origin === null &&
+    (method === "GET" || method === "HEAD") &&
+    (path === "/api/health" || path === "/api/universities");
+  if(!isTrustedAppOrigin(origin,env) && !originlessPublicRead)
     return response({error:"origin_forbidden"},403,origin,env);
   if(path==="/api/health" && method==="GET") return response({
     ok:true,service:"zhuoyue-2026-api",build:"strict-origin-guard-20261127",
