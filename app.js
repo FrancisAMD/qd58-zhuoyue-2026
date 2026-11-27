@@ -391,7 +391,7 @@ async function load(){
       $("profileUniversityId").value="";
       $("universityCatalogId").value=p.universityCatalogId||"";
       $("universitySelectionMsg").textContent="这是已登记的高校。如需更改，请先移除所选高校再重新选择。";
-      $("universityBack").hidden=true;
+      $("universityBack").hidden=true;$("clearSelectedUniversity").hidden=false;$("continueToDetails").hidden=false;
       $("admissionFields").hidden=category!=="mainland";
       let legacyTags=[];try{legacyTags=JSON.parse(p.projectTags||"[]");if(!Array.isArray(legacyTags))legacyTags=[];}catch{}
       populateMajorDisciplines(profileReferenceData,legacyTags);
@@ -599,7 +599,9 @@ $("profile").onsubmit=async event=>{
       invalid_secondary_phone:"第二手机号格式不正确",
       overseas_university_required:"请填写海外高校名称",
       university_change_requires_support:"已登记高校暂不能自行更换，请联系组织者",
-      leader_transfer_required:"当前仍是团队组长，请先完成组长转让"
+      leader_transfer_required:"当前仍是团队组长，请先完成组长转让",
+      team_leader_transfer_required:"你目前仍是原大学团队组长，请先将组长身份转让给队员，再更换高校。",
+      leader_transfer_pending:"当前有尚未处理的组长转让申请，请先处理后再更换高校。"
     };
     msg("profileMsg",errors[error.message]||"保存失败，请检查资料后重试",true);
   }
