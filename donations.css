@@ -29,4 +29,4 @@
   .donation-admin-fields{grid-template-columns:1fr 1fr}
   .donation-admin-fields label:first-child{grid-column:1/-1}
 }
-body.dark .donation-list-rank{background:#34493b;color:#c3ddca}
+:root[data-theme="dark"] body .donation-list-rank{background:#34493b;color:#c3ddca}

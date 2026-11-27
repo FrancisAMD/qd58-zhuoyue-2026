@@ -54,9 +54,9 @@
 #deleteCaptchaHint{margin:0;padding:10px 12px;border:1px dashed var(--line);border-radius:8px;color:var(--muted);font-size:11px;line-height:1.7}
 #deleteCaptcha.challenge-disabled{opacity:.38;filter:grayscale(1);pointer-events:none;user-select:none}
 #deleteAccountForm input:disabled,#deleteAccountForm button:disabled{opacity:.48;cursor:not-allowed}
-body.dark #deletePreflightMsg.bad{background:#412b29;color:#efc1ba;border-color:#76504a}
-body.dark .donation-qr-placeholder{background:var(--paper);border-color:#657768;color:#b7d4c0}
-body.dark .donation-qr-placeholder span{color:var(--muted)}
+:root[data-theme="dark"] body #deletePreflightMsg.bad{background:#412b29;color:#efc1ba;border-color:#76504a}
+:root[data-theme="dark"] body .donation-qr-placeholder{background:var(--paper);border-color:#657768;color:#b7d4c0}
+:root[data-theme="dark"] body .donation-qr-placeholder span{color:var(--muted)}
 
 @media(max-width:700px){
   .home-faq{width:calc(100% - 32px);margin:19px auto 30px;padding:18px 15px}
