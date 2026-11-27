@@ -7,6 +7,18 @@ db.execute("PRAGMA foreign_keys = ON")
 for migration in migrations:
     if migration.name == "0005_explicit_consent.sql":
         db.execute("INSERT INTO users(id,phone,consent_at) VALUES(?,?,?)", ("legacy-consent","13800000099","2026-11-11T00:00:00Z"))
+    if migration.name == "0017_team_transfer_snapshots.sql":
+        # Seed a historical transfer before the snapshot migration; names and school
+        # must remain available even after the participating user profile is cleared.
+        db.execute(
+            "INSERT INTO users(id,phone,name,consent_at,university_id) VALUES(?,?,?,?,?)",
+            ("legacy-transfer-recipient","13800000008","历史接收人","2026-11-27T00:00:00Z","legacy-sino-foreign"),
+        )
+        db.execute(
+            "INSERT INTO leader_transfers(id,team_id,from_user_id,to_user_id,status,created_at,expires_at) VALUES(?,?,?,?,?,?,?)",
+            ("legacy-transfer","legacy-catalog-team","legacy-catalog-user","legacy-transfer-recipient","pending",
+             "2026-11-26T00:00:00Z","2026-12-03T00:00:00Z"),
+        )
     if migration.name == "0013_university_catalog_relational.sql":
         # Prove the additive catalog migration preserves legacy IDs and memberships.
         db.execute(
@@ -78,6 +90,10 @@ session_columns = {row[1] for row in db.execute("PRAGMA table_info(sessions)")}
 assert "auth_version" in session_columns
 transfer_columns = {row[1] for row in db.execute("PRAGMA table_info(leader_transfers)")}
 assert "expires_at" in transfer_columns
+assert {"from_name_snapshot","to_name_snapshot","university_id_snapshot","university_name_snapshot"} <= transfer_columns
+assert db.execute(
+    "SELECT from_name_snapshot,to_name_snapshot,university_id_snapshot,university_name_snapshot FROM leader_transfers WHERE id='legacy-transfer'"
+).fetchone() == ("历史组长","历史接收人","legacy-sino-foreign","示例中外合作大学")
 otp_columns = {row[1] for row in db.execute("PRAGMA table_info(otp_challenges)")}
 assert "superseded_at" in otp_columns
 retention_indexes = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='index'")}
