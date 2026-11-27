@@ -25,7 +25,7 @@ function makeDb({currentUniversity="uni-new",transferUniversity="uni-old"}={}){
           };
           throw new Error("Unexpected first query: "+sql);
         },
-        all:async()=>{
+        all:async function(){
           state.allQueries.push({sql,bindings:this.bindings});
           if(sql.includes("from_name_snapshot")&&sql.includes("AS isCurrentTeam")){
             return {results:currentUniversity?[{
