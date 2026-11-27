@@ -19,7 +19,7 @@ assert.match(css,/\.profile-stage-panel[\s\S]*?margin-top:18px/,"profile stage c
 assert.match(css,/@media\(min-width:761px\)[\s\S]*?#join>#profile\s*\{[^}]*width:100%[^}]*max-width:none/,"desktop registration form must fill the section width and align with the journey and account bars");
 assert.match(html,/id="registerFields" class="register-fields"(?! disabled)/,"registration fields must stay usable while phone status is checked");
 assert.match(html,/id="regCreate" disabled/,"account creation must stay disabled until the phone check succeeds");
-assert.match(html,/app\\.js\\?v=20261128-registration-phone-flow-v2/,"registration fix must bust the cached frontend script");
+assert.match(html,/app\.js\?v=20261128-registration-phone-flow-v2/,"registration fix must bust the cached frontend script");
 assert.match(html,/id="regPhoneStatus"/,"registration form must show phone-check status");
 assert.match(html,/id="regGoLogin"/,"registered phone must have a direct login action");
 assert.match(js,/\/auth\/register\/check-phone/,"frontend must call the Worker phone precheck");
