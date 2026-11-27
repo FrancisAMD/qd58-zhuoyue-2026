@@ -153,7 +153,7 @@ async function loadUniversityReviews(){
   const rows=data.items||[];
   $("universityReviewRows").innerHTML=rows.map(item=>
     '<article class="admin-review-card" data-review-card="'+safe(item.id)+'">'+
-      '<div class="admin-review-summary"><div><b>'+safe(item.name||"未填写姓名")+'</b><small>'+safe(item.highSchool||"")+' · '+safe(item.className||"")+' · '+safe(item.grade||"")+'</small></div>'+
+      '<div class="admin-review-summary"><div><b>'+safe(item.name||"未填写姓名")+'</b><small>'+safe(item.highSchool||"")+' · '+safe(item.grade||"")+'</small></div>'+
       '<span class="demo-status pending">待审核</span></div>'+
       '<p>学生填写：<strong>'+safe(item.submittedName||"")+'</strong></p>'+
       '<small>提交时间：'+safe(item.submittedAt||item.createdAt||"")+'</small>'+
