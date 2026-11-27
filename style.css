@@ -436,3 +436,57 @@ body.dark .transfer-school{color:#b7d4c0}
 #auditPanel .admin-heading small{display:block;margin-top:5px}
 .admin-shell>section{margin-block:26px}
 .admin-team-grid,.admin-review-list,.admin-account-list{row-gap:16px}
+
+/* Profile form controls: fixed textarea size, separated stage cards and centered step badges. */
+.journey-steps button{
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+}
+.journey-steps button>span{
+  box-sizing:border-box!important;
+  display:grid!important;
+  place-items:center!important;
+  width:26px!important;
+  height:26px!important;
+  min-width:26px!important;
+  min-height:26px!important;
+  flex:0 0 26px!important;
+  padding:0!important;
+  margin:0!important;
+  align-self:center;
+  line-height:1!important;
+  text-align:center!important;
+}
+.profile-stage-panel{
+  min-width:0;
+  margin-top:18px;
+  padding:20px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:var(--paper);
+}
+.profile-stage-panel[hidden]{display:none!important}
+#profile textarea[name="greeting"]{
+  display:block;
+  box-sizing:border-box;
+  width:100%;
+  max-width:100%;
+  height:132px;
+  min-height:132px;
+  max-height:132px;
+  padding:12px 14px;
+  resize:none!important;
+  overflow-y:auto;
+  line-height:1.7;
+}
+.university-type-grid{gap:16px}
+@media(max-width:600px){
+  .profile-stage-panel{margin-top:15px;padding:15px}
+  .journey-steps button>span{
+    width:24px!important;height:24px!important;
+    min-width:24px!important;min-height:24px!important;
+    flex-basis:24px!important;
+  }
+  .university-type-grid{gap:12px}
+}

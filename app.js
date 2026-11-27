@@ -248,6 +248,8 @@ async function clearSelectedUniversity(){
       const field=$("profile").elements[id];if(field)field.value="";
     }
     $("profile").elements.greeting.value="";
+    $("profile").elements.highSchool.value="青岛五十八中";
+    $("profile").elements.grade.value="大一";
     $("consent").checked=false;
     $("goDirectory").hidden=true;
     $("clearSelectedUniversity").hidden=true;$("continueToDetails").hidden=true;
@@ -364,7 +366,7 @@ async function load(){
     const d=await call("/profile",undefined,{timeoutMs:12000}),p=d.profile||{};
     await loadProfileReferenceData();
     for(const key of ["name","highSchool","grade","province","city","greeting","secondaryPhone","wechatId","gender","majorDisciplineCode"]) {
-      const field=$("profile").elements[key];if(field)field.value=p[key]||"";
+      const field=$("profile").elements[key];if(field)field.value=p[key]||(key==="highSchool"?"青岛五十八中":key==="grade"?"大一":"");
     }
     $("consent").checked=!!p.consentGiven;
     $("profilePhoneDisplay").value=p.phone||"";
