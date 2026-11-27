@@ -45,20 +45,16 @@
 <label>性别<select name="gender" id="gender" required><option value="">请选择</option><option value="male">男</option><option value="female">女</option><option value="undisclosed">不愿透露</option></select></label>
 </div>
 <div class="cols">
-<label>高中班级<input name="className" required maxlength="80"></label>
 <label>高中学校<input name="highSchool" value="青岛五十八中" required maxlength="100"></label>
 </div>
 <div class="cols">
 <label>当前年级<select name="grade" required><option value="">请选择</option><option>大一</option><option>大二</option><option>大三</option><option>大四</option><option>研究生</option><option>博士生</option><option>已毕业</option></select></label>
-<label>专业大类<select name="majorGroup" id="majorGroup" required><option value="">请先加载专业分类</option></select></label>
+<label>专业大类<select name="majorDisciplineCode" id="majorDisciplineCode" required><option value="">请先加载 13 个学科门类</option></select></label>
 </div>
 <div id="admissionFields" hidden>
 <h4>本科招生途径</h4>
-<p class="field-help">内地高校学生必填。先选招生大类，再选具体招生类型；招生途径与专业大类分开记录。</p>
-<div class="cols">
+<p class="field-help">内地高校学生必填，只需选择招生大类，不再填写具体招生类型。</p>
 <label>招生大类<select name="admissionCategoryId" id="admissionCategoryId"><option value="">请选择招生大类</option></select></label>
-<label>具体招生途径<select name="admissionTypeId" id="admissionTypeId"><option value="">请先选择招生大类</option></select></label>
-</div>
 </div>
 <div class="cols">
 <label>所在省份 / 地区<input name="province" id="profileProvince" maxlength="80" readonly required></label>
@@ -69,7 +65,7 @@
 <label>第二联系方式（手机号，可选）<input name="secondaryPhone" id="secondaryPhone" inputmode="numeric" maxlength="11" placeholder="选填"></label>
 </div>
 <label>微信号<input name="wechatId" id="wechatId" maxlength="80" placeholder="请输入微信号"></label>
-<label>个人备注<textarea name="bio" maxlength="500" placeholder="可填写研究方向、兴趣或其他想让同校同学了解的信息"></textarea></label>
+<label>寄语<textarea name="greeting" maxlength="500" placeholder="写一句想对同校同学说的话（选填）"></textarea></label>
 <label class="check"><input type="checkbox" id="consent" required><span>我已阅读并同意<a href="privacy.html" target="_blank" rel="noopener">《个人信息保护与隐私说明》</a>。我理解：提交后，同一所大学团队内的同学可以查看我的姓名、年级、专业大类、微信号、注册手机号及选填的第二手机号；这些联系方式不会向其他学校或公众展示。</span></label>
 <div class="step-actions"><button type="button" id="universityBackBottom" class="ghost">上一步</button><button class="btn">保存资料</button></div>
 <p id="profileMsg" class="msg" aria-live="polite"></p><div class="profile-next"><button type="button" id="goDirectory" class="btn" hidden>进入第三页：查看同校同学 <span>→</span></button></div>
