@@ -84,7 +84,6 @@ function selectUniversityCategory(category){
   $("overseasUniversityWrap").hidden=category!=="overseas";
   $("admissionFields").hidden=category!=="mainland";
   $("admissionCategoryId").required=category==="mainland";
-  $("admissionTypeId").required=category==="mainland";
   $("overseasUniversityName").value="";
   $("profileProvince").value=category==="overseas"?"海外":"";
   $("profileCity").value="";
@@ -115,10 +114,9 @@ async function openUniversityDetails(){
   $("overseasUniversityWrap").hidden=category!=="overseas";
   $("admissionFields").hidden=category!=="mainland";
   $("admissionCategoryId").required=category==="mainland";
-  $("admissionTypeId").required=category==="mainland";
   try{
     const refs=await loadProfileReferenceData();
-    populateMajorGroups(refs,selectedUniversity?.tags||[]);
+    populateMajorDisciplines(refs,selectedUniversity?.tags||[]);
     populateAdmissionCategories(refs);
     if(category!=="overseas"&&!categoryLocked)searchUniversities();
   }catch(error){
@@ -215,7 +213,7 @@ function selectUniversity(item,selectedCampusId=""){
   if(category==="mainland"){
     $("campusHelp").textContent="主校区及异地校区均属于 "+item.name+" 的同一支团队，不会按校区拆分。";
     populateCampusOptions(item,selectedCampusId);
-    populateMajorGroups(profileReferenceData,item.tags||[]);
+    populateMajorDisciplines(profileReferenceData,item.tags||[]);
     $("admissionFields").hidden=false;
     $("admissionCategoryId").required=true;
     $("admissionTypeId").required=true;
@@ -230,30 +228,26 @@ function selectUniversity(item,selectedCampusId=""){
     $("universitySelectionMsg").textContent="已选择 "+item.name+" · "+[item.region,item.city].filter(Boolean).join(" · ");
     $("admissionFields").hidden=true;
     $("admissionCategoryId").required=false;
-    $("admissionTypeId").required=false;
-    populateMajorGroups(profileReferenceData,item.tags||[]);
+    populateMajorDisciplines(profileReferenceData,item.tags||[]);
   }
 }
-function populateMajorGroups(refs,tags=[]){
+function populateMajorDisciplines(refs,tags=[]){
   if(!refs)return;
-  const groups=[...new Set(refs.majors.categories.map(item=>item.legacyGroup).filter(Boolean))];
-  if((tags||[]).includes("military_academy"))groups.push("军事学");
-  const current=$("majorGroup").value;
-  $("majorGroup").innerHTML='<option value="">请选择专业大类</option>'+groups.map(group=>'<option value="'+safe(group)+'">'+safe(group)+'</option>').join("");
-  if(groups.includes(current))$("majorGroup").value=current;
+  const categories=refs.majors.categories.filter(item=>item.enabled!==false&&
+    (item.code!=="11"||(tags||[]).includes("military_academy")));
+  const current=$("majorDisciplineCode").value;
+  $("majorDisciplineCode").innerHTML='<option value="">请选择专业大类</option>'+categories.map(item=>
+    '<option value="'+safe(item.code)+'">'+safe(item.name)+'</option>'
+  ).join("");
+  if(categories.some(item=>item.code===current))$("majorDisciplineCode").value=current;
 }
 function populateAdmissionCategories(refs){
   const select=$("admissionCategoryId");
   const current=select.value;
-  select.innerHTML='<option value="">请选择招生大类</option>'+refs.admissions.categories.map(item=>'<option value="'+safe(item.id)+'">'+safe(item.name)+'</option>').join("");
+  select.innerHTML='<option value="">请选择招生大类</option>'+refs.admissions.categories.map(item=>
+    '<option value="'+safe(item.id)+'">'+safe(item.name)+'</option>'
+  ).join("");
   if(refs.admissions.categories.some(item=>item.id===current))select.value=current;
-  populateAdmissionTypes(refs.admissions.categories,select.value,$("admissionTypeId").value);
-}
-function populateAdmissionTypes(categories,categoryId,selectedType=""){
-  const category=categories.find(item=>item.id===categoryId);
-  const select=$("admissionTypeId");
-  select.innerHTML='<option value="">请选择具体招生途径</option>'+(category?.types||[]).filter(type=>(type.status||"active")==="active").map(type=>'<option value="'+safe(type.id)+'">'+safe(type.name)+'</option>').join("");
-  if((category?.types||[]).some(type=>type.id===selectedType))select.value=selectedType;
 }
 function safe(s){return String(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
 function showAuthStage(){
@@ -299,7 +293,7 @@ async function load(){
   try{
     const d=await call("/profile",undefined,{timeoutMs:12000}),p=d.profile||{};
     await loadProfileReferenceData();
-    for(const key of ["name","className","highSchool","grade","province","city","bio","secondaryPhone","wechatId","gender","majorGroup"]) {
+    for(const key of ["name","highSchool","grade","province","city","greeting","secondaryPhone","wechatId","gender","majorDisciplineCode"]) {
       const field=$("profile").elements[key];if(field)field.value=p[key]||"";
     }
     $("consent").checked=!!p.consentGiven;
@@ -307,7 +301,6 @@ async function load(){
     $("universityName").value=p.university||"";
     $("overseasUniversityName").value=p.overseasUniversityName||"";
     $("admissionCategoryId").value=p.admissionCategoryId||"";
-    $("admissionTypeId").value=p.admissionTypeId||"";
     populateAdmissionCategories(profileReferenceData);
     categoryLocked=!!p.university||p.profileReviewStatus==="pending";
     if(p.profileReviewStatus==="pending"){
@@ -416,7 +409,7 @@ function render(){
   const rows=directory.members||[];
   const q=$("search").value.trim().toLowerCase();
   const filtered=rows.filter(item=>[
-    item.name,item.className,item.grade,item.province,item.majorGroup,item.campusName,item.wechatId
+    item.name,item.highSchool,item.grade,item.province,item.majorDisciplineCode,item.campusName,item.wechatId
   ].join(" ").toLowerCase().includes(q));
   $("directoryCount").textContent="共找到 "+rows.length+" 位同校同学";
   $("results").innerHTML=filtered.map(item=>{
@@ -428,7 +421,8 @@ function render(){
     if(item.wechatId)contacts.push('<span class="contact-link">微信：'+safe(item.wechatId)+'</span>');
     const contact=contacts.length?contacts.join(" · "):'<span class="contact-private">该同学尚未完成新版联系方式授权</span>';
     const campus=item.campusName?'<span>'+safe(item.campusName)+(item.campusTag?' · '+safe(item.campusTag):"")+'</span>':"";
-    return '<article class="classmate-card panel"><div class="classmate-top"><span class="classmate-avatar">'+safe((item.name||"同").slice(0,1))+'</span><div><strong>'+safe(item.name||"同学")+'</strong><small>'+safe(item.className||"班级未填写")+'</small></div></div><div class="classmate-meta"><span>'+safe(item.grade||"年级未填写")+'</span><span>'+safe(item.province||"地区未填写")+'</span>'+campus+'<span>'+safe(item.majorGroup||"专业大类未填写")+'</span></div><div class="classmate-contact">'+contact+'</div></article>';
+    const majorName=profileReferenceData?.majors.categories.find(category=>category.code===item.majorDisciplineCode)?.name||"专业大类未填写";
+    return '<article class="classmate-card panel"><div class="classmate-top"><span class="classmate-avatar">'+safe((item.name||"同").slice(0,1))+'</span><div><strong>'+safe(item.name||"同学")+'</strong><small>'+safe(item.highSchool||"青岛五十八中")+'</small></div></div><div class="classmate-meta"><span>'+safe(item.grade||"年级未填写")+'</span><span>'+safe(item.province||"地区未填写")+'</span>'+campus+'<span>'+safe(majorName)+'</span></div><div class="classmate-contact">'+contact+'</div></article>';
   }).join("")||'<div class="directory-empty"><strong>暂时没有找到同学</strong><p>'+(q?"试试其他关键词，或清空搜索条件。":"同校同学登记后会显示在这里。")+'</p></div>';
   renderTransfers();
 }
@@ -502,7 +496,6 @@ $("profile").onsubmit=async event=>{
   data.campusName=category==="mainland"?$("campusName").value:"";
   data.campusTag=category==="mainland"?$("campusTag").value:"";
   data.admissionCategoryId=category==="mainland"?$("admissionCategoryId").value:"";
-  data.admissionTypeId=category==="mainland"?$("admissionTypeId").value:"";
   data.secondaryPhone=$("secondaryPhone").value.trim();
   data.wechatId=$("wechatId").value.trim();
   data.consent=$("consent").checked;
@@ -511,10 +504,10 @@ $("profile").onsubmit=async event=>{
   if(category==="overseas"&&!data.university)return msg("profileMsg","请填写海外高校名称",true);
   if(category!=="overseas"&&!data.profileUniversityId)return msg("profileMsg","请先从项目高校目录中选择学校",true);
   if(category==="mainland"&&!data.campusId)return msg("profileMsg","请选择实际就读校区",true);
-  if(category==="mainland"&&(!data.admissionCategoryId||!data.admissionTypeId))return msg("profileMsg","请选择本科招生大类和具体招生途径",true);
-  if(!data.majorGroup)return msg("profileMsg","请选择专业大类",true);
+  if(category==="mainland"&&!data.admissionCategoryId)return msg("profileMsg","请选择本科招生大类",true);
+  if(!data.majorDisciplineCode)return msg("profileMsg","请选择专业大类",true);
   if(data.secondaryPhone&&!phoneOK(data.secondaryPhone))return msg("profileMsg","第二手机号格式不正确",true);
-  if(!data.name||!data.className||!data.grade||!data.gender)return msg("profileMsg","请完整填写姓名、性别、高中班级和当前年级",true);
+  if(!data.name||!data.grade||!data.gender)return msg("profileMsg","请完整填写姓名、性别和当前年级",true);
   try{
     const response=await fetch(API+"/profile",{method:"PUT",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});
     let result={};try{result=await response.json()}catch{}
