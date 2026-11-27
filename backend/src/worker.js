@@ -1300,10 +1300,10 @@ if(path==="/api/teams/transfer" && method==="POST") {
     if (!admin) return response({error:"unauthorized"},401,origin,env);
     if (!hasAdminPermission(admin,"overview")) return response({error:"forbidden"},403,origin,env);
     const counts = await env.DB.prepare("SELECT COUNT(*) AS total, SUM(CASE WHEN university_id IS NOT NULL THEN 1 ELSE 0 END) AS completed, SUM(CASE WHEN consent_given=1 THEN 1 ELSE 0 END) AS consented FROM users WHERE deleted_at=''").first();
-    const teamCount = await env.DB.prepare("SELECT COUNT(*) AS total FROM teams WHERE leader_user_id IS NOT NULL").first();
+    const teamCount = await env.DB.prepare("SELECT COUNT(*) AS total FROM teams t WHERE EXISTS(SELECT 1 FROM users active_member WHERE active_member.university_id=t.university_id AND active_member.deleted_at='')").first();
     let teams = [];
     if (admin.role === "owner" || admin.role === "admin") {
-      const rows = await env.DB.prepare("SELECT t.id,uni.canonical_name AS university,COUNT(u.id) AS memberCount,leader.name AS leaderName,leader.province AS leaderProvince FROM teams t JOIN universities uni ON uni.id=t.university_id LEFT JOIN users u ON u.university_id=t.university_id AND u.deleted_at='' LEFT JOIN users leader ON leader.id=t.leader_user_id AND leader.deleted_at='' WHERE leader.id IS NOT NULL GROUP BY t.id ORDER BY uni.canonical_name LIMIT 500").all();
+      const rows = await env.DB.prepare("SELECT t.id,uni.canonical_name AS university,COUNT(u.id) AS memberCount,leader.name AS leaderName,COALESCE(leader.province,MAX(u.province),'') AS leaderProvince FROM teams t JOIN universities uni ON uni.id=t.university_id LEFT JOIN users u ON u.university_id=t.university_id AND u.deleted_at='' LEFT JOIN users leader ON leader.id=t.leader_user_id AND leader.deleted_at='' GROUP BY t.id,uni.canonical_name,leader.name HAVING COUNT(u.id)>0 ORDER BY uni.canonical_name LIMIT 500").all();
       teams = rows.results || [];
     }
     return response({counts:{total:Number(counts?.total||0),completed:Number(counts?.completed||0),consented:Number(counts?.consented||0)},teamCount:Number(teamCount?.total||0),teams},200,origin,env);
@@ -1323,8 +1323,9 @@ if(path==="/api/teams/transfer" && method==="POST") {
     const isExport = format === "csv" || format === "xlsx";
     if (isExport && !hasAdminPermission(admin,"people:export")) return response({error:"forbidden"},403,origin,env);
     if (isExport && total > 5000) return response({error:"export_limit_exceeded",maxRows:5000},413,origin,env);
-    const select = "SELECT u.id,u.name,u.high_school AS highSchool,uni.canonical_name AS university,uni.category AS universityCategory,u.grade,u.province,u.city,u.created_at AS createdAt,u.updated_at AS updatedAt,u.consent_given AS consentGiven";
-    const sql = select + base + " ORDER BY u.created_at DESC LIMIT ? OFFSET ?";
+    const select = "SELECT u.id,u.name,u.high_school AS highSchool,uni.canonical_name AS university,uni.category AS universityCategory,u.grade,u.province,u.city,u.gender,u.major_discipline_code AS majorDisciplineCode,major.label AS majorDiscipline,u.admission_category_id AS admissionCategoryId,admission.label AS admissionCategory,u.campus_name AS campusName,u.campus_tag AS campusTag,u.greeting,u.profile_review_status AS profileReviewStatus,u.overseas_university_name AS overseasUniversityName,u.consent_version AS consentVersion,u.account_consent_version AS accountConsentVersion,u.created_at AS createdAt,u.updated_at AS updatedAt,u.consent_given AS consentGiven";
+    const detailJoins = " FROM users u LEFT JOIN universities uni ON uni.id=u.university_id LEFT JOIN profile_option_codes major ON major.option_type='major_discipline' AND major.code=u.major_discipline_code LEFT JOIN profile_option_codes admission ON admission.option_type='admission_category' AND admission.code=u.admission_category_id WHERE u.deleted_at=''" + filters.clause.replace(/^ WHERE /," AND ");
+    const sql = select + detailJoins + " ORDER BY u.created_at DESC LIMIT ? OFFSET ?";
     const rows = await env.DB.prepare(sql).bind(...filters.bindings,isExport?5000:pageSize,isExport?0:(page-1)*pageSize).all();
     const items = rows.results || [];
     const header = ["用户编号","姓名","高中学校","大学","高校类别","年级","省份","城市","资料同意状态","创建时间","更新时间"];
