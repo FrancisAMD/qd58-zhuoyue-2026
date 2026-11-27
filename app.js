@@ -227,24 +227,45 @@ function selectUniversity(item,selectedCampusId=""){
     populateMajorDisciplines(profileReferenceData,item.tags||[]);
   }
 }
-function clearSelectedUniversity(){
-  if(!confirm("移除当前选择的高校？现有资料不会立即删除，只有重新选择并保存后才会调整团队归属。"))return;
-  categoryLocked=false;selectedUniversity=null;universityResults=[];universitySearchSequence++;clearTimeout(universitySearchTimer);
-  $("profileUniversityId").value="";$("universityCatalogId").value="";$("universityName").value="";
-  $("universityCategoryValue").value="";$("universityCategoryField").value="";
-  $("selectedUniversityName").textContent="尚未选择高校";
-  $("universitySelectionMsg").textContent="请重新选择高校类别和学校。";
-  $("universitySearch").value="";$("universitySearch").disabled=false;
-  $("universitySearchResults").innerHTML="";
-  $("overseasUniversityName").value="";$("profileProvince").value="";$("profileCity").value="";
-  $("campusSelectionWrap").hidden=true;$("campusSelect").required=false;$("campusSelect").value="";
-  $("campusName").value="";$("campusTag").value="";
-  $("admissionFields").hidden=true;$("admissionCategoryId").required=false;$("admissionCategoryId").value="";
-  $("clearSelectedUniversity").hidden=true;$("continueToDetails").hidden=true;
-  $("universityBack").hidden=false;
-  document.querySelectorAll("[data-university-category]").forEach(button=>button.classList.remove("selected"));
-  showUniversityCategoryStep();
-  showRegistrationStep("university");
+async function clearSelectedUniversity(){
+  if(!confirm("移除当前高校会立即清空这位同学的个人登记资料（姓名、性别、年级、专业、联系方式、寄语和隐私同意），但保留账号、登录密码及历史组长转让记录。是否继续？"))return;
+  const button=$("clearSelectedUniversity");
+  button.disabled=true;
+  try{
+    await call("/profile/reset",{});
+    categoryLocked=false;selectedUniversity=null;universityResults=[];universitySearchSequence++;clearTimeout(universitySearchTimer);
+    $("profileUniversityId").value="";$("universityCatalogId").value="";$("universityName").value="";
+    $("universityCategoryValue").value="";$("universityCategoryField").value="";
+    $("selectedUniversityName").textContent="尚未选择高校";
+    $("universitySelectionMsg").textContent="请重新选择高校类别和学校。";
+    $("universitySearch").value="";$("universitySearch").disabled=false;
+    $("universitySearchResults").innerHTML="";
+    $("overseasUniversityName").value="";$("profileProvince").value="";$("profileCity").value="";
+    $("campusSelectionWrap").hidden=true;$("campusSelect").required=false;$("campusSelect").value="";
+    $("campusName").value="";$("campusTag").value="";
+    $("admissionFields").hidden=true;$("admissionCategoryId").required=false;$("admissionCategoryId").value="";
+    for(const id of ["name","highSchool","grade","gender","majorDisciplineCode","secondaryPhone","wechatId"]){
+      const field=$("profile").elements[id];if(field)field.value="";
+    }
+    $("profile").elements.greeting.value="";
+    $("consent").checked=false;
+    $("goDirectory").hidden=true;
+    $("clearSelectedUniversity").hidden=true;$("continueToDetails").hidden=true;
+    $("universityBack").hidden=false;
+    document.querySelectorAll("[data-university-category]").forEach(item=>item.classList.remove("selected"));
+    showUniversityCategoryStep();
+    showRegistrationStep("university");
+    msg("universityCategoryMsg","已清空原高校和个人登记资料。账号及历史组长转让记录已保留，请重新填写。");
+  }catch(error){
+    const message={
+      team_leader_transfer_required:"你仍是原大学团队的组长，而且团队还有其他成员。请先完成组长转让，再移除高校。",
+      leader_transfer_pending:"原团队仍有待处理的组长转让，请先处理该申请后再移除高校。",
+      profile_reset_conflict:"资料状态刚刚发生变化，请刷新页面后重试。"
+    };
+    msg("universitySelectionMsg",message[error.message]||"移除失败，原资料没有清空。请稍后重试。",true);
+  }finally{
+    button.disabled=false;
+  }
 }
 function populateMajorDisciplines(refs,tags=[]){
   if(!refs)return;
@@ -449,12 +470,17 @@ function renderTransfers(){
   if(items.length){
     $("transferItems").innerHTML=items.map(item=>{
       const incoming=item.status==="pending"&&item.to_user_id===directory.currentUserId;
+      const currentTeam=item.isCurrentTeam===true||Number(item.isCurrentTeam)===1;
+      const canRespond=incoming&&currentTeam;
       const direction=incoming?"收到转让邀请":item.from_user_id===directory.currentUserId?"你发起的转让":"团队转让记录";
-      const participants=safe(item.fromName||"组长")+" → "+safe(item.toName||"队员");
-      const actions=incoming
+      const participants=safe(item.fromName||"原组长")+" → "+safe(item.toName||"原队员");
+      const school=safe(item.university||"未知高校");
+      const association=currentTeam?"当前团队":"历史团队";
+      const stale=incoming&&!currentTeam&&item.status==="pending"?" · 已离开该校，不能再响应":"";
+      const actions=canRespond
         ?'<div class="transfer-actions"><button type="button" class="btn" data-transfer-action="accept" data-transfer-id="'+safe(item.id)+'">接受</button><button type="button" class="ghost" data-transfer-action="reject" data-transfer-id="'+safe(item.id)+'">拒绝</button></div>'
         :"";
-      return '<article class="transfer-record"><div><strong>'+participants+'</strong><small>'+safe(direction)+' · '+safe(transferStatusLabel(item.status))+'</small></div><time>'+safe(item.created_at||"")+'</time>'+actions+'</article>';
+      return '<article class="transfer-record"><div><strong>'+participants+'</strong><small><b class="transfer-school">'+school+'</b> · '+association+' · '+safe(direction)+' · '+safe(transferStatusLabel(item.status))+stale+'</small></div><time>'+safe(item.created_at||"")+'</time>'+actions+'</article>';
     }).join("");
   }
 }
