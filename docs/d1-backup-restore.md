@@ -59,9 +59,40 @@ The Worker now writes a create-once deletion intent to a private R2 binding befo
 - R2 writes use a conditional create-only operation. A retry reuses and validates the existing record rather than overwriting it.
 - If the R2 write fails, the Worker returns a service-unavailable response and does not start the D1 anonymization batch.
 - If the R2 intent is written but D1 later fails, the intent remains. Treat it as a deletion request that must be reconciled during recovery; it may be replayed even if the original D1 transaction did not complete.
-- The module includes paginated listing and checksum validation, but automated D1 replay/reconciliation is **not yet implemented**. During recovery, do not reopen traffic until a controlled procedure has reconciled every intent against the restored D1 and re-anonymized affected rows.
+- The module includes paginated listing and checksum validation. A local replay tool is now available, but no real R2 export or D1 restore rehearsal has been performed. During recovery, do not reopen traffic until the replay-ready export has been restored and verified in a disposable D1.
 
 The ledger is pseudonymous, not anonymous: the user ID remains linkable to an account in older backups. Restrict bucket access to named recovery operators, do not attach a public domain, and retain the bucket separately from D1 Time Travel. R2's create-once behavior is an application control; it is not protection against an operator or account-level deletion of objects.
+
+## 4.2 Deletion-ledger export and local replay preparation
+
+The recovery snapshot can be exported through an owner-only Worker endpoint and a local CLI. This is disabled by default and is not a routine public endpoint.
+
+- Endpoint: GET /api/admin/account-deletion-ledger/export, with opaque pagination.
+- Feature flag: ACCOUNT_DELETION_LEDGER_EXPORT_ENABLED=true. Keep it disabled except for a controlled recovery window, then disable it again.
+- Access: same-origin request, active independent admin session, owner role, and the account:deletion:recovery permission. Each page is audit-logged with only aggregate count and digest metadata.
+- CLI output is created exclusively under private-backups, with restrictive file permissions. It contains pseudonymous user IDs and timestamps, is ignored by Git, and must be encrypted or securely handled as a sensitive recovery artifact.
+
+Export the complete ledger snapshot only after an authorized operator has enabled the flag and confirmed the recovery target:
+
+    npm run export:deletion-ledger -- --api-base https://api.58er.eon21.space --app-origin https://58er.eon21.space --out private-backups/deletion-ledger-YYYYMMDD.json
+
+The CLI prompts for admin credentials without echoing the password, fetches every page, validates each record checksum, rejects duplicate user/event IDs, writes a complete snapshot digest, and attempts logout. It never prints ledger rows or stores credentials/session cookies. Do not enable this feature flag or run the CLI against production as part of an unattended task.
+
+Prepare a local replay-ready SQL export from the private D1 backup and complete ledger snapshot:
+
+    $env:RATE_LIMIT_HMAC_SECRET = "<retrieve through an approved secret-handling channel>"
+    python scripts/replay-deletion-intents.py --backup private-backups/qd58-backup.d1-export.sql --ledger private-backups/deletion-ledger-YYYYMMDD.json --out private-backups/replay-ready.sql --expected-migration 0014_university_catalog_import_staging.sql
+
+The replay tool is local-only. It validates the source backup and complete ledger snapshot, restores the backup in temporary SQLite, then replays all applicable deletion intents atomically. It removes sessions, phone OTP challenges, rate-limit keys derived from the restored phone and secret, expires pending transfers, releases a leader only when no other active team member exists, anonymizes the user, and inserts the correlated account.deleted audit event. It verifies the replay-ready export before creating the output file.
+
+Fail-closed cases:
+
+- A restored active user who still leads a team with other active members requires manual review; the tool refuses automatic replay.
+- A ledger event ID that conflicts with an existing audit row, an already-tombstoned account without the correlated audit row, invalid/incomplete snapshot, missing migration, damaged backup, or missing HMAC secret is rejected.
+- A user ID absent from the restored snapshot is counted but not modified.
+- The tool does not connect to Cloudflare, execute SQL against D1, or deploy anything. The replay-ready SQL is a full export, not a patch. Restore it only into a disposable D1 rehearsal database.
+
+After restoring the replay-ready export into a disposable D1, run the backup verifier and synthetic-only application checks before any recovery approval. The real R2 snapshot export, replay, and cloud restore rehearsal remain pending.
 
 ## 5. Retention and launch gates
 
