@@ -430,4 +430,11 @@ assert db.execute("SELECT COUNT(*) FROM university_catalog_import_staging WHERE 
 db.execute("UPDATE university_catalog_imports SET status='failed' WHERE dataset_version='2026-11-23-rollback'")
 db.execute("DELETE FROM university_catalog_import_staging WHERE dataset_version='2026-11-23-rollback'")
 
-print("D1 schema tests: PASS (all migrations, legacy compatibility, catalog constraints, team/transfer invariants, RBAC and account anonymization).")
+group_chat_columns = {row[1] for row in db.execute("PRAGMA table_info(group_chat_confirmations)")}
+assert {"user_id","region_key","university_id_snapshot","qr_uploaded_at_snapshot","confirmed_at","created_at","updated_at"} <= group_chat_columns
+assert db.execute("PRAGMA index_list(group_chat_confirmations)").fetchall()
+must_fail(
+    "INSERT INTO group_chat_confirmations(user_id,region_key,university_id_snapshot,qr_uploaded_at_snapshot,confirmed_at) VALUES(?,?,?,?,?)",
+    ("missing-user","heilongjiang","university-1","2026-11-27T00:00:00Z","2026-11-27T00:01:00Z")
+)
+print("D1 schema tests: PASS (all migrations, legacy compatibility, catalog constraints, team/transfer invariants, RBAC, account anonymization and group-chat confirmations).")

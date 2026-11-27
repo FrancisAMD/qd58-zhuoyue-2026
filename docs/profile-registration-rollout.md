@@ -122,3 +122,40 @@ npx wrangler deploy --config backend/wrangler.toml
 - 海外学校审核前不会创建大学团队；管理后台的海外学校审核操作仍需单独完成后才能解锁审核用户。
 - Pages 推送只自动发布静态前端；除非项目另有 Worker Builds 配置，Worker 仍需按 C 节使用 Wrangler 部署。
 - 以上操作不会自动修改阿里云短信、Turnstile 或现有 Worker Secrets。
+
+
+## I. 省份群聊二维码（R2）与入群确认
+
+群聊二维码按 **高校校本部所在地** 分组，不按学生选择的校区分组。内地 31 个省级行政区各自一张二维码；香港、澳门、台湾共用“港澳台”二维码；海外高校共用“海外”二维码。示例：哈尔滨工业大学的校本部在黑龙江省，即使学生选了威海校区，仍展示黑龙江省二维码。
+
+管理员页面新增“省份群聊二维码管理”：
+- 选择区域并上传 PNG/JPG/WebP 图片，单张最大 5 MiB。
+- R2 对象按固定区域 key 保存；同一区域再次上传会覆盖当前二维码。
+- 可删除某个区域二维码。
+- 管理后台按区域查看当前已登记同学的入群确认状态及时间。
+- 上传新二维码会生成新的上传时间快照；旧确认记录保留，但不再计为当前二维码的有效确认，学生需要重新扫码并确认。
+
+学生第 03 页会展示所属区域二维码、归组说明和“确认已加入群聊”按钮。确认由学生主动点击后保存到 D1 的 `group_chat_confirmations`，不会以二维码是否被扫描作为技术判断。
+
+### 首次部署 R2
+
+在项目根目录 PowerShell 中执行一次：
+
+```powershell
+npx wrangler r2 bucket create qd58-group-chat-qr
+```
+
+如果提示 Bucket 已存在，不需要重复创建。仓库的 `backend/wrangler.toml` 已增加 `GROUP_QR` 绑定，绑定名为 `GROUP_QR`，Bucket 名为 `qd58-group-chat-qr`。
+
+随后更新代码、应用新增 D1 迁移并部署 Worker：
+
+```powershell
+git pull origin main
+npm ci
+npx wrangler d1 migrations apply qd58-zhuoyue-db --remote --config backend/wrangler.toml
+npx wrangler deploy --config backend/wrangler.toml
+```
+
+这次新增的 D1 迁移为 `0018_group_chat_confirmations.sql`。无需重新导入高校 JSON。Cloudflare Pages 会自动从 `main` 发布新前端。
+
+部署后打开 `/admin.html`，进入“省份群聊二维码管理”，逐区域上传二维码。没有上传的区域会向学生显示“二维码待上传”，不会错误显示其他地区的二维码。

@@ -67,3 +67,11 @@ assert.match(css,/#results\.cards[\s\S]*?gap:20px!important/);
 assert.match(css,/#teamSummary[\s\S]*?directory-team-grid[\s\S]*?gap:16px/);
 
 assert.match(js,/colspan="9"/);
+
+for(const id of ["groupChatQrPanel","groupQrRegion","groupQrFile","uploadGroupQr","groupQrAssetList","groupChatConfirmationRegion","groupChatConfirmationRows","refreshGroupChatConfirmations"]) {
+  assert.match(html,new RegExp('id="'+id+'"'),"admin QR management must include #"+id);
+}
+assert.match(js,/async function loadGroupQrAssets\(\)/);
+assert.match(js,/async function loadGroupChatConfirmations\(\)/);
+assert.match(js,/method:"PUT",credentials:"include"/);
+assert.match(js,/data-qr-delete/);
