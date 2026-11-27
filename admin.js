@@ -78,6 +78,7 @@ async function enter(options={}){
   $("adminIdentity").textContent=current.username;
   $("adminRole").textContent="角色："+({owner:"所有者",admin:"管理员",viewer:"只读查看"}[current.role]||current.role);
   $("peoplePanel").hidden=!has("people:read");
+  $("teamsPanel").hidden=!has("people:read");
   $("auditPanel").hidden=!has("audit:read");
   $("managePanel").hidden=!has("admins:manage");
   $("universityReviewPanel").hidden=!has("universities:review");
@@ -114,7 +115,13 @@ async function loadOverview(){
     '<div class="stat"><small>账号总数</small><b>'+Number(counts.total||0)+'</b></div>'+
     '<div class="stat"><small>已完成高校登记</small><b>'+Number(counts.completed||0)+'</b></div>'+
     '<div class="stat"><small>资料同意记录</small><b>'+Number(counts.consented||0)+'</b></div>'+
-    '<div class="stat"><small>大学队伍</small><b>'+Number(data.teamCount||0)+'</b></div>';
+    '<div class="stat"><small>当前有成员的大学团队</small><b>'+Number(data.teamCount||0)+'</b></div>';
+  const teams=data.teams||[];
+  $("teamsGrid").innerHTML=teams.map(team=>
+    '<article class="admin-team-card"><div><b>'+safe(team.university||"未命名高校")+'</b><span>'+safe(team.leaderProvince||"地区未填写")+'</span></div>'+
+    '<strong>'+Number(team.memberCount||0)+' <small>人</small></strong>'+
+    '<p>组长：'+safe(team.leaderName||"待指定")+'</p></article>'
+  ).join("")||'<div class="directory-empty"><strong>目前没有在籍成员的高校团队</strong><p>同学移除高校后，空团队不会继续占据此列表。</p></div>';
 }
 function readFilters(){
   filters={
@@ -130,14 +137,41 @@ function params(extra={}){
   for(const [key,value] of Object.entries({...filters,...extra})) if(value) query.set(key,value);
   return query;
 }
+function profileDetailField(label,value){
+  return '<div class="admin-profile-field"><small>'+safe(label)+'</small><b>'+safe(value||"未填写")+'</b></div>';
+}
+function profileReviewLabel(item){
+  if(item.profileReviewStatus==="pending")return "海外高校待审核";
+  if(item.profileReviewStatus==="rejected")return "海外高校审核未通过";
+  return item.university?"已完成高校归属":"尚未选择高校";
+}
+function renderPersonDetails(item){
+  const gender=({male:"男",female:"女",undisclosed:"不愿透露"})[item.gender]||"未填写";
+  const category=({mainland:"中国内地",hmt:"港澳台",sino_foreign:"中外合作办学",overseas:"海外"})[item.universityCategory]||"未选择";
+  const campus=[item.campusName,item.campusTag].filter(Boolean).join(" · ");
+  return '<tr class="admin-profile-detail-row" data-profile-detail-row="'+safe(item.id)+'" hidden><td colspan="8"><div class="admin-profile-details">'+
+    profileDetailField("用户编号",item.id)+profileDetailField("性别",gender)+profileDetailField("高中学校",item.highSchool)+
+    profileDetailField("当前大学",item.university||"尚未选择高校")+profileDetailField("高校类别",category)+profileDetailField("年级",item.grade)+
+    profileDetailField("地区",[item.province,item.city].filter(Boolean).join(" · "))+profileDetailField("专业学科门类",item.majorDiscipline)+
+    profileDetailField("招生大类",item.admissionCategory)+profileDetailField("校区",campus)+
+    profileDetailField("海外高校填写",item.overseasUniversityName)+profileDetailField("高校审核状态",profileReviewLabel(item))+
+    profileDetailField("资料隐私版本",item.consentVersion)+profileDetailField("账号隐私版本",item.accountConsentVersion)+
+    profileDetailField("资料更新时间",item.updatedAt)+
+    '<div class="admin-profile-field admin-profile-greeting"><small>寄语</small><p>'+safe(item.greeting||"未填写")+'</p></div>'+
+    '</div></td></tr>';
+}
 async function loadPeople(){
   const data=await req("/admin/people?"+params());
   const pagination=data.pagination||{};
   totalPages=Math.max(1,pagination.totalPages||1);
-  $("peopleMeta").textContent="共 "+(pagination.total||0)+" 条记录。手机号不会在管理员名单或 CSV 中展示。";
-  $("peopleRows").innerHTML=(data.items||[]).map(item=>
-    '<tr><td>'+safe(item.name)+'</td><td>'+safe(item.highSchool)+'</td><td>'+safe(item.university)+'</td><td>'+safe(item.grade)+'</td><td>'+safe(item.province)+'</td><td>'+(item.consentGiven?"已同意":"未同意")+'</td><td>'+safe(item.createdAt)+'</td></tr>'
-  ).join("")||'<tr><td colspan="7">没有符合条件的记录</td></tr>';
+  const items=data.items||[];
+  $("peopleMeta").textContent="共 "+(pagination.total||0)+" 条账号记录。点击“查看资料”可展开登记信息；手机号、第二手机号、微信号和密码不会在管理员页面或导出中展示。";
+  $("peopleRows").innerHTML=items.map(item=>{
+    const school=item.university||"尚未选择高校";
+    const state=item.profileReviewStatus==="pending"?" · 待审核":"";
+    return '<tr><td>'+safe(item.name||"未填写")+'</td><td>'+safe(item.highSchool||"")+'</td><td>'+safe(school)+safe(state)+'</td><td>'+safe(item.grade||"")+'</td><td>'+safe(item.province||"")+'</td><td>'+(item.consentGiven?"已同意":"未同意")+'</td><td>'+safe(item.createdAt||"")+'</td><td><button type="button" class="ghost admin-detail-toggle" data-profile-toggle="'+safe(item.id)+'" aria-expanded="false">查看资料</button></td></tr>'+
+      renderPersonDetails(item);
+  }).join("")||'<tr><td colspan="8">没有符合条件的记录</td></tr>';
   $("pageLabel").textContent="第 "+(pagination.page||1)+" / "+totalPages+" 页";
   $("prevPage").disabled=page<=1;
   $("nextPage").disabled=page>=totalPages;
@@ -278,6 +312,17 @@ $("adminLogout").onclick=async()=>{
   catch(error) { console.error("Admin logout failed:",error?.message||"unknown"); }
   finally { location.reload(); }
 };
+$("peopleRows").addEventListener("click",event=>{
+  const button=event.target.closest("[data-profile-toggle]");
+  if(!button)return;
+  const id=button.dataset.profileToggle;
+  const row=Array.from($("peopleRows").querySelectorAll("[data-profile-detail-row]")).find(item=>item.dataset.profileDetailRow===id);
+  if(!row)return;
+  const expanded=row.hidden;
+  row.hidden=!expanded;
+  button.setAttribute("aria-expanded",String(expanded));
+  button.textContent=expanded?"收起资料":"查看资料";
+});
 $("filters").onsubmit=async event=>{
   event.preventDefault();
   readFilters();
