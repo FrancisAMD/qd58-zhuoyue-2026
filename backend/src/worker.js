@@ -284,8 +284,8 @@ function adminPeopleFilters(url) {
   let filterCount = 0;
   const q = (url.searchParams.get("q") || "").trim().slice(0, 100);
   if (q) {
-    where.push("(instr(lower(coalesce(u.name,'')),lower(?))>0 OR instr(lower(coalesce(u.class_name,'')),lower(?))>0 OR instr(lower(coalesce(u.high_school,'')),lower(?))>0 OR instr(lower(coalesce(uni.canonical_name,'')),lower(?))>0 OR instr(lower(coalesce(u.province,'')),lower(?))>0)");
-    bindings.push(q, q, q, q, q);
+    where.push("(instr(lower(coalesce(u.name,'')),lower(?))>0 OR instr(lower(coalesce(u.high_school,'')),lower(?))>0 OR instr(lower(coalesce(uni.canonical_name,'')),lower(?))>0 OR instr(lower(coalesce(u.province,'')),lower(?))>0)");
+    bindings.push(q, q, q, q);
     filterCount++;
   }
   for (const [parameter, column] of [["province", "u.province"], ["grade", "u.grade"], ["category", "uni.category"]]) {
@@ -745,8 +745,8 @@ async function route(request, env) {
         env.DB.prepare("DELETE FROM otp_challenges WHERE phone=?").bind(user.phone),
         env.DB.prepare("DELETE FROM rate_limits WHERE bucket_key IN (?,?,?,?,?,?)").bind(...phoneRateLimitKeys,"sms:cooldown:"+user.phone,"sms:phone:"+user.phone,"login:phone:"+user.phone),
         env.DB.prepare("UPDATE teams SET leader_user_id=NULL WHERE leader_user_id=? AND id=? AND NOT EXISTS (SELECT 1 FROM users member WHERE member.university_id=teams.university_id AND member.deleted_at='' AND member.id<>?)").bind(user.id,leadership?.id||"",user.id),
-        env.DB.prepare(`UPDATE users SET phone='deleted:'||id,password_hash=NULL,name=NULL,high_school=NULL,class_name=NULL,
-          university_id=NULL,grade=NULL,province=NULL,city=NULL,bio=NULL,gender='undisclosed',major_group='',
+        env.DB.prepare(`UPDATE users SET phone='deleted:'||id,password_hash=NULL,name=NULL,high_school=NULL,class_name='',
+          university_id=NULL,grade=NULL,province=NULL,city=NULL,bio=NULL,greeting=NULL,gender='undisclosed',major_group='',
           major_discipline_code='',admission_category_id='',admission_type_id='',campus_id='',campus_name='',
           campus_tag='',secondary_phone='',wechat_id='',profile_review_status='rejected',overseas_university_name='',
           profile_review_submitted_at='',profile_reviewed_at='',phone_visible_to_team=0,
@@ -1220,8 +1220,8 @@ if(path==="/api/teams/transfer" && method==="POST") {
     const sql = select + base + " ORDER BY u.created_at DESC LIMIT ? OFFSET ?";
     const rows = await env.DB.prepare(sql).bind(...filters.bindings,isExport?5000:pageSize,isExport?0:(page-1)*pageSize).all();
     const items = rows.results || [];
-    const header = ["用户编号","姓名","高中班级","高中学校","大学","高校类别","年级","省份","城市","资料同意状态","创建时间","更新时间"];
-    const keys = ["id","name","className","highSchool","university","universityCategory","grade","province","city","consentGiven","createdAt","updatedAt"];
+    const header = ["用户编号","姓名","高中学校","大学","高校类别","年级","省份","城市","资料同意状态","创建时间","更新时间"];
+    const keys = ["id","name","highSchool","university","universityCategory","grade","province","city","consentGiven","createdAt","updatedAt"];
     if (format === "csv") {
       const lines = [header.map(csvCell).join(",")];
       for (const item of items) lines.push(keys.map(key => csvCell(key==="consentGiven"?(item[key]?"已同意":"未同意"):item[key])).join(","));
