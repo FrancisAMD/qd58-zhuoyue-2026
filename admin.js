@@ -136,7 +136,7 @@ async function loadPeople(){
   totalPages=Math.max(1,pagination.totalPages||1);
   $("peopleMeta").textContent="共 "+(pagination.total||0)+" 条记录。手机号不会在管理员名单或 CSV 中展示。";
   $("peopleRows").innerHTML=(data.items||[]).map(item=>
-    '<tr><td>'+safe(item.name)+'</td><td>'+safe(item.className)+'</td><td>'+safe(item.university)+'</td><td>'+safe(item.grade)+'</td><td>'+safe(item.province)+'</td><td>'+(item.consentGiven?"已同意":"未同意")+'</td><td>'+safe(item.createdAt)+'</td></tr>'
+    '<tr><td>'+safe(item.name)+'</td><td>'+safe(item.highSchool)+'</td><td>'+safe(item.university)+'</td><td>'+safe(item.grade)+'</td><td>'+safe(item.province)+'</td><td>'+(item.consentGiven?"已同意":"未同意")+'</td><td>'+safe(item.createdAt)+'</td></tr>'
   ).join("")||'<tr><td colspan="7">没有符合条件的记录</td></tr>';
   $("pageLabel").textContent="第 "+(pagination.page||1)+" / "+totalPages+" 页";
   $("prevPage").disabled=page<=1;
@@ -173,11 +173,11 @@ async function loadAdmins(){
 /* The built-in demo uses fictional in-memory records only. It never calls the API. */
 const DEMO_DATA={
   people:[
-    {name:"林知远",className:"高三(1)班",university:"山东大学",grade:"大一",province:"山东省",consent:true,created:"2026-11-18"},
-    {name:"陈予安",className:"高三(3)班",university:"中国海洋大学",grade:"大一",province:"山东省",consent:true,created:"2026-11-19"},
-    {name:"周星禾",className:"高三(6)班",university:"复旦大学",grade:"大一",province:"上海市",consent:true,created:"2026-11-20"},
-    {name:"许闻溪",className:"高三(2)班",university:"香港大学",grade:"大一",province:"香港",consent:false,created:"2026-11-21"},
-    {name:"沈嘉树",className:"高三(5)班",university:"University of Tokyo",grade:"大一",province:"日本",consent:true,created:"2026-11-22"}
+    {name:"林知远",highSchool:"高三(1)班",university:"山东大学",grade:"大一",province:"山东省",consent:true,created:"2026-11-18"},
+    {name:"陈予安",highSchool:"高三(3)班",university:"中国海洋大学",grade:"大一",province:"山东省",consent:true,created:"2026-11-19"},
+    {name:"周星禾",highSchool:"高三(6)班",university:"复旦大学",grade:"大一",province:"上海市",consent:true,created:"2026-11-20"},
+    {name:"许闻溪",highSchool:"高三(2)班",university:"香港大学",grade:"大一",province:"香港",consent:false,created:"2026-11-21"},
+    {name:"沈嘉树",highSchool:"高三(5)班",university:"University of Tokyo",grade:"大一",province:"日本",consent:true,created:"2026-11-22"}
   ],
   teams:[
     {university:"山东大学",members:18,leader:"林知远",region:"山东省",status:"队伍正常"},
@@ -217,8 +217,8 @@ function renderDemo(){
       '<div class="demo-note-grid"><article><small>最近动态</small><b>高校队伍持续完善</b><p>展示报名进度、队伍数量与待处理事项。</p></article><article><small>权限提示</small><b>手机号默认隐藏</b><p>演示名单与导出样例均不包含手机号、密码或真实联系方式。</p></article></div>';
   } else if(demoView==="people"){
     const rows=DEMO_DATA.people.filter(item=>[item.name,item.className,item.university,item.province].join(" ").toLowerCase().includes(query));
-    content.innerHTML='<p class="muted">以下为虚构报名数据，共 '+rows.length+' 条匹配结果。</p><div class="table-wrap"><table class="admin-table"><thead><tr><th>姓名</th><th>高中班级</th><th>大学</th><th>年级</th><th>地区</th><th>资料同意</th><th>登记时间</th></tr></thead><tbody>'+
-      (rows.map(item=>'<tr><td>'+safe(item.name)+'</td><td>'+safe(item.className)+'</td><td>'+safe(item.university)+'</td><td>'+safe(item.grade)+'</td><td>'+safe(item.province)+'</td><td>'+(item.consent?"已同意":"未同意")+'</td><td>'+safe(item.created)+'</td></tr>').join("")||'<tr><td colspan="7">没有匹配的演示记录</td></tr>')+
+    content.innerHTML='<p class="muted">以下为虚构报名数据，共 '+rows.length+' 条匹配结果。</p><div class="table-wrap"><table class="admin-table"><thead><tr><th>姓名</th><th>高中学校</th><th>大学</th><th>年级</th><th>地区</th><th>资料同意</th><th>登记时间</th></tr></thead><tbody>'+
+      (rows.map(item=>'<tr><td>'+safe(item.name)+'</td><td>'+safe(item.highSchool)+'</td><td>'+safe(item.university)+'</td><td>'+safe(item.grade)+'</td><td>'+safe(item.province)+'</td><td>'+(item.consent?"已同意":"未同意")+'</td><td>'+safe(item.created)+'</td></tr>').join("")||'<tr><td colspan="7">没有匹配的演示记录</td></tr>')+
       '</tbody></table></div>';
   } else if(demoView==="teams"){
     const rows=DEMO_DATA.teams.filter(item=>[item.university,item.leader,item.region].join(" ").toLowerCase().includes(query));
