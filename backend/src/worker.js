@@ -1061,11 +1061,12 @@ if(path==="/api/teams/transfer" && method==="POST") {
   if(method==="POST" && transferParts.length===6 && transferParts[1]==="api" && transferParts[2]==="teams" && transferParts[3]==="transfer" && /^[a-f0-9]{32}$/.test(transferParts[4]) && ["accept","reject"].includes(transferParts[5])) {
     const user=await currentUser(request,env); if(!user) return response({error:"unauthorized"},401,origin,env);
     const transferId=transferParts[4], action=transferParts[5], status=action==="accept"?"accepted":"rejected", timestamp=new Date().toISOString();
-    let transfer=await env.DB.prepare("SELECT id,to_user_id,status FROM leader_transfers WHERE id=?").bind(transferId).first();
+    let transfer=await env.DB.prepare("SELECT lt.id,lt.to_user_id,lt.status,t.university_id AS transferUniversityId FROM leader_transfers lt JOIN teams t ON t.id=lt.team_id WHERE lt.id=?").bind(transferId).first();
     if(!transfer) return response({error:"transfer_not_found"},404,origin,env);
     if(transfer.to_user_id!==user.id) return response({error:"transfer_forbidden"},403,origin,env);
+    if(transfer.transferUniversityId!==user.university_id) return response({error:"transfer_school_mismatch"},409,origin,env);
     await expirePendingTransfers(env.DB);
-    transfer=await env.DB.prepare("SELECT id,to_user_id,status FROM leader_transfers WHERE id=?").bind(transferId).first();
+    transfer=await env.DB.prepare("SELECT lt.id,lt.to_user_id,lt.status,t.university_id AS transferUniversityId FROM leader_transfers lt JOIN teams t ON t.id=lt.team_id WHERE lt.id=?").bind(transferId).first();
     if(!transfer) return response({error:"transfer_not_found"},404,origin,env);
     if(transfer.status==="expired") return response({error:"transfer_expired"},409,origin,env);
     if(transfer.status!=="pending") return response({error:"transfer_state_conflict"},409,origin,env);
