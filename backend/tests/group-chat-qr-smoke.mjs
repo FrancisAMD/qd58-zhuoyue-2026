@@ -160,7 +160,7 @@ assert.equal(uploadResult.regionLabel,"黑龙江省");
 assert.equal(uploadR2.state.puts[0].key,"group-chat-qr/heilongjiang");
 assert.equal(uploadR2.state.puts[0].item.customMetadata.fileName,"qr.png");
 assert.equal(adminDb.state.runs.length,1);
-assert.match(adminDb.state.runs[0].sql,/admin\.group_chat_qr\.uploaded/);
+assert.equal(adminDb.state.runs[0].bindings[3],"admin.group_chat_qr.uploaded");
 
 const invalidUpload=await worker.fetch(makeRequest("/admin/group-chat/qr/not-a-province?fileName=bad.png",{
   method:"PUT",cookie:ADMIN_COOKIE,headers:{"content-type":"image/png"},body:PNG
