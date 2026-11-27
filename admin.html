@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>卓越2026 · 管理后台</title>
-  <link rel="stylesheet" href="style.css?v=20261127-admin-profile-details">
+  <link rel="stylesheet" href="style.css?v=20261127-admin-visible-details-v2">
 </head>
 <body>
 <header>
@@ -54,7 +54,7 @@
     <div class="admin-stats" id="summary"></div>
     <section id="teamsPanel" class="panel" hidden>
       <div class="admin-heading"><div><p class="eyebrow">ACTIVE UNIVERSITY TEAMS</p><h3>当前高校团队</h3></div><button id="refreshAdminData" class="ghost" type="button">刷新名单与团队</button></div>
-      <p id="teamsMeta" class="muted">仅展示当前有成员的高校团队；空团队不会显示，但历史转让记录仍然保留。</p>
+      <p id="teamsMeta" class="muted">仅展示当前有成员的高校团队；空团队不会显示，但历史转让记录仍然保留。团队列表每 30 秒自动刷新，也可以手动刷新。</p>
       <div id="teamsGrid" class="admin-team-grid"></div>
     </section>
 
@@ -75,7 +75,7 @@
         <div class="filter-actions"><button class="btn" type="submit">筛选</button><button type="reset" id="clearFilters" class="ghost">清空</button></div>
       </form>
       <p id="peopleMeta" class="muted"></p>
-      <div class="table-wrap"><table class="admin-table"><thead><tr><th>姓名</th><th>高中学校</th><th>大学</th><th>年级</th><th>省份</th><th>资料同意</th><th>登记时间</th><th>用户资料</th></tr></thead><tbody id="peopleRows"></tbody></table></div>
+      <div class="table-wrap"><table class="admin-table"><thead><tr><th>姓名</th><th>高中学校</th><th>大学</th><th>年级</th><th>省份</th><th>资料同意</th><th>登记时间</th><th>资料概览 / 完整资料</th></tr></thead><tbody id="peopleRows"></tbody></table></div>
       <div class="pagination"><button id="prevPage" class="ghost" type="button">上一页</button><span id="pageLabel"></span><button id="nextPage" class="ghost" type="button">下一页</button></div>
     </section>
 
@@ -87,7 +87,7 @@
     </section>
 
     <section id="auditPanel" class="panel" hidden>
-      <div class="admin-heading"><div><p class="eyebrow">AUDIT TRAIL</p><h3>管理员操作审计</h3></div><button id="refreshAudit" class="ghost" type="button">刷新</button></div>
+      <div class="admin-heading"><div><p class="eyebrow">AUDIT TRAIL</p><h3>管理员操作审计</h3><small class="muted">仅显示最近 10 条记录</small></div><button id="refreshAudit" class="ghost" type="button">刷新</button></div>
       <div class="table-wrap"><table class="admin-table"><thead><tr><th>时间</th><th>操作者</th><th>操作</th><th>对象</th><th>记录摘要</th></tr></thead><tbody id="auditRows"></tbody></table></div>
     </section>
 
@@ -103,6 +103,6 @@
     </section>
   </section>
 </main>
-<script src="admin.js?v=20261127-admin-profile-details" defer></script>
+<script src="admin.js?v=20261127-admin-visible-details-v2" defer></script>
 </body>
 </html>
