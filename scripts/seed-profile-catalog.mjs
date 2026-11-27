@@ -36,21 +36,48 @@ function addUniversity(u,category){
 }
 for(const u of main.universities||[])if(u.status==="active")addUniversity(u,"mainland");
 for(const u of hmt.universities||[])if(u.status==="active")addUniversity(u,"hmt");
-const majorGroups=new Set();
-for(const item of majors.categories||[]){const group=item.code==="11"?"军事学":item.legacyGroup;if(group)majorGroups.add(group);}
-for(const group of majorGroups)statements.push("INSERT INTO profile_option_codes(option_type,code,parent_code,label,is_active) VALUES('major_group',"+[esc(group),esc(""),esc(group),"1"].join(",")+") ON CONFLICT(option_type,code) DO UPDATE SET label=excluded.label,is_active=1;");
 for(const item of majors.categories||[]){
   const group=item.code==="11"?"军事学":(item.legacyGroup||"");
   statements.push("INSERT INTO profile_option_codes(option_type,code,parent_code,label,is_active) VALUES('major_discipline',"+[esc(item.code),esc(group),esc(item.name),item.enabled===false?"0":"1"].join(",")+") ON CONFLICT(option_type,code) DO UPDATE SET parent_code=excluded.parent_code,label=excluded.label,is_active=excluded.is_active;");
 }
 for(const cat of admissions.categories||[]){
   statements.push("INSERT INTO profile_option_codes(option_type,code,parent_code,label,is_active) VALUES('admission_category',"+[esc(cat.id),esc(""),esc(cat.name),"1"].join(",")+") ON CONFLICT(option_type,code) DO UPDATE SET label=excluded.label,is_active=1;");
-  for(const item of cat.types||[])if((item.status||"active")==="active")statements.push("INSERT INTO profile_option_codes(option_type,code,parent_code,label,is_active) VALUES('admission_type',"+[esc(item.id),esc(cat.id),esc(item.name),"1"].join(",")+") ON CONFLICT(option_type,code) DO UPDATE SET parent_code=excluded.parent_code,label=excluded.label,is_active=1;");
 }
+// Clean obsolete/invalid profile values without deleting any user account or team.
+// Detailed admission type IDs are mapped to their parent category when possible.
+// Legacy broad major groups cannot identify one of the 13 exact disciplines, so they are cleared.
+statements.push(`UPDATE users SET
+  class_name='',
+  bio=NULL,
+  major_group='',
+  major_discipline_code=CASE
+    WHEN EXISTS(SELECT 1 FROM profile_option_codes o WHERE o.option_type='major_discipline' AND o.code=users.major_discipline_code AND o.is_active=1)
+      AND (users.major_discipline_code<>'11'
+        OR EXISTS(SELECT 1 FROM profile_university_catalog p WHERE p.university_id=users.university_id AND instr(p.tags_json,'"military_academy"')>0)
+        OR EXISTS(SELECT 1 FROM universities u WHERE u.id=users.university_id AND instr(u.project_tags_json,'"military_academy"')>0))
+    THEN users.major_discipline_code ELSE '' END,
+  admission_category_id=CASE
+    WHEN EXISTS(SELECT 1 FROM universities u WHERE u.id=users.university_id AND u.category='mainland') THEN
+      CASE
+        WHEN EXISTS(SELECT 1 FROM profile_option_codes o WHERE o.option_type='admission_category' AND o.code=users.admission_category_id AND o.is_active=1)
+        THEN users.admission_category_id
+        ELSE COALESCE((SELECT o.parent_code FROM profile_option_codes o WHERE o.option_type='admission_type' AND o.code=users.admission_type_id AND o.is_active=1 LIMIT 1),'')
+      END
+    ELSE '' END,
+  admission_type_id='',
+  secondary_phone=CASE
+    WHEN length(trim(COALESCE(secondary_phone,'')))=11
+      AND trim(secondary_phone) NOT GLOB '*[^0-9]*'
+      AND substr(trim(secondary_phone),1,2) GLOB '1[3-9]'
+    THEN trim(secondary_phone) ELSE '' END,
+  wechat_id=CASE WHEN length(trim(COALESCE(wechat_id,'')))<=80 THEN trim(COALESCE(wechat_id,'')) ELSE '' END,
+  greeting=substr(trim(COALESCE(greeting,'')),1,500)
+WHERE 1=1;`);
+statements.push("DELETE FROM profile_option_codes WHERE option_type IN ('major_group','admission_type');");
 const chunkSize=80,chunks=[];
 for(let i=0;i<statements.length;i+=chunkSize)chunks.push(statements.slice(i,i+chunkSize).join("\n"));
 console.log("数据源检查通过：内地 "+main.universities.length+" 所、港澳台 "+hmt.universities.length+" 所、专业门类 "+majors.categories.length+" 项、招生大类 "+admissions.categories.length+" 类。");
-console.log("共 "+statements.length+" 条幂等 SQL，分 "+chunks.length+" 批写入 "+mode+" D1。");
+console.log("共 "+statements.length+" 条幂等 SQL，分 "+chunks.length+" 批写入 "+mode+" D1；最后一批会清理废弃字段和无效选项值，不删除账号。");
 const tempDir=fs.mkdtempSync(path.join(os.tmpdir(),"qd58-profile-seed-"));
 try{
   for(let i=0;i<chunks.length;i++){
