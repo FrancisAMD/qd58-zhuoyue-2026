@@ -204,7 +204,7 @@ assert.equal(confirmList.confirmed,1);
 assert.equal(confirmList.members[0].id,"sd");
 assert.equal(confirmList.members.some(item=>item.id==="hw"),false,"HIT Weihai campus must not count as Shandong; QR follows main campus");
 assert.equal(confirmList.members.some(item=>item.id==="hk"),false);
-const adminRegionSql=confirmAdminDb.state.allQueries.find(item=>item.sql.includes("profile_catalog.province_name"))?.sql||"";
+const adminRegionSql=confirmAdminDb.state.queries.find(item=>item.type==="all"&&item.sql.includes("profile_catalog.province_name"))?.sql||"";
 assert.match(adminRegionSql,/LEFT JOIN profile_university_catalog profile_catalog/);
 assert.match(adminRegionSql,/COALESCE\(NULLIF\(uni\.province_name_zh,''\),NULLIF\(profile_catalog\.province_name,''\)\)/);
 
