@@ -338,7 +338,7 @@ for (const field of [
   "gender='undisclosed'", "major_group=''", "major_discipline_code=''",
   "admission_category_id=''", "admission_type_id=''", "campus_id=''",
   "campus_name=''", "campus_tag=''", "secondary_phone=''", "wechat_id=''",
-  "overseas_university_name=''", "profile_review_submitted_at=''", "profile_reviewed_at=''"
+  "greeting=NULL", "overseas_university_name=''", "profile_review_submitted_at=''", "profile_reviewed_at=''"
 ]) assert.ok(state.scrubSql.includes(field), "account deletion must scrub new profile field: " + field);
 assert.ok(state.scrubSql.includes("profile_review_status='rejected'"), "deleted accounts must leave the overseas review queue");
   assert.equal(state.sessionsRevoked, true);
