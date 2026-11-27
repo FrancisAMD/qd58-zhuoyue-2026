@@ -16,7 +16,7 @@ npm ci
 npx wrangler d1 migrations apply qd58-zhuoyue-db --remote --config backend/wrangler.toml
 ```
 
-迁移会依次应用仓库尚未应用的迁移，包括高校目录关系表和 `0015_profile_registration_fields.sql`。这是新增列和新增表的迁移；执行前，建议在 Cloudflare D1 控制台确认已有备份。
+迁移会依次应用仓库尚未应用的迁移，包括高校目录关系表、`0015_profile_registration_fields.sql` 和 `0016_profile_fields_refinement.sql`。这是新增列和新增表的迁移；执行前，建议在 Cloudflare D1 控制台确认已有备份。
 
 然后导入完整学校目录及表单选项：
 
@@ -24,7 +24,7 @@ npx wrangler d1 migrations apply qd58-zhuoyue-db --remote --config backend/wrang
 npm run seed:profile-catalog -- --remote
 ```
 
-导入脚本读取仓库内四份 JSON，使用源 ID 写入 D1；内地高校和港澳台高校分别建立目录记录，内地校区以 JSON 中的主校区/branches 层级保存。招生类别和具体类型分开保存，专业大类也独立保存。脚本按批次执行，使用 INSERT OR IGNORE / UPSERT，可在批次失败并修复问题后重新运行。
+导入脚本读取仓库内四份 JSON，使用源 ID 写入 D1；内地高校和港澳台高校分别建立目录记录，内地校区以 JSON 中的主校区/branches 层级保存。仅保存 13 个专业学科门类代码和 11 个招生大类代码，不再保存具体招生类型。脚本会清空已废弃的高中班级和旧专业宽泛分组，把旧具体招生类型映射到招生大类，并清理无法验证的第二手机号等旧值。脚本按批次执行，使用 INSERT OR IGNORE / UPSERT，可在批次失败并修复问题后重新运行。
 
 预期数据规模：内地 1,455 所、港澳台 54 所、内地在用分支校区 216 条、13 个专业学科门类、11 个招生大类 / 34 个具体招生类型。
 
@@ -42,7 +42,7 @@ npx wrangler deploy --config backend/wrangler.toml
 Invoke-RestMethod https://api.58er.eon21.space/api/health
 ```
 
-本轮 Worker 构建标记应为 `sms-readiness-diagnostics-20261127`。若仍显示旧标记，说明 Worker 尚未更新。不要在新 D1 字段迁移前部署新 Worker。
+本轮 Worker 构建标记应为 `profile-fields-v5-20261127`。若仍显示旧标记，说明 Worker 尚未更新。不要在新 D1 字段迁移前部署新 Worker。
 
 健康检查会额外返回不含密钥值的 `readiness` 状态：
 - `rateLimitConfigured`：`RATE_LIMIT_HMAC_SECRET` 是否存在且至少 32 位。
@@ -69,6 +69,16 @@ Invoke-RestMethod https://api.58er.eon21.space/api/health
 5. 内地高校必须选择专业大类，以及招生大类和具体招生途径；普通类批次和强基计划等选项由招生 JSON 两级读取。
 6. 保存资料后进入同校目录；同校成员联系方式仅在双方都完成 v4 隐私同意后展示。
 7. 用两个同校测试账号验证组长转让：组长发起，接收方接受/拒绝，刷新后核对组长状态。
+
+
+## F. 本次资料字段精简与旧数据清理
+
+- 高中班级字段已从学生登记页、同校通讯录和管理员名单中移除。迁移会把现有用户的旧 `class_name` 清空，但保留账号、姓名、高中学校、大学、团队及组长关系。
+- 原个人备注内容会迁移到新 `greeting` 字段；旧 `bio` 清空。页面显示名称为“寄语”。
+- 专业使用 13 个官方学科门类代码。旧的“文科/理科/工科/农科/医科”只是合并分组，无法唯一转换为某一个学科门类，因此不自动猜测；无法对应的旧专业值会清空，用户下次保存资料时重新选择。军事学仅对军事院校开放，符合源 JSON 规则。
+- 招生途径仅保留招生大类。旧具体招生类型如果能在招生 JSON 中找到父级大类，则自动映射；无法映射时清空。具体招生类型选项不再加载。
+- 清理脚本不会删除用户账号，不会删除大学或团队记录，不会改变组长关系。它只清理废弃字段和不符合格式的第二手机号、过长微信号等资料值。
+- 隐私说明版本更新为 `2026-11-27-v5`。已有成员需要重新确认新版隐私说明后，通讯录联系方式才重新展示。
 
 ## E. 当前边界
 
