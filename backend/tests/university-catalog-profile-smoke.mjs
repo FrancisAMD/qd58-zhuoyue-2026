@@ -23,7 +23,8 @@ const profileCatalog={
 const university={id:"profile-CN-10001",canonical_name:"示例大学",category:"mainland",region_name:"山东省",
   education_level:"undergraduate",partner_name:"",project_tags_json:'["ordinary_undergraduate"]',catalog_id:null};
 function makeDb({
-  user={...baseUser},catalog=profileCatalog,uni=university,validMajor=true,validAdmission=true,batchChanges=1
+  user={...baseUser},catalog=profileCatalog,uni=university,validMajor=true,validAdmission=true,batchChanges=1,
+  oldTeam=null,pendingTransfer=null
 }={}){
   const state={queries:[],batchCalls:0,statements:[],batchBindings:[]};
   const DB={
@@ -31,6 +32,8 @@ function makeDb({
       first:async()=>{
         state.queries.push({method:"first",sql,bindings});
         if(sql.startsWith("SELECT u.id,u.phone"))return user;
+        if(sql.startsWith("SELECT id FROM leader_transfers WHERE status='pending'"))return pendingTransfer;
+        if(sql.startsWith("SELECT t.leader_user_id AS leaderUserId"))return oldTeam;
         if(sql.startsWith("SELECT source_id,university_id,category,canonical_name"))return catalog;
         if(sql.startsWith("SELECT id,canonical_name,category,region_name,education_level,partner_name FROM universities"))return uni;
         if(sql.startsWith("SELECT code FROM profile_option_codes WHERE option_type='major_discipline'"))return validMajor?{code:bindings[0]}:null;
@@ -132,11 +135,41 @@ assert.equal(noConsent.status,400);
 assert.equal((await noConsent.json()).error,"consent_required");
 assert.equal(noConsentDb.state.batchCalls,0);
 
-const changedDb=makeDb({user:{...baseUser,university_id:"another-university"}});
+const changedDb=makeDb({
+  user:{...baseUser,university_id:"another-university"},
+  oldTeam:{leaderUserId:"another-leader",memberCount:2}
+});
 const changed=await save(changedDb.DB,{});
-assert.equal(changed.status,409);
-assert.equal((await changed.json()).error,"university_change_requires_support");
-assert.equal(changedDb.state.batchCalls,0);
+assert.equal(changed.status,200,"an ordinary team member may reassign to another university");
+assert.equal(changedDb.state.batchCalls,1);
+assert.ok(changedDb.state.statements.some(sql=>sql.includes("COALESCE(university_id,'')=?")));
+assert.ok(changedDb.state.statements.some(sql=>sql.includes("UPDATE teams SET leader_user_id=NULL")===false),"a non-leader must not release the existing team leader");
+
+const blockedLeaderDb=makeDb({
+  user:{...baseUser,university_id:"another-university"},
+  oldTeam:{leaderUserId:"user-1",memberCount:3}
+});
+const blockedLeader=await save(blockedLeaderDb.DB,{});
+assert.equal(blockedLeader.status,409);
+assert.equal((await blockedLeader.json()).error,"team_leader_transfer_required");
+assert.equal(blockedLeaderDb.state.batchCalls,0);
+
+const soleLeaderDb=makeDb({
+  user:{...baseUser,university_id:"another-university"},
+  oldTeam:{leaderUserId:"user-1",memberCount:1}
+});
+const soleLeader=await save(soleLeaderDb.DB,{});
+assert.equal(soleLeader.status,200,"a sole-member leader may move and release the old team leadership slot");
+assert.ok(soleLeaderDb.state.statements.some(sql=>sql.includes("UPDATE teams SET leader_user_id=NULL")));
+
+const pendingTransferDb=makeDb({
+  user:{...baseUser,university_id:"another-university"},
+  pendingTransfer:{id:"pending-transfer"}
+});
+const pendingTransfer=await save(pendingTransferDb.DB,{});
+assert.equal(pendingTransfer.status,409);
+assert.equal((await pendingTransfer.json()).error,"leader_transfer_pending");
+assert.equal(pendingTransferDb.state.batchCalls,0);
 
 const getDb=makeDb({user:{...baseUser,university_id:university.id,consent_given:1,consent_at:"now",consent_version:NOTICE,
   account_consent_at:"now",account_consent_version:NOTICE,gender:"female",major_discipline_code:"08",greeting:"一路顺风",campus_id:"CN-10001-MAIN",
