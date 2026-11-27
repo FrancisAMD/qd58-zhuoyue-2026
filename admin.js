@@ -197,7 +197,7 @@ async function loadPeople(){
       (has("people:delete")?'<button type="button" class="admin-delete-button" data-person-delete="'+safe(item.id)+'" data-person-name="'+safe(item.name||"该同学")+'">删除报名</button>':"")+
       '</div></td></tr>'+
       renderPersonDetails(item);
-  }).join("")||'<tr><td colspan="8">没有符合条件的记录</td></tr>';
+  }).join("")||'<tr><td colspan="9">没有符合条件的记录</td></tr>';
   $("pageLabel").textContent="第 "+(pagination.page||1)+" / "+totalPages+" 页";
   $("prevPage").disabled=page<=1;
   $("nextPage").disabled=page>=totalPages;
