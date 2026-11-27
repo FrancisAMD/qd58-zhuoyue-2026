@@ -851,7 +851,6 @@ async function route(request, env) {
           province=regionName;city=String(profileCatalog.city_name||"");
         }
       } else if(requestedCategory==="overseas") {
-        if(user.university_id) return response({error:"university_change_requires_support"},409,origin,env);
         overseasUniversityName=String(d.university||"").trim().replace(/\s+/g," ");
         if(!overseasUniversityName||overseasUniversityName.length>160) return response({error:"overseas_university_required"},400,origin,env);
         category="overseas";reviewStatus="pending";province="";city="";
@@ -869,7 +868,18 @@ async function route(request, env) {
         province=String(d.province||"").trim();city=String(d.city||"").trim();
         if(!["mainland","hmt","sino_foreign","overseas"].includes(category)) return response({error:"university_change_requires_support"},409,origin,env);
       }
-      if(user.university_id&&universityId&&user.university_id!==universityId) return response({error:"university_change_requires_support"},409,origin,env);
+      const previousUniversityId=user.university_id||null;
+      const changingUniversity=(previousUniversityId||null)!==(universityId||null);
+      if(changingUniversity&&previousUniversityId){
+        const pendingTransfer=await env.DB.prepare("SELECT id FROM leader_transfers WHERE status='pending' AND (from_user_id=? OR to_user_id=?) LIMIT 1").bind(user.id,user.id).first();
+        if(pendingTransfer) return response({error:"leader_transfer_pending"},409,origin,env);
+        const oldTeam=await env.DB.prepare(`SELECT t.leader_user_id AS leaderUserId,
+          (SELECT COUNT(*) FROM users member WHERE member.university_id=t.university_id AND member.deleted_at='') AS memberCount
+          FROM teams t WHERE t.university_id=? LIMIT 1`).bind(previousUniversityId).first();
+        if(oldTeam?.leaderUserId===user.id&&Number(oldTeam.memberCount||0)>1){
+          return response({error:"team_leader_transfer_required"},409,origin,env);
+        }
+      }
 
       const majorDisciplineCode=String(d.majorDisciplineCode||"").trim();
       const major=await env.DB.prepare("SELECT code FROM profile_option_codes WHERE option_type='major_discipline' AND code=? AND is_active=1").bind(majorDisciplineCode).first();
@@ -888,8 +898,14 @@ async function route(request, env) {
         statements.push(env.DB.prepare("UPDATE universities SET region_name=CASE WHEN region_name='' THEN ? ELSE region_name END,education_level=CASE WHEN education_level='' THEN ? ELSE education_level END,partner_name=CASE WHEN partner_name='' THEN ? ELSE partner_name END WHERE id=?")
           .bind(regionName,educationLevel,partnerName,universityId));
       }
-      statements.push(env.DB.prepare("UPDATE users SET name=?,class_name='',high_school=?,university_id=?,grade=?,province=?,city=?,bio=NULL,greeting=?,gender=?,major_group='',major_discipline_code=?,admission_category_id=?,admission_type_id='',campus_id=?,campus_name=?,campus_tag=?,secondary_phone=?,wechat_id=?,phone_visible_to_team=1,profile_review_status=?,overseas_university_name=?,profile_review_submitted_at=CASE WHEN ?='pending' THEN ? ELSE '' END,profile_reviewed_at='',consent_given=1,consent_at=CASE WHEN consent_given=0 OR consent_version<>? THEN ? ELSE consent_at END,consent_version=?,account_consent_at=CASE WHEN account_consent_at='' OR account_consent_version<>? THEN ? ELSE account_consent_at END,account_consent_version=?,updated_at=? WHERE id=? AND deleted_at='' AND (university_id IS NULL OR university_id=?)")
-        .bind(name,highSchool,universityId,grade,province,city,greeting,gender,majorDisciplineCode,admissionCategoryId,campusId,campusName,campusTag,secondaryPhone,wechatId,reviewStatus,overseasUniversityName,reviewStatus,savedAt,PRIVACY_NOTICE_VERSION,savedAt,PRIVACY_NOTICE_VERSION,PRIVACY_NOTICE_VERSION,savedAt,PRIVACY_NOTICE_VERSION,savedAt,user.id,universityId));
+      statements.push(env.DB.prepare("UPDATE users SET name=?,class_name='',high_school=?,university_id=?,grade=?,province=?,city=?,bio=NULL,greeting=?,gender=?,major_group='',major_discipline_code=?,admission_category_id=?,admission_type_id='',campus_id=?,campus_name=?,campus_tag=?,secondary_phone=?,wechat_id=?,phone_visible_to_team=1,profile_review_status=?,overseas_university_name=?,profile_review_submitted_at=CASE WHEN ?='pending' THEN ? ELSE '' END,profile_reviewed_at='',consent_given=1,consent_at=CASE WHEN consent_given=0 OR consent_version<>? THEN ? ELSE consent_at END,consent_version=?,account_consent_at=CASE WHEN account_consent_at='' OR account_consent_version<>? THEN ? ELSE account_consent_at END,account_consent_version=?,updated_at=? WHERE id=? AND deleted_at='' AND COALESCE(university_id,'')=?")
+        .bind(name,highSchool,universityId,grade,province,city,greeting,gender,majorDisciplineCode,admissionCategoryId,campusId,campusName,campusTag,secondaryPhone,wechatId,reviewStatus,overseasUniversityName,reviewStatus,savedAt,PRIVACY_NOTICE_VERSION,savedAt,PRIVACY_NOTICE_VERSION,PRIVACY_NOTICE_VERSION,savedAt,PRIVACY_NOTICE_VERSION,savedAt,user.id,previousUniversityId||""));
+      if(changingUniversity&&previousUniversityId){
+        statements.push(env.DB.prepare(`UPDATE teams SET leader_user_id=NULL
+          WHERE university_id=? AND leader_user_id=?
+            AND NOT EXISTS(SELECT 1 FROM users WHERE university_id=? AND deleted_at='')`)
+          .bind(previousUniversityId,user.id,previousUniversityId));
+      }
       if(universityId) {
         statements.push(env.DB.prepare("UPDATE teams SET leader_user_id=? WHERE university_id=? AND leader_user_id IS NULL AND (SELECT COUNT(*) FROM users WHERE university_id=? AND deleted_at='')=1 AND EXISTS(SELECT 1 FROM users WHERE id=? AND university_id=? AND deleted_at='')").bind(user.id,universityId,universityId,user.id,universityId));
         statements.push(env.DB.prepare("INSERT OR IGNORE INTO teams(id,university_id,leader_user_id) SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM users WHERE id=? AND university_id=? AND deleted_at='')").bind(randomHex(16),universityId,user.id,user.id,universityId));
