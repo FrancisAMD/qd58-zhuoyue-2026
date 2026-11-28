@@ -589,7 +589,8 @@ function closeDemo(){$("demoPanel").hidden=true;}
 $("adminSectionNav").addEventListener("click",event=>{
   const button=event.target.closest("[data-admin-nav]");
   if(!button||button.hidden)return;
-  showAdminView(button.dataset.navTarget,{pushHistory:true});
+  const shown=showAdminView(button.dataset.navTarget,{pushHistory:true});
+  if(shown)$(button.dataset.navTarget).scrollIntoView({behavior:"smooth",block:"start"});
 });
 window.addEventListener("popstate",()=>{
   if(current&&$("dashboard")&&!$("dashboard").hidden)syncAdminNavigation();
