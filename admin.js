@@ -365,7 +365,7 @@ async function loadPeople(){
     totalPages=Math.max(1,Number(pagination.totalPages)||1);
   }
   const items=data.items||[];
-  $("peopleMeta").textContent="共 "+(pagination.total||0)+" 条账号记录。每行直接显示性别、专业、招生大类和寄语摘要；点击“完整资料”查看详细信息。手机号、第二手机号、微信号和密码不会在管理员页面或导出中展示。";
+  $("peopleMeta").textContent="共 "+(pagination.total||0)+" 条账号记录。每位同学以独立卡片展示高校、年级、地区、入群确认和资料摘要；点击“完整资料”查看详细信息。手机号、第二手机号、微信号和密码不会在管理员页面或导出中展示。";
   $("peopleRows").innerHTML=items.map(item=>{
     const school=item.university||"尚未选择高校";
     const state=item.profileReviewStatus==="pending"?"待审核":"";
