@@ -38,7 +38,14 @@ missing = sorted(required - parser.ids)
 if missing:
     parser.errors.append("Missing form id(s): " + ", ".join(missing))
 html_text = html_path.read_text(encoding="utf-8")
+style_text = (html_path.parent / "style.css").read_text(encoding="utf-8")
 for marker in [
+    'class="art-logo"',
+    'data-light-src="assets/58-logo-light.png"',
+    'data-dark-src="assets/58-logo-dark.png"',
+    '2026 · 冬日返校计划',
+    'class="home-faq-answer"',
+
     'data-journey-step="university"',
     'data-journey-step="profile"',
     'data-journey-step="directory"',
@@ -56,6 +63,10 @@ if "<header" in html_text:
     parser.errors.append("The old global header must remain removed from the member UI.")
 if html_text.find('id="accountBottom"') < html_text.find('id="groups"'):
     parser.errors.append("Account actions and account deletion must be placed after the directory page.")
+if ".home-faq-answer{" not in style_text or "background:var(--paper)" not in style_text:
+    parser.errors.append("Homepage FAQ answers must use the paper card surface.")
+if ".art-logo{" not in style_text or ".dialog .mark.auth-brand{" not in style_text:
+    parser.errors.append("Homepage logo and login brand styles are missing.")
 if parser.errors:
     raise SystemExit("\\n".join(parser.errors))
 print("Frontend HTML form structure smoke test passed.")
