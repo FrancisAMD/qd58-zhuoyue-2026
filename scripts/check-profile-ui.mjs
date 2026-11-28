@@ -52,7 +52,7 @@ assert.match(html,/class="home-faq-question"/,"FAQ cards should have a dedicated
 assert.match(html,/class="home-faq-answer"/,"FAQ answers should be present in the static card layout");
 assert.match(css,/\.home-faq-list\{[\s\S]*?grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/,"FAQ should use three horizontal columns on desktop");
 assert.match(css,/@media\(max-width:760px\)[\s\S]*?\.home-faq-list\{grid-template-columns:minmax\(0,1fr\)/,"FAQ should stack vertically on mobile");
-assert.match(css,/\.home-faq-question strong\{[\s\S]*?system-ui,"Noto Sans SC"/,"FAQ question text should use the site's readable sans-serif text face");
+assert.match(css,/\.home-faq-question strong\{[\s\S]*?"Source Han Sans CN"/,"FAQ question text should use the site's readable sans-serif text face");
 assert.match(css,/\.home-faq-answer p\{[\s\S]*?font:400 15px\/1\.9 system-ui/,"FAQ answer copy should use a larger readable font");
 assert.match(html,/typography\.css\?v=20261128-hierarchy-v2/,"homepage must load the shared typography system last");
 assert.match(typography,/--type-body:15px/,"main copy should use a balanced fifteen-pixel size");
@@ -117,13 +117,13 @@ assert.ok(js.includes('$("retrySession").onclick'),"failed session checks must a
 assert.ok(theme.includes('document.querySelectorAll("img[data-light-src][data-dark-src]")'),"theme script must synchronize all theme-specific image elements");
 assert.ok(css.includes("min-height:100svh;")&&css.includes("padding:28px 20px 16vh"),"boot content should sit slightly above the vertical center");
 assert.ok(css.includes("width:clamp(176px,22vw,244px)"),"boot logo should be large on desktop");
-assert.ok(css.includes('"Noto Serif SC","Songti SC","STSong",serif!important'),"Chinese welcome copy should use an elegant serif face");
+assert.ok(css.includes('"LXGW WenKai Lite",serif!important'),"Chinese welcome copy should use an elegant serif face");
 assert.ok(css.includes("Georgia,\"Times New Roman\",serif!important"),"English welcome copy should use a refined serif face");
 assert.match(html,/id="journeySteps"/,"homepage must retain the three-step navigation");
-assert.match(html,/style\.css\?v=20261128-login-brand-font-v1/,"homepage must load the latest shared stylesheet");
+assert.match(html,/style\.css\?v=20261128-local-fonts-v1/,"homepage must load the latest shared stylesheet");
 assert.match(html,/class="art-logo"[\s\S]*?data-light-src="assets\/58-logo-light\.png"[\s\S]*?data-dark-src="assets\/58-logo-dark\.png"/,"hero illustration must use the light/dark school logos");
 assert.match(html,/class="auth-brand"[\s\S]*?2026 · 冬日返校计划/,"login modal must display the school logo and new campaign identity");
-assert.ok(css.includes('.dialog .auth-brand span{')&&css.includes('font:600 18px/1.45 "Noto Serif SC","Songti SC","STSong",serif;'),"login brand should use the title serif font without the generic mark tile");
+assert.ok(css.includes('.dialog .auth-brand span{')&&css.includes('font:600 18px/1.45 "LXGW WenKai Lite",serif;'),"login brand should use the title serif font without the generic mark tile");
 assert.ok(css.includes("#appStage>.journey-steps,")&&css.includes("#appStage>#accountBottom{")&&css.includes("width:min(100%,1156px);")&&css.includes("padding-left:28px;"),"desktop journey sections and account removal notice must share the same outer width and inner gutters");
 assert.ok(css.includes("@media(max-width:760px){")&&css.includes("#appStage>.section#groups,")&&css.includes("width:100%;")&&css.includes("padding-left:16px;"),"mobile journey sections and account removal notice must share the same width and gutters");
 assert.ok(css.includes("#appStage>#accountBottom{\n  padding-top:0;"),"account removal notice should align directly beneath the same content column");
