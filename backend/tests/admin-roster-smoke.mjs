@@ -172,8 +172,9 @@ const csvExport=await get("/api/admin/people?format=csv&province=%E5%B1%B1%E4%B8
 assert.equal(csvExport.status,200,"authenticated CSV export should succeed when the exact app Origin is present");
 assert.match(csvExport.headers.get("content-type")||"",/text\/csv/);
 assert.match(csvExport.headers.get("content-disposition")||"",/zhuoyue-2026-roster\.csv/);
-const csvText=await csvExport.text();
-assert.ok(csvText.startsWith("\uFEFF"),"CSV export should retain its UTF-8 BOM");
+const csvBytes=new Uint8Array(await csvExport.arrayBuffer());
+assert.ok(csvBytes.length>3&&csvBytes[0]===0xef&&csvBytes[1]===0xbb&&csvBytes[2]===0xbf,"CSV export should retain its UTF-8 BOM");
+const csvText=new TextDecoder().decode(csvBytes);
 assert.ok(csvText.includes("威海校区同学"),"CSV export should contain filtered roster rows");
 const csvSelect=queries.filter(item=>item.kind==="all"&&item.sql.startsWith("SELECT u.id,u.name,u.high_school")).at(-1);
 assert.deepEqual(csvSelect.bindings.slice(-2),[5000,0],"CSV export should return all filtered records, not only the current UI page");
