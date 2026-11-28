@@ -39,7 +39,32 @@ if missing:
     parser.errors.append("Missing form id(s): " + ", ".join(missing))
 html_text = html_path.read_text(encoding="utf-8")
 style_text = (html_path.parent / "style.css").read_text(encoding="utf-8")
-for marker in [
+
+typography_text = (html_path.parent / "typography.css").read_text(encoding="utf-8")
+admin_text = (html_path.parent / "admin.html").read_text(encoding="utf-8")
+privacy_text = (html_path.parent / "privacy.html").read_text(encoding="utf-8")
+font_dir = html_path.parent / "assets" / "fonts"
+font_files = {
+    "LXGW WenKai Lite": font_dir / "lxgw-wenkai-lite-regular.woff2",
+    "Source Han Sans CN": font_dir / "source-han-sans-cn-variable.woff2",
+}
+for font_name, font_path in font_files.items():
+    if not font_path.is_file():
+        parser.errors.append(f"Missing locally hosted {font_name} font: {font_path}")
+    elif font_path.read_bytes()[:4] != b"wOF2":
+        parser.errors.append(f"Invalid WOFF2 signature for {font_name}: {font_path}")
+for page_name, page_text in (("index.html", html_text), ("admin.html", admin_text), ("privacy.html", privacy_text)):
+    if 'typography.css?v=20261128-local-fonts-v1' not in page_text:
+        parser.errors.append(f"{page_name} must load the current local-font typography stylesheet.")
+    if 'style.css?v=20261128-local-fonts-v1' not in page_text:
+        parser.errors.append(f"{page_name} must load the current local-font base stylesheet.")
+if "fonts.googleapis.com" in style_text or "fonts.googleapis.com" in typography_text:
+    parser.errors.append("Google Fonts must not be requested; all Chinese fonts must be self-hosted.")
+if 'lxgw-wenkai-lite-regular.woff2' not in typography_text:
+    parser.errors.append("LXGW WenKai Lite must be declared as a local web font.")
+if 'source-han-sans-cn-variable.woff2' not in typography_text:
+    parser.errors.append("Source Han Sans CN must be declared as a local web font.")
+\nfor marker in [
     'class="art-logo"',
     'data-light-src="assets/58-logo-light.png"',
     'data-dark-src="assets/58-logo-dark.png"',
