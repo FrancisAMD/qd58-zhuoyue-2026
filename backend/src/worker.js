@@ -1962,51 +1962,64 @@ if(path==="/api/teams/transfer" && method==="POST") {
           id: backupId,
           params: { backupId, source: "manual", requestedBy: admin.id }
         });
-        await writeAudit(env.DB,"admin",admin.id,"admin.backup.started","d1_backup",backupId,{source:"manual"});
-        return response({ok:true,backupId,workflowInstanceId:instance.id},202,origin,env);
+        let auditRecorded = true;
+        try { await writeAudit(env.DB,"admin",admin.id,"admin.backup.started","d1_backup",backupId,{source:"manual"}); }
+        catch (error) {
+          auditRecorded = false;
+          console.error("Manual backup started but audit write failed",error?.message||"unknown");
+        }
+        return response({ok:true,backupId,workflowInstanceId:instance.id,auditRecorded},202,origin,env);
       } catch (error) {
         console.error("Manual D1 backup could not be started",error?.message||"unknown");
         return response({error:"backup_start_failed"},503,origin,env);
       }
     }
     try {
-      const page = await env.D1_BACKUPS.list({prefix:"d1-backups/v1/manifests/",limit:100});
       const items = [];
       let unreadable = 0;
-      for (const objectInfo of page.objects || []) {
-        const object = await env.D1_BACKUPS.get(objectInfo.key);
-        if (!object) continue;
-        try {
-          const manifest = await object.json();
-          if (!manifest || !/^[a-f0-9]{32}$/.test(manifest.backupId||"") ||
-              objectInfo.key !== backupManifestKey(manifest.backupId) ||
-              manifest.format !== "qd58-d1-backup" || manifest.schemaVersion !== 1) {
+      let cursor;
+      do {
+        const page = await env.D1_BACKUPS.list({
+          prefix:"d1-backups/v1/manifests/",limit:1000,
+          ...(cursor?{cursor}:{})
+        });
+        for (const objectInfo of page.objects || []) {
+          const object = await env.D1_BACKUPS.get(objectInfo.key);
+          if (!object) continue;
+          try {
+            const manifest = await object.json();
+            if (!manifest || !/^[a-f0-9]{32}$/.test(manifest.backupId||"") ||
+                objectInfo.key !== backupManifestKey(manifest.backupId) ||
+                manifest.format !== "qd58-d1-backup" || manifest.schemaVersion !== 1) {
+              unreadable++;
+              continue;
+            }
+            const master = await getBackupMasterKey(env,manifest.keyVersion);
+            if (!(await verifyBackupManifest(manifest,master))) {
+              unreadable++;
+              continue;
+            }
+            items.push({
+              backupId:manifest.backupId,status:manifest.status,
+              createdAt:manifest.createdAt||"",completedAt:manifest.completedAt||"",
+              plaintextBytes:Number(manifest.plaintextBytes)||0,
+              ciphertextBytes:Number(manifest.ciphertextBytes)||0,
+              partCount:Number(manifest.partCount)||0,
+              source:manifest.source||"unknown",
+              verification:manifest.verification?.status||"not_checked",
+              verifiedAt:manifest.verification?.checkedAt||"",
+              errorCode:manifest.errorCode||manifest.verification?.errorCode||""
+            });
+          } catch {
             unreadable++;
-            continue;
           }
-          const master = await getBackupMasterKey(env,manifest.keyVersion);
-          if (!(await verifyBackupManifest(manifest,master))) {
-            unreadable++;
-            continue;
-          }
-          items.push({
-            backupId:manifest.backupId,status:manifest.status,
-            createdAt:manifest.createdAt||"",completedAt:manifest.completedAt||"",
-            plaintextBytes:Number(manifest.plaintextBytes)||0,
-            ciphertextBytes:Number(manifest.ciphertextBytes)||0,
-            partCount:Number(manifest.partCount)||0,
-            source:manifest.source||"unknown",
-            verification:manifest.verification?.status||"not_checked",
-            verifiedAt:manifest.verification?.checkedAt||"",
-            errorCode:manifest.errorCode||manifest.verification?.errorCode||""
-          });
-        } catch {
-          unreadable++;
         }
-      }
+        cursor = page.truncated ? page.cursor : undefined;
+      } while (cursor);
       items.sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));
+      const truncated = items.length > 100;
       return response({
-        items,unreadable,truncated:page.truncated===true,
+        items:items.slice(0,100),unreadable,truncated,
         workflowConfigured:!!env.D1_BACKUP_WORKFLOW,
         exportConfigured:!!env.CLOUDFLARE_ACCOUNT_ID&&!!env.CLOUDFLARE_API_TOKEN&&!!env.D1_DATABASE_ID,
         encryptionConfigured:typeof env.BACKUP_MASTER_KEY_V1==="string"&&env.BACKUP_MASTER_KEY_V1.length>=32
@@ -2059,25 +2072,43 @@ if(path==="/api/teams/transfer" && method==="POST") {
         const instance = await env.D1_BACKUP_WORKFLOW.create({
           id:instanceId,params:{action:"verify",backupId,requestedBy:admin.id}
         });
-        await writeAudit(env.DB,"admin",admin.id,"admin.backup.verification_started","d1_backup",backupId,{});
-        return response({ok:true,workflowInstanceId:instance.id},202,origin,env);
+        let auditRecorded = true;
+        try { await writeAudit(env.DB,"admin",admin.id,"admin.backup.verification_started","d1_backup",backupId,{}); }
+        catch (error) {
+          auditRecorded = false;
+          console.error("Backup verification started but audit write failed",error?.message||"unknown");
+        }
+        return response({ok:true,workflowInstanceId:instance.id,auditRecorded},202,origin,env);
       }
       if (!action && method === "DELETE") {
         if (manifest.status === "running") return response({error:"backup_running"},409,origin,env);
         if (manifest.status === "completed") {
-          const page = await env.D1_BACKUPS.list({prefix:"d1-backups/v1/manifests/",limit:100});
           let otherCompleted = 0;
-          for (const item of page.objects || []) {
-            if (item.key === backupManifestKey(backupId)) continue;
-            const otherObject = await env.D1_BACKUPS.get(item.key);
-            if (!otherObject) continue;
-            try {
-              const other = await otherObject.json();
-              if (other?.status !== "completed" || other?.format !== "qd58-d1-backup") continue;
-              const otherMaster = await getBackupMasterKey(env,other.keyVersion);
-              if (await verifyBackupManifest(other,otherMaster)) otherCompleted++;
-            } catch {}
-          }
+          let cursor;
+          do {
+            const page = await env.D1_BACKUPS.list({
+              prefix:"d1-backups/v1/manifests/",limit:1000,
+              ...(cursor?{cursor}:{})
+            });
+            for (const item of page.objects || []) {
+              if (item.key === backupManifestKey(backupId)) continue;
+              const otherObject = await env.D1_BACKUPS.get(item.key);
+              if (!otherObject) continue;
+              try {
+                const other = await otherObject.json();
+                if (other?.status !== "completed" || other?.format !== "qd58-d1-backup") continue;
+                const otherMaster = await getBackupMasterKey(env,other.keyVersion);
+                if (!(await verifyBackupManifest(other,otherMaster))) continue;
+                const storedObject = await env.D1_BACKUPS.head(other.objectKey);
+                if (storedObject && Number(storedObject.size) === Number(other.ciphertextBytes)) {
+                  otherCompleted++;
+                  break;
+                }
+              } catch {}
+            }
+            if (otherCompleted) break;
+            cursor = page.truncated ? page.cursor : undefined;
+          } while (cursor);
           if (!otherCompleted) return response({error:"backup_last_successful_protected"},409,origin,env);
         }
         if (manifest.objectKey) await env.D1_BACKUPS.delete(manifest.objectKey);
