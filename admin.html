@@ -134,6 +134,21 @@
       <div class="table-wrap"><table class="admin-table"><thead><tr><th>时间</th><th>操作者</th><th>操作</th><th>对象</th><th>记录摘要</th></tr></thead><tbody id="auditRows"></tbody></table></div>
     </section>
 
+    <section id="backupPanel" class="panel" hidden>
+      <div class="admin-heading">
+        <div><p class="eyebrow">DATABASE BACKUPS</p><h3>数据库备份管理</h3></div>
+        <div class="admin-actions">
+          <button id="refreshBackups" class="ghost" type="button">刷新备份</button>
+          <button id="createBackup" class="btn" type="button">立即备份</button>
+        </div>
+      </div>
+      <p class="muted">系统每天日本时间 03:00 自动导出 D1，并在写入独立私有 R2 前使用 AES-256-GCM 分块加密。只有所有者可以查看、验证、下载或删除备份。D1 导出期间可能短暂无法处理查询，请勿在高峰时段手动触发。</p>
+      <div id="backupConfigStatus" class="admin-panel-status" role="status"></div>
+      <p id="backupAdminMsg" class="msg" role="status" aria-live="polite"></p>
+      <div id="backupRows" class="backup-list"></div>
+      <p class="muted">下载的是加密文件，不是明文 SQL。完整恢复仍须在独立测试 D1 中执行，并先处理快照时间点之后的账号删除台账；当前面板不会提供覆盖生产库的一键恢复。</p>
+    </section>
+
     <section id="managePanel" class="panel" hidden>
       <p class="eyebrow">ACCESS CONTROL</p><h3>管理员账号与角色</h3>
       <form id="createAdmin" class="admin-filters">
@@ -146,6 +161,6 @@
     </section>
   </section>
 </main>
-<script src="admin.js?v=20261127-admin-rbac-v2" defer></script>
+<script src="admin.js?v=20261128-d1-backups-v1" defer></script>
 </body>
 </html>
