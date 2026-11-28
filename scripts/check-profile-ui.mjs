@@ -23,7 +23,7 @@ assert.match(html, /<section id="registrationUniversityPanel" class="profile-sta
 assert.match(html, /<section id="registrationDetailsPanel" class="profile-stage-panel" hidden>/, "profile details must remain their own main card");
 assert.match(css, /#profile\.profile-form-shell\{[\s\S]*?background:transparent;[\s\S]*?box-shadow:none;/, "profile form shell must not draw a nested outer frame");
 assert.match(css, /#profile\.profile-form-shell>\.profile-stage-panel\{[\s\S]*?background:var\(--paper\)/, "each journey step should render as an independent primary card");
-assert.match(css, /--field-border:#46584b/, "dark inner tiles should use matching muted green-grey borders");
+assert.match(css, /--field-border:#354239/, "dark inner tiles should use matching muted green-grey borders");
 assert.match(css,/@media\(min-width:761px\)[\s\S]*?#join>#profile\s*\{[^}]*width:100%[^}]*max-width:none/,"desktop registration form must fill the section width and align with the journey and account bars");
 assert.match(html,/id="registerFields" class="register-fields"(?! disabled)/,"registration inputs must remain usable");
 assert.match(html,/id="regCreate"(?! disabled)/,"registration submit must be available after the SMS code is entered");
@@ -38,7 +38,7 @@ assert.doesNotMatch(js,/check-phone/,"frontend must not call a phone-enumeration
 assert.doesNotMatch(html,/auth-required-panel|MEMBERS ONLY · FOR 58ERS/,"the login/register helper banner must be removed so the homepage FAQ is prominent");
 assert.match(html,/id="homeFaq"/,"the homepage FAQ must remain directly after the hero");
 assert.match(css,/--field-bg:#edf0ed/,"light mode must use a neutral grey fill for second-level surfaces");
-assert.match(css,/--field-bg:#29382f/,"dark mode must use a neutral grey fill for second-level surfaces");
+assert.match(css,/--field-bg:#1A241E/,"dark mode must use a neutral grey fill for second-level surfaces");
 assert.match(css,/body input:not\(\[type="checkbox"\]\)[\s\S]*?background:var\(--field-bg\)!important/,"editable fields must use the shared grey surface token");
 assert.match(css,/#results\.cards>\.classmate-card\.panel\{[\s\S]*?background:var\(--field-bg\)!important/,"classmate tiles must use grey surfaces inside the green directory panel");
 assert.match(css,/#teamSummary>\.directory-team-grid>div\{[\s\S]*?background:var\(--field-bg\)!important/,"team summary tiles must use grey surfaces");
@@ -61,9 +61,9 @@ assert.match(theme,/image\.dataset\[theme \+ "Src"\]/,"theme script must select 
 assert.match(theme,/DOMContentLoaded", updateThemeImages/,"initial themed-image selection must run after the head-loaded theme script can see the images");
 assert.match(theme,/new MutationObserver\(updateThemeImages\)/,"themed images must react if the data-theme attribute changes");
 assert.match(html,/data-fallback-src="assets\/donation-qr-15\.png"/,"old QR must remain as a safe fallback while theme-specific images are not deployed");
-assert.match(css,/--field-bg:#29382f/,"deep dark nested surface should match the supplied green-grey reference");
-assert.match(css,/--field-border:#46584b/,"deep dark nested surface should use the muted green-grey border");
-assert.match(css,/:root\[data-theme="dark"\] body :is\([\s\S]*?#teamSummary>\.directory-team-grid>div,[\s\S]*?#results\.cards>\.classmate-card\.panel,[\s\S]*?\.admin-team-card,[\s\S]*?background:#29382f!important/,"main nested info cards should use the same deep pine-grey surface");
+assert.match(css,/--field-bg:#1A241E/,"deep dark nested surface should match the supplied green-grey reference");
+assert.match(css,/--field-border:#354239/,"deep dark nested surface should use the muted green-grey border");
+assert.match(css,/:root\[data-theme="dark"\] body :is\([\s\S]*?#teamSummary>\.directory-team-grid>div,[\s\S]*?#results\.cards>\.classmate-card\.panel,[\s\S]*?\.admin-team-card,[\s\S]*?background:#1A241E!important/,"main nested info cards should use the same deep #1A241E surface");
 assert.match(html,/id="bootLogo"[^>]*src="assets\/58-logo-light\.png"[^>]*data-light-src="assets\/58-logo-light\.png"[^>]*data-dark-src="assets\/58-logo-dark\.png"/,"boot logo must declare the correct light and dark assets");
 assert.match(html,/id="bootMessage" class="boot-status">正在确认登录状态/,"boot screen must initially show the session-check message");
 assert.match(html,/id="bootWelcome" class="boot-welcome" hidden>[\s\S]*?欢迎回到青岛五十八中[\s\S]*?Welcome Back to QD58ZX/,"boot welcome must show the requested Chinese and English lines");
