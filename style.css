@@ -1435,3 +1435,45 @@ body :where(input,select,textarea){
     font-size:max(14px,1em)!important;
   }
 }
+
+
+/* Deep pine-grey second-level surfaces, sampled from the supplied team-card reference. */
+:root[data-theme="dark"] body{
+  --field-bg:#29382f;
+  --field-border:#46584b;
+}
+:root[data-theme="dark"] body :is(
+  #teamSummary>.directory-team-grid>div,
+  #results.cards>.classmate-card.panel,
+  .university-type-card:not(.selected),
+  .selected-university-type,
+  .category-fields,
+  .selected-university-panel,
+  .university-result,
+  .university-search-empty,
+  .register-phone-status,
+  .group-chat-qr-frame,
+  .admin-stats .stat,
+  .admin-team-card,
+  .admin-profile-field,
+  .admin-profile-detail-row>td,
+  .admin-review-card,
+  .admin-account,
+  .transfer-record,
+  .group-qr-upload-card,
+  .group-qr-asset-block,
+  .group-chat-confirmation-block,
+  .group-qr-asset-card,
+  .admin-profile-preview span,
+  .admin-team-card-tags span,
+  .donation-list-row,
+  .donation-admin-row,
+  .donation-admin-fields
+){
+  background:#29382f!important;
+  border-color:#46584b!important;
+}
+:root[data-theme="dark"] body .donation-list-empty{
+  background:#29382f;
+  border-color:#46584b;
+}
