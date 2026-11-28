@@ -109,7 +109,8 @@ assert.match(css,/\.admin-profile-details/);
 assert.match(css,/\.admin-team-grid/);
 assert.match(css,/justify-self:center/);
 
-assert.match(html,/资料概览 \/ 完整资料/);
+assert.match(js,/每位同学以独立卡片展示高校、年级、地区、入群确认和资料摘要/,"roster guidance should describe the new card layout");
+assert.match(js,/pageSize=10/,"roster should retain ten records per page");
 assert.match(html,/仅显示最近 10 条记录/);
 assert.match(js,/function renderProfilePreview\(item\)/);
 assert.match(js,/class="admin-person-card"/,"each person must render as an independent card");
