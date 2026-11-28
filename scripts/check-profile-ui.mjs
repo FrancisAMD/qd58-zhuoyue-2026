@@ -8,6 +8,14 @@ const css=readFileSync(new URL("style.css",root),"utf8");
 const theme=readFileSync(new URL("theme.js",root),"utf8");
 const typography=readFileSync(new URL("typography.css",root),"utf8");
 const uiSections=readFileSync(new URL("ui-sections.css",root),"utf8");
+const lxgwFont=readFileSync(new URL("assets/fonts/lxgw-wenkai-lite-regular.woff2",root));
+const sourceHanFont=readFileSync(new URL("assets/fonts/source-han-sans-cn-variable.woff2",root));
+assert.equal(lxgwFont.subarray(0,4).toString(),"wOF2","LXGW WenKai Lite must be a valid self-hosted WOFF2 asset");
+assert.equal(sourceHanFont.subarray(0,4).toString(),"wOF2","Source Han Sans CN must be a valid self-hosted WOFF2 asset");
+assert.match(typography,/font-family:"LXGW WenKai Lite"[\\s\\S]*?lxgw-wenkai-lite-regular\\.woff2/,"headings must use locally hosted LXGW WenKai Lite");
+assert.match(typography,/font-family:"Source Han Sans CN"[\\s\\S]*?source-han-sans-cn-variable\\.woff2/,"body copy must use locally hosted Source Han Sans CN");
+assert.doesNotMatch(css,/fonts\\.googleapis\\.com|Noto Serif SC|Noto Sans SC|system-ui/,"base stylesheet must not use Google Fonts or system-only Chinese font stacks");
+
 
 assert.match(html,/name="highSchool" value="青岛五十八中"/,"high-school field must default to Qingdao No. 58 High School");
 assert.match(html,/<option selected>大一<\/option>/,"grade selector must default to freshman year");
@@ -53,8 +61,8 @@ assert.match(html,/class="home-faq-answer"/,"FAQ answers should be present in th
 assert.match(css,/\.home-faq-list\{[\s\S]*?grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/,"FAQ should use three horizontal columns on desktop");
 assert.match(css,/@media\(max-width:760px\)[\s\S]*?\.home-faq-list\{grid-template-columns:minmax\(0,1fr\)/,"FAQ should stack vertically on mobile");
 assert.match(css,/\.home-faq-question strong\{[\s\S]*?"Source Han Sans CN"/,"FAQ question text should use the site's readable sans-serif text face");
-assert.match(css,/\.home-faq-answer p\{[\s\S]*?font:400 15px\/1\.9 system-ui/,"FAQ answer copy should use a larger readable font");
-assert.match(html,/typography\.css\?v=20261128-hierarchy-v2/,"homepage must load the shared typography system last");
+assert.match(css,/\.home-faq-answer p\{[\s\S]*?font:400 15px\/1\.9 "Source Han Sans CN"/,"FAQ answer copy should use a larger readable font");
+assert.match(html,/typography\.css\?v=20261128-local-fonts-v1/,"homepage must load the shared typography system last");
 assert.match(typography,/--type-body:15px/,"main copy should use a balanced fifteen-pixel size");
 assert.match(typography,/--type-secondary:13\.5px/,"supporting copy should remain readable without becoming oversized");
 assert.match(typography,/--type-control:15px/,"form controls should have a consistent readable size");
