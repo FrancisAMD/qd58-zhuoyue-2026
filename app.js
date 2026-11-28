@@ -750,33 +750,58 @@ $("profile").onsubmit=async event=>{
     msg("profileMsg",errors[error.message]||"保存失败，请检查资料后重试",true);
   }
 };
-document.querySelectorAll("[data-toggle-password]").forEach(b=>b.onclick=()=>{const input=$(b.dataset.togglePassword);const visible=input.type==="password";input.type=visible?"text":"password";b.textContent=visible?"隐藏":"显示"});document.querySelectorAll("[data-view]").forEach(x=>x.onclick=()=>{document.querySelectorAll("[data-view]").forEach(b=>b.classList.toggle("active",b===x));view=x.dataset.view;render()});$("search").oninput=render;function selectDonationAmount(amount){
-  if(amount!==5&&amount!==15)return;
-  const image=$("donationQrImage");
-  if(!image)return;
-  const light=image.dataset["amount"+amount+"LightSrc"];
-  const dark=image.dataset["amount"+amount+"DarkSrc"];
-  if(!light||!dark)return;
-  image.dataset.lightSrc=light;
-  image.dataset.darkSrc=dark;
-  image.dataset.fallbackSrc=light;
-  image.dataset.selectedAmount=String(amount);
-  const theme=document.documentElement.dataset.theme==="dark"?"dark":"light";
-  const target=theme==="dark"?dark:light;
-  image.dataset.activeThemeSrc=target;
-  image.alt="￥"+amount+" 捐赠收款二维码";
-  image.onerror=()=>{
-    image.onerror=null;
-    if(image.dataset.activeThemeSrc!==target)return;
-    const fallback=image.dataset.fallbackSrc||image.dataset.lightSrc;
-    if(fallback&&image.src!==new URL(fallback,document.baseURI).href)image.src=fallback;
-  };
-  image.src=target;
+document.querySelectorAll("[data-toggle-password]").forEach(b=>b.onclick=()=>{const input=$(b.dataset.togglePassword);const visible=input.type==="password";input.type=visible?"text":"password";b.textContent=visible?"隐藏":"显示"});document.querySelectorAll("[data-view]").forEach(x=>x.onclick=()=>{document.querySelectorAll("[data-view]").forEach(b=>b.classList.toggle("active",b===x));view=x.dataset.view;render()});$("search").oninput=render;const DONATION_AMOUNTS=[5,10,15];
+function selectDonationAmount(amount){
+  if(!DONATION_AMOUNTS.includes(amount))return;
   document.querySelectorAll("[data-donation-amount]").forEach(button=>{
     const selected=Number(button.dataset.donationAmount)===amount;
     button.classList.toggle("active",selected);
     button.setAttribute("aria-pressed",String(selected));
   });
+  const image=$("donationQrImage"),pending=$("donationQrPending");
+  if(!image)return;
+  image.dataset.selectedAmount=String(amount);
+  image.alt="￥"+amount+" 捐赠收款二维码";
+  image.hidden=true;
+  if(pending){
+    pending.hidden=false;
+    $("donationQrPendingTitle").textContent="￥"+amount+" 二维码";
+    $("donationQrPendingText").textContent="正在加载对应金额的收款二维码…";
+  }
+  const light=image.getAttribute("data-amount-"+amount+"-light-src");
+  const dark=image.getAttribute("data-amount-"+amount+"-dark-src");
+  image.dataset.lightSrc=light||"";
+  image.dataset.darkSrc=dark||"";
+  image.dataset.fallbackSrc="";
+  image.dataset.activeThemeSrc="";
+  if(!light||!dark){
+    if(pending)$("donationQrPendingText").textContent="该金额的二维码资源尚未配置，补充图片后即可显示。";
+    return;
+  }
+  const theme=document.documentElement.dataset.theme==="dark"?"dark":"light";
+  const target=theme==="dark"?dark:light;
+  image.dataset.activeThemeSrc=target;
+  image.onload=()=>{
+    if(image.dataset.activeThemeSrc!==target)return;
+    image.hidden=false;
+    if(pending)pending.hidden=true;
+  };
+  image.onerror=()=>{
+    if(image.dataset.activeThemeSrc!==target)return;
+    image.hidden=true;
+    if(pending){
+      pending.hidden=false;
+      $("donationQrPendingTitle").textContent="￥"+amount+" 二维码尚未就绪";
+      $("donationQrPendingText").textContent=amount===10
+        ?"10 元二维码图片尚未上传；上传后点击 ￥10 即可显示。"
+        :"二维码图片暂时无法加载，请检查资源路径后重试。";
+    }
+  };
+  image.src=target;
+  if(image.complete&&image.naturalWidth>0){
+    image.hidden=false;
+    if(pending)pending.hidden=true;
+  }
 }
 document.querySelectorAll("[data-donation-amount]").forEach(button=>{
   button.addEventListener("click",()=>selectDonationAmount(Number(button.dataset.donationAmount)));
