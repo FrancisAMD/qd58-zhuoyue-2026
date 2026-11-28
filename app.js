@@ -765,6 +765,12 @@ document.querySelectorAll("[data-toggle-password]").forEach(b=>b.onclick=()=>{co
   const target=theme==="dark"?dark:light;
   image.dataset.activeThemeSrc=target;
   image.alt="￥"+amount+" 捐赠收款二维码";
+  image.onerror=()=>{
+    image.onerror=null;
+    if(image.dataset.activeThemeSrc!==target)return;
+    const fallback=image.dataset.fallbackSrc||image.dataset.lightSrc;
+    if(fallback&&image.src!==new URL(fallback,document.baseURI).href)image.src=fallback;
+  };
   image.src=target;
   document.querySelectorAll("[data-donation-amount]").forEach(button=>{
     const selected=Number(button.dataset.donationAmount)===amount;
