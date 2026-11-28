@@ -653,7 +653,7 @@ $("peopleRows").addEventListener("click",async event=>{
     try{
       await req("/admin/people/"+encodeURIComponent(userId),null,"DELETE");
       $("adminPanelStatus").textContent="已删除「"+name+"」的报名及账号，历史组长转让记录已保留。";
-      await Promise.all([loadPeople(),loadOverview()]);
+      await Promise.all([loadPeople(),loadOverview(),loadTeams()]);
     }catch(error){
       $("adminPanelStatus").textContent=errorMessage(error);
       deleteButton.disabled=false;
@@ -680,6 +680,22 @@ $("refreshAdminData").onclick=async()=>{
     console.error("Admin team refresh failed",error?.message||"unknown");
   }finally{button.disabled=false;}
 };
+$("teamFilters").onsubmit=event=>{
+  event.preventDefault();
+  readTeamFilters();
+  teamPage=1;
+  loadTeams().catch(error=>showError("teamsMeta",error));
+};
+$("clearTeamFilters").onclick=()=>{
+  $("teamFilters").reset();
+  readTeamFilters();
+  teamPage=1;
+  loadTeams().catch(error=>showError("teamsMeta",error));
+};
+$("teamFirstPage").onclick=()=>{if(teamPage>1){teamPage=1;loadTeams().catch(error=>showError("teamsMeta",error));}};
+$("teamPrevPage").onclick=()=>{if(teamPage>1){teamPage--;loadTeams().catch(error=>showError("teamsMeta",error));}};
+$("teamNextPage").onclick=()=>{if(teamPage<teamTotalPages){teamPage++;loadTeams().catch(error=>showError("teamsMeta",error));}};
+$("teamLastPage").onclick=()=>{if(teamPage<teamTotalPages){teamPage=teamTotalPages;loadTeams().catch(error=>showError("teamsMeta",error));}};
 $("filters").onsubmit=async event=>{
   event.preventDefault();
   readFilters();
@@ -758,7 +774,7 @@ $("universityReviewRows").addEventListener("click",async event=>{
       $("universityReviewMsg").textContent="已拒绝该条海外高校登记。";
     }
     await loadUniversityReviews();
-    await loadOverview();
+    await Promise.all([loadOverview(),loadTeams()]);
   }catch(error){
     showError("universityReviewMsg",error);
     siblings.forEach(item=>item.disabled=false);
