@@ -143,7 +143,7 @@
           <button id="createBackup" class="btn" type="button">立即备份</button>
         </div>
       </div>
-      <p class="muted">系统每天日本时间 03:00 自动导出 D1，并在写入独立私有 R2 前使用 AES-256-GCM 分块加密。只有所有者可以查看、验证、下载或删除备份。D1 导出期间可能短暂无法处理查询，请勿在高峰时段手动触发。</p>
+      <p class="muted">GitHub Actions 每天日本时间 03:05 自动导出 D1，在 GitHub 临时 Runner 中使用 AES-256-GCM 分块加密并上传到独立私有 R2。只有所有者可以查看、验证、下载或删除备份。D1 导出期间可能短暂无法处理查询，请勿在高峰时段手动触发。</p>
       <div id="backupConfigStatus" class="admin-panel-status" role="status"></div>
       <p id="backupAdminMsg" class="msg" role="status" aria-live="polite"></p>
       <div id="backupRows" class="backup-list"></div>
@@ -162,6 +162,6 @@
     </section>
   </section>
 </main>
-<script src="admin.js?v=20261128-d1-backups-v1" defer></script>
+<script src="admin.js?v=20261128-github-actions-backup-v1" defer></script>
 </body>
 </html>
