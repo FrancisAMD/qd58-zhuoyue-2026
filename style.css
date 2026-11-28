@@ -1916,3 +1916,85 @@ body select option{
     padding-right:16px;
   }
 }
+
+
+/* Member roster cards: clear name, high-school and grade hierarchy. */
+.admin-person-card-heading{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:start;
+  gap:14px;
+  margin-bottom:16px;
+}
+.admin-person-identity{
+  display:grid;
+  gap:5px;
+  min-width:0;
+}
+.admin-person-identity h4{
+  margin:0;
+  color:var(--ink);
+  font:650 22px/1.35 "Noto Serif SC","Songti SC",serif;
+  letter-spacing:.01em;
+  overflow-wrap:anywhere;
+}
+.admin-person-high-school{
+  display:flex;
+  align-items:flex-start;
+  gap:7px;
+  min-width:0;
+  margin:0!important;
+  color:var(--muted);
+  font-size:13px!important;
+  line-height:1.6!important;
+}
+.admin-person-high-school>span{
+  flex:0 0 auto;
+  color:var(--muted);
+  font-size:12px;
+}
+.admin-person-high-school>strong{
+  min-width:0;
+  color:var(--ink);
+  font-size:13px;
+  font-weight:550;
+  overflow-wrap:anywhere;
+}
+.admin-person-grade{
+  display:grid;
+  justify-items:center;
+  align-content:center;
+  gap:3px;
+  min-width:82px;
+  max-width:120px;
+  padding:8px 11px;
+  border:1px solid var(--field-border);
+  border-radius:10px;
+  background:var(--field-bg);
+  color:var(--ink);
+  text-align:center;
+}
+.admin-person-grade>small{
+  color:var(--muted);
+  font-size:10px;
+  line-height:1.35;
+  white-space:nowrap;
+}
+.admin-person-grade>strong{
+  color:var(--ink);
+  font-size:14px;
+  font-weight:750;
+  line-height:1.35;
+  overflow-wrap:anywhere;
+}
+@media(max-width:760px){
+  .admin-person-card-heading{gap:10px;margin-bottom:13px}
+  .admin-person-identity h4{font-size:20px}
+  .admin-person-high-school,.admin-person-high-school>strong{font-size:13px!important}
+  .admin-person-grade{min-width:76px;padding:7px 9px}
+}
+@media(max-width:390px){
+  .admin-person-card-heading{grid-template-columns:minmax(0,1fr) auto;gap:8px}
+  .admin-person-identity h4{font-size:18px}
+  .admin-person-grade{min-width:68px;padding:6px 7px}
+}
