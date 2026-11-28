@@ -35,7 +35,7 @@ assert.match(css, /--field-border:#354239/, "dark inner tiles should use matchin
 assert.match(css,/@media\(min-width:761px\)[\s\S]*?#join>#profile\s*\{[^}]*width:100%[^}]*max-width:none/,"desktop registration form must fill the section width and align with the journey and account bars");
 assert.match(html,/id="registerFields" class="register-fields"(?! disabled)/,"registration inputs must remain usable");
 assert.match(html,/id="regCreate"(?! disabled)/,"registration submit must be available after the SMS code is entered");
-assert.match(html,/app\.js\?v=20261128-donation-amounts-v2/,"donation amount logic must bust the cached frontend script");
+assert.match(html,/app\.js\?v=20261128-boot-assets-before-session-v1/,"donation amount logic must bust the cached frontend script");
 assert.match(html,/完成短信验证后，系统才会确认该手机号是否已有账号/,"registration UI must explain phone ownership verification before account status");
 assert.match(html,/id="regExistingAccount"[^>]*hidden/,"existing-account guidance must remain hidden until server-side verification");
 assert.match(html,/id="regGoLogin"/,"a verified existing account must have a direct login action");
@@ -105,7 +105,7 @@ assert.ok(uiSections.includes("aspect-ratio:1312 / 1787"),"donation image frame 
 assert.ok(uiSections.includes("object-fit:cover;\n  background:transparent"),"donation image must fill its frame without white side gutters");
 assert.ok(uiSections.includes(".donation-qr-pending[hidden]{display:none!important}"),"pending placeholder must respect its hidden state");
 assert.ok(html.includes("ui-sections.css?v=20261128-local-fonts-v1"),"donation QR layout must bust the component stylesheet cache");
-assert.ok(html.includes("app.js?v=20261128-donation-amounts-v2"),"donation amount logic must bust the frontend script cache");
+assert.ok(html.includes("app.js?v=20261128-boot-assets-before-session-v1"),"donation amount logic must bust the frontend script cache");
 assert.ok(html.includes("theme.js?v=20261128-donation-qr-fix-v2"),"donation theme handling must bust the theme script cache");
 assert.match(theme,/root\.dataset\.theme === "dark" \? "dark" : "light"/,"donation QR mode must follow the active root theme");
 assert.match(theme,/image\.id === "donationQrImage"/,"theme changes must use the donation-specific load state");
@@ -119,14 +119,24 @@ for(const asset of ["assets/donation-qr-5-dark.png","assets/donation-qr-5-light.
   assert.equal(png.readUInt32BE(20),1787,asset+" must use the verified 1787-pixel height");
 }
 assert.match(html,/id="bootLogo"[^>]*src="assets\/58-logo-light\.png"[^>]*data-light-src="assets\/58-logo-light\.png"[^>]*data-dark-src="assets\/58-logo-dark\.png"/,"boot logo must declare the correct light and dark assets");
-assert.match(html,/id="bootMessage" class="boot-status">正在确认登录状态/,"boot screen must initially show the session-check message");
+assert.match(html,/id="bootScreen" class="boot-screen" role="status" aria-live="polite" hidden>/,"boot screen must remain completely hidden until initial fonts and logos are ready");
+assert.match(html,/id="bootMessage" class="boot-status">正在确认登录状态/,"boot screen must show the session-check message only after assets are ready");
 assert.match(html,/id="bootWelcome" class="boot-welcome" hidden>[\s\S]*?欢迎回到青岛五十八中[\s\S]*?Welcome Back to QD58ZX/,"boot welcome must show the requested Chinese and English lines");
 assert.match(html,/id="bootError" class="boot-error" hidden/,"boot screen must keep errors separate from its welcome message");
 assert.match(js,/INITIAL_BOOT_MINIMUM_MS=5000/,"initial splash must stay visible for at least five seconds");
+assert.ok(js.includes("async function preloadInitialBootAssets()"),"initial boot must preload required visual assets first");
+assert.ok(js.includes('document.fonts.load(\'400 28px "LXGW WenKai Lite"\''),"initial boot must explicitly load the title font before showing content");
+assert.ok(js.includes('document.fonts.load(\'400 15px "Source Han Sans CN"\''),"initial boot must explicitly load the body font before showing content");
+assert.ok(js.includes("await document.fonts.ready"),"initial boot must wait for the browser font set to finish loading");
+assert.ok(js.includes("async function preloadBootLogo(image)")&&js.includes("await waitForLogoElement(image)"),"initial boot must wait for theme-correct logo images to decode");
+assert.ok(js.includes("async function startInitialSessionRestore()"),"initial session restoration must have a resource-gated entry point");
+const initialRestore=js.slice(js.indexOf("async function startInitialSessionRestore()"),js.indexOf("async function finishInitialBoot(action)"));
+assert.match(initialRestore,/await preloadInitialBootAssets\(\);[\s\S]*?beginInitialBootPresentation\(\);[\s\S]*?load\(\{initial:true\}\)/,"initial session check must begin only after fonts and logos have loaded");
 assert.ok(js.includes("setTimeout(()=>{")&&js.includes("},1400)"),"boot screen must transition from checking text to welcome copy");
 assert.ok(js.includes("async function finishInitialBoot(action)"),"initial session result must wait for splash completion");
 assert.ok(js.includes("await bootWelcomeDelay;")&&js.includes("await bootMinimumDelay;"),"splash must wait for the welcome transition and five-second minimum");
-assert.ok(js.includes("load({initial:true})"),"only the initial session restoration should use the welcome splash");
+assert.ok(js.includes("startInitialSessionRestore();"),"initial page startup must use the resource-gated session restore flow");
+
 assert.match(js,/timeoutMs:12000/,"session verification must retain its bounded request timeout");
 assert.ok(js.includes('$("retrySession").onclick'),"failed session checks must allow retry");
 assert.ok(theme.includes('document.querySelectorAll("img[data-light-src][data-dark-src]")'),"theme script must synchronize all theme-specific image elements");
@@ -135,7 +145,7 @@ assert.ok(css.includes("width:clamp(176px,22vw,244px)"),"boot logo should be lar
 assert.ok(css.includes('"LXGW WenKai Lite",serif!important'),"Chinese welcome copy should use an elegant serif face");
 assert.ok(css.includes("Georgia,\"Times New Roman\",serif!important"),"English welcome copy should use a refined serif face");
 assert.match(html,/id="journeySteps"/,"homepage must retain the three-step navigation");
-assert.match(html,/style\.css\?v=20261128-custom-consent-checkbox-v1/,"homepage must load the latest shared stylesheet");
+assert.match(html,/style\.css\?v=20261128-boot-assets-before-session-v1/,"homepage must load the latest shared stylesheet");
 assert.match(html,/class="hero-mark"[\s\S]*?class="art-logo"[\s\S]*?width="390" height="390"/,"homepage hero should show one enlarged school logo in a clean right-side container");
 const heroMarkMarkup=html.match(/<div class="hero-mark">([\s\S]*?)<\/div>/)?.[1]||"";
 assert.doesNotMatch(heroMarkMarkup,/class="float|<small|THE JOURNEY CONTINUES|山海有归期|燃星星之火/,"homepage hero mark must contain only the school logo, with no decorative labels or overlay copy");
