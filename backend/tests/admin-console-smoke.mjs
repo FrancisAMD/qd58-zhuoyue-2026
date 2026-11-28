@@ -22,7 +22,7 @@ assert.match(js,/密码已被登录接口接受，但随后读取管理员会话
 assert.match(js,/已登录；部分面板加载失败/);
 assert.doesNotMatch(js,/DEMO_DATA|renderDemo|openDemo|dashboardDemo/,"admin JavaScript must not contain fictional demo datasets or renderers");
 assert.doesNotMatch(css,/\.admin-demo|\.demo-warning|\.demo-tabs/,"admin stylesheet must not retain the demo UI");
-assert.match(html,/style\.css\?v=20261128-donation-amount-member-card-v1/,"admin must load the latest shared surface stylesheet");
+assert.match(html,/style\.css\?v=20261128-admin-account-in-sidebar-v1/,"admin must load the latest sidebar account layout stylesheet");
 assert.match(html,/typography\.css\?v=20261128-hierarchy-v2/,"admin must load the shared typography system after its component stylesheets");
 assert.match(typography,/--type-body:15px/,"admin body copy should share the fifteen-pixel body tier");
 assert.match(typography,/--type-secondary:13\.5px/,"admin secondary text should share the readable secondary tier");
@@ -49,11 +49,11 @@ assert.match(html,/class="admin-workspace"/,"dashboard panels must be arranged b
 
 assert.match(html,/id="adminSidebarToggle"[^>]*aria-controls="adminSidebar"/,"admin workspace must provide an accessible sidebar toggle");
 assert.match(html,/id="adminWorkspace"/,"sidebar toggle must control the authenticated workspace");
-const adminToolbar=html.slice(html.indexOf('<div class="admin-toolbar'),html.indexOf('<div class="admin-workspace"'));
-assert.doesNotMatch(adminToolbar,/id="adminRole"/,"administrator role badge must not occupy the top toolbar");
+assert.doesNotMatch(html,/class="admin-toolbar"/,"the separate top admin toolbar must be removed");
+assert.doesNotMatch(html,/id="adminIdentity"[^>]*>[\\s\\S]*?<\\/div>[\\s\\S]*?admin-toolbar/,"administrator identity must not remain in the top toolbar");
 const sidebarRoleCard=html.slice(html.indexOf('<aside class="admin-sidebar"'),html.indexOf('<div class="admin-main-content">'));
 assert.match(sidebarRoleCard,/class="admin-section-nav"/);
-assert.match(sidebarRoleCard,/class="admin-sidebar-role-card"[\s\S]*?id="adminRole"/,"administrator role should appear in a compact card below sidebar navigation");
+assert.match(sidebarRoleCard,/class="admin-sidebar-role-card"[\\s\\S]*?id="adminRole"[\\s\\S]*?id="adminIdentity"[\\s\\S]*?id="adminLogout"/,"role, login account and logout action should appear together below sidebar navigation");
 assert.ok(js.includes('window.matchMedia("(max-width:760px)")'),"mobile sidebar default should be detected from the viewport");
 assert.ok(js.includes("setAdminSidebarCollapsed(adminSidebarMedia.matches)"),"desktop should default expanded while mobile defaults collapsed");
 assert.ok(js.includes('$("adminSidebarToggle").addEventListener("click"'),"sidebar toggle should be interactive");
@@ -191,7 +191,7 @@ assert.ok(html.indexOf('id="peoplePanel"')<html.indexOf('id="teamsPanel"')&&html
 assert.doesNotMatch(html,/value="viewer"/,"new administrator creation must not offer a read-only role");
 assert.match(html,/普通管理员仅可查看统计概览、审核海外高校、管理地区群聊二维码/);
 assert.match(html,/data-nav-target="teamsPanel" data-nav-permission="overview"/,"ordinary admins can access teams through the overview permission");
-assert.match(html,/admin\.js\?v=20261128-member-card-heading-v2/,"admin member card update must bust the admin script cache");
+assert.match(html,/admin\.js\?v=20261128-admin-account-in-sidebar-v1/,"admin script cache must be versioned with the sidebar account layout");
 assert.match(js,/async function downloadRosterExport\(format\)/,"CSV and XLSX should share the blob download path");
 assert.match(js,/credentials:"include"/,"roster exports must include the admin session cookie");
 assert.match(js,/mode:"cors"/,"roster exports must use CORS fetch instead of a top-level cross-origin navigation");
