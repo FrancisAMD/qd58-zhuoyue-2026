@@ -375,6 +375,7 @@ const UNIVERSITY_DISPLAY_TAG_LABELS=Object.freeze({
   public:"公办",
   private:"民办",
   sino:"中外合作办学",
+  sino_foreign_cooperation:"中外合作办学",
   sino_foreign_cooperative:"中外合作办学",
   cooperative:"合作办学",
   project_985:"985工程",

@@ -245,7 +245,7 @@ assert.match(css,/\.card-reveal-pending\{[\s\S]*?opacity:0[\s\S]*?translate:0 20
 assert.match(css,/\.card-reveal-visible\{\s*opacity:1;[\s\S]*?translate:0 0;/,"revealed cards should settle into their original position");
 
 
-assert.match(js,/const UNIVERSITY_DISPLAY_TAG_LABELS=Object\.freeze\([\s\S]*?public:"公办"[\s\S]*?private:"民办"[\s\S]*?sino:"中外合作办学"[\s\S]*?project_985:"985工程"[\s\S]*?project_211:"211工程"[\s\S]*?double_first_class:"双一流"/,"university ownership and hierarchy tags should be translated into concise Chinese labels");
+assert.match(js,/const UNIVERSITY_DISPLAY_TAG_LABELS=Object\.freeze\([\s\S]*?public:"公办"[\s\S]*?private:"民办"[\s\S]*?sino:"中外合作办学"[\s\S]*?sino_foreign_cooperation:"中外合作办学"[\s\S]*?project_985:"985工程"[\s\S]*?project_211:"211工程"[\s\S]*?double_first_class:"双一流"/,"university ownership and hierarchy tags should be translated into concise Chinese labels");
 assert.match(js,/function universityDisplayTags\(item\)[\s\S]*?UNIVERSITY_DISPLAY_TAG_LABELS\[tag\][\s\S]*?filter\(Boolean\)/,"university search should retain meaningful ownership/hierarchy tags while omitting unneeded undergraduate metadata");
 assert.doesNotMatch(js,/ordinary_undergraduate\s*:/,"ordinary undergraduate metadata should not be shown as a display tag");
 assert.match(js,/aria-label="高校属性标签"/,"university search chips should be identified as school attribute tags");
