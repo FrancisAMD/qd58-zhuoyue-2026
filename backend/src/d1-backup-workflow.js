@@ -194,7 +194,10 @@ async function encryptAndUpload(env, manifest, signedUrl) {
   return { backupId: manifest.backupId, plaintextBytes, ciphertextBytes, partCount: partMetadata.length, completedAt };
 }
 async function pruneExpiredBackups(env) {
-  const retentionDays = Math.min(365, Math.max(7, Number(env.BACKUP_RETENTION_DAYS || 30)));
+  const configuredRetentionDays = Number(env.BACKUP_RETENTION_DAYS || 30);
+  const retentionDays = Number.isFinite(configuredRetentionDays)
+    ? Math.min(365, Math.max(7, Math.floor(configuredRetentionDays)))
+    : 30;
   const cutoff = Date.now() - retentionDays * 86400000;
   let cursor;
   let deleted = 0;
