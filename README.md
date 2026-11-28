@@ -9,7 +9,7 @@
 
 | 目录 / 文件 | 用途 |
 | --- | --- |
-| `index.html`、`app.js`、`style.css`、`theme.js` | 学生端页面、系统深浅色适配、注册手机号预检查 |
+| `index.html`、`app.js`、`style.css`、`theme.js` | 学生端页面、系统深浅色适配、手机号归属验证注册流程 |
 | `admin.html`、`admin.js` | 独立管理员后台 |
 | `privacy.html` | 隐私说明 |
 | `favicon.svg` | 全站统一站点图标（SVG 矢量） |
@@ -18,7 +18,8 @@
 | `data/profile-sources/` | 前端登记表使用的高校、校区、专业门类和招生类型 JSON |
 | `data/university-catalog.*` | 高校目录导入的数据格式、Schema 和模板 |
 | `backend/src/worker-entry.js` | Worker 入口；先处理账号删除资格检查，再转交主 Worker |
-| `backend/src/worker.js` | API 主逻辑：认证、资料、组队、转让、目录、管理员等 |
+| `backend/src/worker.js` | API 主逻辑：认证、资料、组队、转让、目录、管理员与备份管理 API |
+| `backend/src/d1-backup-workflow.js`、`d1-backup-crypto.js` | 定时 D1 导出、分块 AES-256-GCM 加密、签名清单与完整性验证 |
 | `backend/src/xlsx.js` | 管理后台 Excel 导出 |
 | `backend/src/account-deletion-ledger.js` | 账号删除意图的 R2 台账逻辑 |
 | `backend/src/university-catalog-import.js` | 高校目录导入与校验逻辑 |
@@ -31,13 +32,13 @@
 - **Pages**：从 GitHub 的 `main` 分支发布仓库根目录的静态前端。
 - **Workers**：提供 `api.58er.eon21.space`，入口文件为 `backend/src/worker-entry.js`。
 - **D1**：数据库名为 `qd58-zhuoyue-db`；表结构变更保存在 `backend/migrations/`。
-- **R2**：`GROUP_QR` 用于各地区群聊二维码，Bucket 为 `qd58-group-chat-qr`。账号删除台账代码还依赖 `DELETE_LEDGER`（建议私有 Bucket 名为 `qd58-account-deletion-ledger`）；当前仓库的 `backend/wrangler.toml` 尚未声明该绑定，正式使用账号删除功能前需先核对并补齐 R2 配置。
+- **R2**：`GROUP_QR` 保存地区群聊二维码（`qd58-group-chat-qr`）；`D1_BACKUPS` 保存每日 D1 加密备份（私有 Bucket `qd58-d1-backups`）。账号删除台账仍依赖尚未绑定的 `DELETE_LEDGER`，不能据此宣称旧备份恢复后的删除重放已经自动化。
 
-验证码由 Cloudflare Turnstile 与阿里云 PNVS 配合处理。注册前会先核验手机号是否已有账号；该接口要求同意隐私说明，并按 IP 和手机号双重限流。AccessKey、Turnstile Secret 和限流 HMAC Secret 应通过 Worker Secrets 配置，不要写入 Git。短信签名名称与模板编号属于非密钥配置，可写入 `backend/wrangler.toml` 的 `[vars]`。配置中的 `keep_vars = true` 也会保留在 Cloudflare Dashboard 单独管理的普通变量，避免下一次 Wrangler 部署将其清除。
+验证码由 Cloudflare Turnstile 与阿里云 PNVS 配合处理。注册前会先核验手机号是否已有账号；该接口要求同意隐私说明，并按 IP 和手机号双重限流。AccessKey、Turnstile Secret、限流 HMAC Secret、D1 导出 API Token、Cloudflare Account ID 与备份主密钥应通过 Worker Secrets 配置，不要写入 Git。短信签名名称与模板编号属于非密钥配置，可写入 `backend/wrangler.toml` 的 `[vars]`。配置中的 `keep_vars = true` 也会保留在 Cloudflare Dashboard 单独管理的普通变量，避免下一次 Wrangler 部署将其清除。
 
 ## 本地检查
 
-需要 Node.js、npm、Python。常用命令：
+需要 Node.js、npm、Python。常用命令（另含备份加密专项测试）：
 
 ```powershell
 npm ci
@@ -50,7 +51,7 @@ npm run test:backup
 
 ## 部署
 
-Pages 在 `main` 有新提交后由 Cloudflare Git 集成自动发布。Worker 从仓库根目录部署：
+Pages 在 `main` 有新提交后由 Cloudflare Git 集成自动发布。Worker 从仓库根目录部署；备份功能还要求先创建私有 R2 Bucket 并配置所需 Secrets：
 
 ```powershell
 npx wrangler deploy --config backend/wrangler.toml
