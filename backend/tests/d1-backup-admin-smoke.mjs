@@ -63,7 +63,7 @@ async function putManifest(id,status,createdAt) {
   bucketObjects.set(key,objectFor(key,signed));
   if(status==="completed")bucketObjects.set(manifest.objectKey,objectFor(manifest.objectKey,null,new Uint8Array(36).fill(7)));
 }
-function request(path,method="GET",body,role=activeAdmin.role){
+function request(path,method="GET",body,role="owner"){
   activeAdmin={...activeAdmin,role};
   return new Request(API+path,{
     method,headers:{
@@ -128,9 +128,9 @@ try{
 
   const deleteFailed=await worker.fetch(request("/api/admin/backups/"+FAILED,"DELETE"),env);
   assert.equal(deleteFailed.status,200);
-  assert(audits.some(item=>item.sql.includes("admin.backup.started")));
-  assert(audits.some(item=>item.sql.includes("admin.backup.verification_started")));
-  assert(audits.some(item=>item.sql.includes("admin.backup.deleted")));
+  assert(audits.some(item=>item.args?.[3]==="admin.backup.started"));
+  assert(audits.some(item=>item.args?.[3]==="admin.backup.verification_started"));
+  assert(audits.some(item=>item.args?.[3]==="admin.backup.deleted"));
   console.log("D1 backup admin tests: PASS (owner-only access, manual trigger, signed manifest, encrypted download, verification trigger, audited deletion and last-good protection).");
 } finally {
   globalThis.fetch=oldFetch;
