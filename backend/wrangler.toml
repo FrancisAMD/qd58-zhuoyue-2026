@@ -22,8 +22,6 @@ required = [
   "TURNSTILE_SECRET_KEY",
   "ALIBABA_ACCESS_KEY_ID",
   "ALIBABA_ACCESS_KEY_SECRET",
-  "CLOUDFLARE_ACCOUNT_ID",
-  "CLOUDFLARE_API_TOKEN",
   "BACKUP_MASTER_KEY_V1"
 ]
 [vars]
@@ -33,10 +31,6 @@ OTP_TTL_SECONDS = "300"
 OTP_MAX_ATTEMPTS = "5"
 OTP_SEND_COOLDOWN_SECONDS = "60"
 TRANSFER_TTL_SECONDS = "604800"
-D1_DATABASE_ID = "3d32e597-57e9-4e52-833b-98bdec7ffb0b"
-D1_DATABASE_NAME = "qd58-zhuoyue-db"
-BACKUP_ACTIVE_KEY_VERSION = "v1"
-BACKUP_RETENTION_DAYS = "30"
 # Alibaba PNVS non-secret configuration
 ALIBABA_SIGN_NAME = "恒创联众"
 ALIBABA_TEMPLATE_CODE = "100001"
@@ -45,17 +39,5 @@ ALIBABA_TEMPLATE_CODE = "100001"
 # wrangler secret put TURNSTILE_SECRET_KEY
 # wrangler secret put ALIBABA_ACCESS_KEY_ID
 # wrangler secret put ALIBABA_ACCESS_KEY_SECRET
-[limits]
-cpu_ms = 300000
-
 [triggers]
 crons = ["*/15 * * * *"]
-
-[[workflows]]
-name = "qd58-d1-backup"
-binding = "D1_BACKUP_WORKFLOW"
-class_name = "D1BackupWorkflow"
-# Keep exports serialized; D1 export temporarily makes the database unavailable.
-concurrency.limit = 1
-# 18:05 UTC = 03:05 the following day in Japan (Asia/Tokyo).
-schedules = ["5 18 * * *"]
