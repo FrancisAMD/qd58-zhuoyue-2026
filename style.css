@@ -2183,3 +2183,9 @@ body select option{
 #registrationDetailsPanel>.profile-major-admission-row:has(#admissionFields[hidden])>label:first-child{
   grid-column:1/-1;
 }
+
+/* The university-selection step also uses a tighter field rhythm. */
+#profile .profile-stage-panel label:not(.check){margin:7px 0!important;}
+#profile .profile-stage-panel label:not(.check)>input,
+#profile .profile-stage-panel label:not(.check)>select,
+#profile .profile-stage-panel label:not(.check)>textarea{margin-top:5px;}
