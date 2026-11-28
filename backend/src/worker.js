@@ -1788,7 +1788,8 @@ if(path==="/api/teams/transfer" && method==="POST") {
       "COALESCE(uni.category,'unclassified') AS universityCategory,",
       "COALESCE(uni.education_level,'') AS educationLevel,",
       "COALESCE(uni.degree_levels_json,'[]') AS degreeLevelsJson,",
-      "COALESCE(uni.project_tags_json,'[]') AS projectTagsJson",
+      "COALESCE(uni.project_tags_json,'[]') AS projectTagsJson,",
+      "COALESCE((SELECT json_group_array(catalog_tag.tag_code) FROM university_tags catalog_tag WHERE catalog_tag.university_id=uni.id AND catalog_tag.tag_group='project'),'[]') AS catalogProjectTagsJson",
       "FROM teams t JOIN universities uni ON uni.id=t.university_id",
       "LEFT JOIN profile_university_catalog profile_catalog ON profile_catalog.university_id=uni.id",
       "LEFT JOIN users u ON u.university_id=t.university_id AND u.deleted_at=''",
@@ -1806,10 +1807,14 @@ if(path==="/api/teams/transfer" && method==="POST") {
     }
     if(region){where.push("teams.region=?");bindings.push(region);}
     const projectJson = "CASE WHEN json_valid(teams.projectTagsJson) THEN teams.projectTagsJson ELSE '[]' END";
-    if(level==="985"||level==="211"||level==="double_first_class"){
-      const codes=level==="985"?["project_985_legacy"]:
-        level==="211"?["project_211_legacy"]:
-        ["double_first_class_round1","double_first_class_round2"];
+    const projectLevelCodes={
+      "985":["project_985_legacy","project_985","985","985工程","985工程高校"],
+      "211":["project_211_legacy","project_211","211","211工程","211工程高校"],
+      double_first_class:["double_first_class_round1","double_first_class_round2","double_first_class","双一流","双一流建设高校"]
+    };
+    const allKnownProjectCodes=[...new Set(Object.values(projectLevelCodes).flat())];
+    if(projectLevelCodes[level]){
+      const codes=projectLevelCodes[level];
       const placeholders=codes.map(()=>"?").join(",");
       where.push(
         "(EXISTS(SELECT 1 FROM json_each("+projectJson+") project_tag WHERE project_tag.value IN ("+placeholders+")) "+
@@ -1818,7 +1823,7 @@ if(path==="/api/teams/transfer" && method==="POST") {
       );
       bindings.push(...codes,...codes);
     } else if(level==="other"){
-      const knownCodes=["project_985_legacy","project_211_legacy","double_first_class_round1","double_first_class_round2"];
+      const knownCodes=allKnownProjectCodes;
       const placeholders=knownCodes.map(()=>"?").join(",");
       where.push(
         "(NOT EXISTS(SELECT 1 FROM json_each("+projectJson+") project_tag WHERE project_tag.value IN ("+placeholders+")) "+
