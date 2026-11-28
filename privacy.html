@@ -44,6 +44,7 @@
 .privacy a{color:var(--green);text-decoration:underline;text-underline-offset:3px}
 :root[data-theme="dark"] body .privacy .notice{background:#202f26;border-color:var(--line)}
 .privacy-footer{margin-top:0}
+.privacy-footer .site-footer-actions{display:grid;justify-items:end;gap:4px}
 .privacy-return-note{
   display:block;
   margin:8px 0 0;
@@ -52,6 +53,7 @@
   line-height:1.6;
 }
 @media(max-width:760px){
+  .privacy-footer .site-footer-actions{width:100%;justify-items:start}
   .privacy{width:calc(100% - 36px);padding:36px 0 32px}
   .privacy h1{margin-bottom:22px}
   .privacy h2{margin-top:27px;font-size:19px}
