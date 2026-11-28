@@ -2346,3 +2346,8 @@ body.modal-scroll-locked{
     filter:none!important;
   }
 }
+
+
+/* University search: keep location and hierarchy visually distinct */
+.university-result-tags{display:flex;align-items:center;flex-wrap:wrap;gap:5px}
+.university-result-tags .university-tag-chip{margin:0}

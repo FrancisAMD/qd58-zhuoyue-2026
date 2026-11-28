@@ -243,3 +243,10 @@ assert.match(cardMotion,/new MutationObserver/,"shared card motion should catch 
 assert.match(cardMotion,/prefers-reduced-motion: reduce/,"shared card motion should respect reduced-motion preferences");
 assert.match(css,/\.card-reveal-pending\{[\s\S]*?opacity:0[\s\S]*?translate:0 20px[\s\S]*?blur\(2px\)/,"all cards should use the same gentle fade-and-rise entrance");
 assert.match(css,/\.card-reveal-visible\{\s*opacity:1;[\s\S]*?translate:0 0;/,"revealed cards should settle into their original position");
+
+
+assert.match(js,/const UNIVERSITY_LEVEL_TAG_LABELS=Object\.freeze\([\s\S]*?project_985:"985工程"[\s\S]*?project_211:"211工程"[\s\S]*?double_first_class:"双一流"/,"university hierarchy tags should be translated into concise Chinese labels");
+assert.match(js,/function universityLevelTags\(item\)[\s\S]*?UNIVERSITY_LEVEL_TAG_LABELS\[tag\][\s\S]*?filter\(Boolean\)/,"university search should retain only meaningful hierarchy tags, omitting generic public/undergraduate labels");
+assert.match(js,/function renderUniversitySearchResults\(rows\)[\s\S]*?university-result-tags[\s\S]*?university-tag-chip[\s\S]*?safe\(location\)/,"university search should render hierarchy labels as separate chips and keep location as plain metadata");
+assert.match(css,/\.university-result-tags\{[\s\S]*?display:flex[\s\S]*?flex-wrap:wrap/,"university hierarchy chips should wrap cleanly within search results");
+assert.match(css,/\.university-result-tags \.university-tag-chip\{margin:0\}/,"search hierarchy chips should use consistent spacing");
