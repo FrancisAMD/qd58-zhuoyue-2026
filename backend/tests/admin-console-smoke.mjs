@@ -80,8 +80,8 @@ assert.match(html,/id="teamRegion"/,"team filters should include catalog regions
 assert.match(html,/id="teamLevel"/,"team filters should include project tiers");
 assert.match(html,/id="teamMinMembers"/);
 assert.match(html,/id="teamMaxMembers"/);
-assert.match(js,/async function loadTeams\(\),"teams should load from the dedicated server-side listing endpoint");
-assert.match(js,/req\\("\\/admin\\/teams\\?"/,"team filters must be sent to the Worker API");
+assert.match(js,/async function loadTeams\(\)/,"teams should load from the dedicated server-side listing endpoint");
+assert.match(js,/req\(\"\/admin\/teams\?\"/,"team filters must be sent to the Worker API");
 assert.match(js,/teamFilters=\{\}/);
 assert.match(js,/project_985_legacy/);
 assert.match(js,/project_211_legacy/);
