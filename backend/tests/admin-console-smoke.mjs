@@ -68,7 +68,7 @@ for(const [target] of navPermissions){
 }
 const sectionOrder=navPermissions.map(([target])=>html.indexOf('<section id="'+target+'"'));
 assert.deepEqual(sectionOrder,[...sectionOrder].sort((a,b)=>a-b),"dashboard section DOM order must match the sidebar order");
-assert.match(js,/\$\("overviewPanel"\)\.hidden=!has\("overview"\)/,"overview section must follow overview permission");
+assert.match(js,/if\(!target\|\|!has\(target\.dataset\.viewPermission\)\)return false/,"view switching must reject panels outside the current permission set");
 assert.match(css,/\.admin-workspace\{[\s\S]*?grid-template-columns:minmax\(190px,230px\) minmax\(0,1fr\)/,"desktop dashboard must use a left sidebar and main content");
 assert.match(css,/\.admin-sidebar\{[\s\S]*?position:sticky/,"desktop sidebar should remain visible while scrolling");
 assert.match(css,/@media\(max-width:760px\)[\s\S]*?\.admin-section-nav\{[\s\S]*?overflow-x:auto/,"sidebar should become a horizontally scrollable section bar on mobile");
@@ -131,6 +131,6 @@ assert.doesNotMatch(html,/groupChatConfirmationRows|groupChatConfirmationRegion/
 assert.ok(html.indexOf('id="peoplePanel"')<html.indexOf('id="teamsPanel"')&&html.indexOf('id="teamsPanel"')<html.indexOf('id="universityReviewPanel"'),"roster and teams must precede operational modules in the agreed order");
 assert.doesNotMatch(html,/value="viewer"/,"new administrator creation must not offer a read-only role");
 assert.match(html,/普通管理员仅可查看统计概览、审核海外高校、管理地区群聊二维码/);
-assert.match(js,/teamsPanel"\)\.hidden=!has\("overview"\)/,"ordinary admins retain team-level overview without roster access");
+assert.match(html,/data-nav-target="teamsPanel" data-nav-permission="overview"/,"ordinary admins can access teams through the overview permission");
 assert.match(js,/data-admin-delete/,"owner UI must provide admin deletion actions");
 assert.match(js,/历史只读账号（待删除）/,"legacy viewer accounts must be identifiable for cleanup");
