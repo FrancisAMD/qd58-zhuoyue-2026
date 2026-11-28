@@ -137,7 +137,7 @@ assert.match(js,/class="admin-person-grade"><small>当前年级<\/small><strong>
 assert.ok(css.includes(".admin-person-card-heading{")&&css.includes("grid-template-columns:minmax(0,1fr) auto;"),"roster identity header should use a stable two-column layout");
 assert.ok(css.includes(".admin-person-high-school{")&&css.includes(".admin-person-grade>small{"),"high-school and grade rows should have clear separate typography");
 assert.match(html,/style\.css\?v=20261128-donation-amount-member-card-v1/,"admin member card update must bust the shared stylesheet cache");
-assert.match(html,/admin\.js\?v=20261128-member-card-heading-v2/,"admin member card update must bust the admin script cache");
+assert.match(html,/style\.css\?v=20261128-admin-person-layout-v1/,"admin roster layout fix must bust stylesheet cache");\nassert.match(css,/#peoplePanel \.admin-person-card-heading[\\s\\S]*?grid-template-columns:minmax\\(0,1fr\\) minmax\\(112px,max-content\\)/,"roster heading should retain horizontal name/highschool and grade layout");\nassert.match(css,/#peoplePanel \.admin-person-high-school[\\s\\S]*?flex-direction:row/,"high-school label and value should remain horizontal");\nassert.match(html,/admin\\.js\\?v=20261128-member-card-heading-v2/,"admin member card update must bust the admin script cache");
 assert.match(js,/class="admin-person-card"/,"each person must render as an independent card");
 assert.match(js,/class="admin-person-facts"/,"person cards must group key account facts");
 assert.match(js,/class="admin-person-details"/,"full profile details must expand inside the person card");
