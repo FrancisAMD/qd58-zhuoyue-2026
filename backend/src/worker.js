@@ -2209,6 +2209,25 @@ if(path==="/api/teams/transfer" && method==="POST") {
 
   return response({error:"not_found"},404,origin,env);
 }
+async function scheduledBackupExportActive(env) {
+  if (!env.D1_BACKUPS || typeof env.D1_BACKUPS.get !== "function") return false;
+  try {
+    const object = await env.D1_BACKUPS.get("d1-backups/v1/locks/export.json");
+    if (!object) return false;
+    const lease = await object.json();
+    if (!lease || lease.schemaVersion !== 1 ||
+        typeof lease.ownerId !== "string" ||
+        !Number.isFinite(Number(lease.leaseExpiresAt))) {
+      console.error("Scheduled D1 maintenance skipped because backup lease is invalid");
+      return true;
+    }
+    return !!lease.ownerId && Number(lease.leaseExpiresAt) > Date.now();
+  } catch (error) {
+    // Fail closed: the export may be in progress, but the lease could not be read.
+    console.error("Scheduled D1 maintenance skipped because backup lease could not be checked",error?.message||"unknown");
+    return true;
+  }
+}
 export default {
   fetch(request,env) {
     return route(request,env).catch(e=>{
@@ -2217,13 +2236,19 @@ export default {
     });
   },
   scheduled(_controller,env,ctx) {
-    ctx.waitUntil(Promise.all([
-      expirePendingTransfers(env.DB).catch(error=>{
-        console.error("Scheduled transfer expiry failed",error?.message||"unknown");
-      }),
-      cleanupExpiredSecurityData(env.DB).catch(error=>{
-        console.error("Scheduled security-data cleanup failed",error?.message||"unknown");
-      })
-    ]));
+    ctx.waitUntil((async()=>{
+      if (await scheduledBackupExportActive(env)) {
+        console.info("Scheduled D1 maintenance skipped during GitHub Actions export");
+        return;
+      }
+      await Promise.all([
+        expirePendingTransfers(env.DB).catch(error=>{
+          console.error("Scheduled transfer expiry failed",error?.message||"unknown");
+        }),
+        cleanupExpiredSecurityData(env.DB).catch(error=>{
+          console.error("Scheduled security-data cleanup failed",error?.message||"unknown");
+        })
+      ]);
+    })());
   }
 };
