@@ -6,7 +6,7 @@
 
 - `src/worker.js`：登录注册、Turnstile/阿里云 PNVS、资料、高校组队、组长转让、同校目录、管理员 API 与 owner 专属备份管理 API。
 - `src/d1-backup-crypto.js`：Worker 校验 R2 备份清单的 HMAC 签名、包装密钥与对象路径。
-- 仓库根目录 `scripts/d1-backup-action.mjs` 与 `.github/workflows/d1-backup.yml`：GitHub Actions 执行 D1 Export API、AES-256-GCM 分块加密、R2 上传、回读完整性验证与保留清理。Worker 后台通过可选 `GITHUB_BACKUP_DISPATCH_TOKEN` 手动触发 Actions。
+- 仓库根目录 `scripts/d1-backup-action.mjs` 与 `.github/workflows/d1-backup.yml`：GitHub Actions 执行 D1 Export API、AES-256-GCM 分块加密、R2 上传、回读完整性验证与保留清理。导出期间在 R2 写入并续期 2 小时租约，Worker 的 15 分钟 Cron 会在租约有效时跳过 D1 清理。Worker 后台通过可选 `GITHUB_BACKUP_DISPATCH_TOKEN` 手动触发 Actions。
 - `src/xlsx.js`：原生 XLSX 导出。
 - `src/university-catalog-import.js`：高校目录分阶段导入。
 - `src/account-deletion-ledger.js`：账号删除意图 R2 台账。
