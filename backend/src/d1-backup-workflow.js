@@ -8,7 +8,6 @@ import {
 const API_ROOT = "https://api.cloudflare.com/client/v4";
 const CHUNK_BYTES = 8 * 1024 * 1024;
 const MAX_PARTS = 6000;
-const encoder = new TextEncoder();
 
 function randomId() {
   return [...crypto.getRandomValues(new Uint8Array(16))]
@@ -47,7 +46,7 @@ async function cloudflareExport(env, body) {
     body: JSON.stringify(body)
   });
   const payload = await response.json().catch(() => null);
-  if (!response.ok || payload?.success !== true || !payload.result) {
+  if (!response.ok || payload?.success !== true) {
     throw new Error("backup_d1_export_api_failed");
   }
   return normalizeExportResult(payload);
@@ -136,7 +135,6 @@ async function encryptAndUpload(env, manifest, signedUrl) {
   }
   const master = await getBackupMasterKey(env, manifest.keyVersion);
   const dataKeyBytes = crypto.getRandomValues(new Uint8Array(32));
-  const dataKey = await crypto.subtle.importKey("raw", dataKeyBytes, "AES-GCM", false, ["encrypt"]);
   const download = await fetch(signedUrl);
   if (!download.ok || !download.body) throw new Error("backup_export_download_failed");
 
@@ -326,7 +324,7 @@ export class D1BackupWorkflow extends WorkflowEntrypoint {
       verification: { status: "not_checked" }
     };
     try {
-      const master = await getBackupMasterKey(this.env, keyVersion);
+      await getBackupMasterKey(this.env, keyVersion);
       await step.do("create-running-manifest", async () => {
         await writeManifest(this.env, manifest);
         return { backupId, status: "running" };
