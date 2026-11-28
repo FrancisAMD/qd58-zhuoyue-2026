@@ -960,8 +960,8 @@ header>div:last-child{display:flex;align-items:center;gap:8px}
 :root[data-theme="dark"] body{
   --bg:#151f19;
   --paper:#202f26ed;
-  --field-bg:#29382f;
-  --field-border:#46584b;
+  --field-bg:#1A241E;
+  --field-border:#354239;
 }
 
 /* All editable fields use one neutral, high-contrast surface in both themes. */
@@ -1275,8 +1275,8 @@ body select option{
   border-radius:8px;
 }
 :root[data-theme="dark"] body{
-  --field-bg:#29382f;
-  --field-border:#46584b;
+  --field-bg:#1A241E;
+  --field-border:#354239;
 }
 :root[data-theme="dark"] body #profile.profile-form-shell{
   background:transparent;
@@ -1439,8 +1439,8 @@ body :where(input,select,textarea){
 
 /* Deep pine-grey second-level surfaces, sampled from the supplied team-card reference. */
 :root[data-theme="dark"] body{
-  --field-bg:#29382f;
-  --field-border:#46584b;
+  --field-bg:#1A241E;
+  --field-border:#354239;
 }
 :root[data-theme="dark"] body :is(
   #teamSummary>.directory-team-grid>div,
@@ -1470,12 +1470,12 @@ body :where(input,select,textarea){
   .donation-admin-row,
   .donation-admin-fields
 ){
-  background:#29382f!important;
-  border-color:#46584b!important;
+  background:#1A241E!important;
+  border-color:#354239!important;
 }
 :root[data-theme="dark"] body .donation-list-empty{
-  background:#29382f;
-  border-color:#46584b;
+  background:#1A241E;
+  border-color:#354239;
 }
 
 
