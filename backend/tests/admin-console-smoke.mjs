@@ -37,6 +37,33 @@ assert.ok(renderStart>=0 && renderEnd>renderStart,"demo renderer must exist");
 assert.doesNotMatch(js.slice(renderStart,renderEnd),/\breq\s*\(/,"demo renderer must not call admin API");
 console.log("Admin console UI tests: PASS (login/session separation, panel isolation and API-free fictional demo).");
 
+assert.match(html,/id="adminSectionNav"/,"authenticated dashboard must provide a sidebar navigation container");
+assert.match(html,/class="admin-workspace"/,"dashboard panels must be arranged beside the sidebar");
+const navPermissions = [
+  ["overviewPanel","overview"],
+  ["teamsPanel","overview"],
+  ["universityReviewPanel","universities:review"],
+  ["groupChatQrPanel","group-chat:manage"],
+  ["peoplePanel","people:read"],
+  ["donationManagementPanel","donations:manage"],
+  ["auditPanel","audit:read"],
+  ["backupPanel","backups:manage"],
+  ["managePanel","admins:manage"]
+];
+for(const [target,permission] of navPermissions){
+  assert.match(html,new RegExp('data-nav-target="'+target+'" data-nav-permission="'+permission+'"'),
+    "sidebar entry "+target+" must use the same permission as its panel");
+  assert.match(html,new RegExp('id="'+target+'"'),"sidebar target "+target+" must exist");
+}
+assert.match(js,/function syncAdminNavigation\(\)/,"sidebar access must be derived from current administrator permissions");
+assert.match(js,/const allowed=has\(button\.dataset\.navPermission\)/,"sidebar entries must be filtered using current permission set");
+assert.match(js,/\$\("adminSectionNav"\)\.addEventListener\("click"/,"sidebar links must navigate to their target panels");
+assert.match(js,/target\.scrollIntoView\(\{behavior:"smooth",block:"start"\}\)/,"sidebar navigation must smoothly jump to sections");
+assert.match(js,/\$\("overviewPanel"\)\.hidden=!has\("overview"\)/,"overview section must follow overview permission");
+assert.match(css,/\.admin-workspace\{[\s\S]*?grid-template-columns:minmax\(190px,230px\) minmax\(0,1fr\)/,"desktop dashboard must use a left sidebar and main content");
+assert.match(css,/\.admin-sidebar\{[\s\S]*?position:sticky/,"desktop sidebar should remain visible while scrolling");
+assert.match(css,/@media\(max-width:760px\)[\s\S]*?\.admin-section-nav\{[\s\S]*?overflow-x:auto/,"sidebar should become a horizontally scrollable section bar on mobile");
+
 assert.match(html,/ACTIVE UNIVERSITY TEAMS/);
 assert.match(html,/资料概览 \/ 完整资料/);
 assert.match(js,/function renderPersonDetails\(item\)/);
