@@ -135,7 +135,7 @@ assert.doesNotMatch(js,/58ER · MEMBER/,"roster cards must not show the decorati
 
 assert.match(js,/class="admin-person-grade admin-person-info-box"><small>当前年级/,"roster card grade must have its own labeled block");
 assert.match(js,/class="admin-person-high-school admin-person-info-box"><small>高中/,"roster card high school must have its own labeled block");
-assert.ok(css.includes("#peoplePanel .admin-person-info-row{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;"),"high school and grade blocks should appear side by side");
+assert.match(css,/#peoplePanel \.admin-person-info-row\{\s*display:grid!important;\s*grid-template-columns:minmax\(0,1fr\) minmax\(0,1fr\)!important;/,"high school and grade blocks should appear side by side");
 assert.match(html,/style\.css\?v=20261128-roster-name-direct-child-v2/,"admin must load the latest shared stylesheet");
 assert.match(html,/admin\.js\?v=20261128-roster-name-direct-child-v2/,"admin must load the current admin script");
 assert.ok(js.includes("'<h4 class=\"admin-person-name\">'+safe(name)+'</h4>'+"),"member name should render directly inside the card, without a wrapping header module");
@@ -211,4 +211,4 @@ assert.match(js,/data-admin-delete/,"owner UI must provide admin deletion action
 assert.match(js,/历史只读账号（待删除）/,"legacy viewer accounts must be identifiable for cleanup");
 
 assert.ok(js.includes('admin-person-info-row'),"high school and grade should share one horizontal row");
-assert.ok(css.includes("#peoplePanel .admin-person-info-row{display:grid!important;"),"the school/grade row must use a two-column grid");
+assert.match(css,/#peoplePanel \.admin-person-info-row\{\s*display:grid!important;\s*grid-template-columns:minmax\(0,1fr\) minmax\(0,1fr\)!important;/,"the school/grade row must use a two-column grid");
