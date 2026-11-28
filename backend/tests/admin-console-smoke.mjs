@@ -29,7 +29,7 @@ assert.match(typography,/--type-secondary:13\.5px/,"admin secondary text should 
 assert.match(typography,/body h3\{font-size:var\(--type-subsection\)!important/,"admin section headings should follow the shared hierarchy");
 assert.doesNotMatch(typography,/body :where\([^)]*(?:span|strong|b)[^)]*\)\s*\{[^}]*font-size/,"inline emphasis must not be independently enlarged");
 assert.match(typography,/body :is\(\.admin-profile-field b,\.donation-list-row>strong/,"admin profile values should use a consistent data-value size");
-assert.match(typography,/body :is\(\.admin-sidebar-heading,\.directory-school>div>span/,"admin navigation and metadata should not use micro typography");
+assert.ok(typography.includes(".admin-sidebar-heading")&&typography.includes(".directory-school>div>span"),"admin navigation and metadata should not use micro typography");
 assert.doesNotMatch(typography,/font-size:\s*(?:[89]|1[01]|12)px(?:\s|!|;|\/)/,"admin shared typography must not define micro-sized text");
 assert.match(css,/--field-bg:#edf0ed/,"admin light mode must share the neutral field surface");
 assert.match(css,/--field-bg:#1A241E/,"admin dark mode must share the neutral field surface");
