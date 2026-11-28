@@ -10,15 +10,44 @@
       if (!target || image.dataset.activeThemeSrc === target) return;
 
       image.dataset.activeThemeSrc = target;
-      image.onerror = () => {
-        image.onerror = null;
-        if (image.dataset.activeThemeSrc !== target) return;
-        const fallback = image.dataset.fallbackSrc || image.dataset.lightSrc;
-        if (fallback && image.src !== new URL(fallback, document.baseURI).href) {
-          image.src = fallback;
-        }
-      };
+      if (image.id === "donationQrImage") {
+        image.onload = () => {
+          if (image.dataset.activeThemeSrc !== target) return;
+          image.hidden = false;
+          const pending = document.getElementById("donationQrPending");
+          if (pending) pending.hidden = true;
+        };
+        image.onerror = () => {
+          if (image.dataset.activeThemeSrc !== target) return;
+          image.hidden = true;
+          const pending = document.getElementById("donationQrPending");
+          if (pending) {
+            pending.hidden = false;
+            const amount = image.dataset.selectedAmount || "当前";
+            const title = document.getElementById("donationQrPendingTitle");
+            const message = document.getElementById("donationQrPendingText");
+            if (title) title.textContent = "￥" + amount + " 二维码尚未就绪";
+            if (message) message.textContent = amount === "10"
+              ? "10 元二维码图片尚未上传；上传后点击 ￥10 即可显示。"
+              : "二维码图片暂时无法加载，请检查资源路径后重试。";
+          }
+        };
+      } else {
+        image.onerror = () => {
+          image.onerror = null;
+          if (image.dataset.activeThemeSrc !== target) return;
+          const fallback = image.dataset.fallbackSrc || image.dataset.lightSrc;
+          if (fallback && image.src !== new URL(fallback, document.baseURI).href) {
+            image.src = fallback;
+          }
+        };
+      }
       image.src = target;
+      if (image.id === "donationQrImage" && image.complete && image.naturalWidth > 0) {
+        image.hidden = false;
+        const pending = document.getElementById("donationQrPending");
+        if (pending) pending.hidden = true;
+      }
     });
   };
 
