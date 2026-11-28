@@ -98,13 +98,133 @@ async function startInitialSessionRestore(){
   beginInitialBootPresentation();
   load({initial:true}).catch(error=>console.warn("Initial session restore failed",error?.message||"unknown"));
 }
+async function animateBootIntoLanding(action){
+  const bootLogo=$("bootLogo");
+  const bootWelcome=$("bootWelcome");
+  const targetLogo=document.querySelector(".art-logo");
+  const heroCopy=document.querySelector(".hero-copy");
+  const reducedMotion=window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  if(reducedMotion||!bootLogo||!targetLogo||typeof bootLogo.animate!=="function"){
+    action();
+    return;
+  }
+
+  const start=bootLogo.getBoundingClientRect();
+  if(!start.width||!start.height){
+    action();
+    return;
+  }
+
+  const flight=bootLogo.cloneNode(false);
+  flight.removeAttribute("id");
+  flight.className="boot-logo boot-logo-flight";
+  Object.assign(flight.style,{
+    position:"fixed",
+    top:start.top+"px",
+    left:start.left+"px",
+    width:start.width+"px",
+    height:start.height+"px",
+    margin:"0",
+    zIndex:"1001",
+    pointerEvents:"none",
+    transformOrigin:"top left",
+    animation:"none"
+  });
+  document.body.appendChild(flight);
+
+  if(bootWelcome&&typeof bootWelcome.animate==="function"){
+    const welcomeFade=bootWelcome.animate(
+      [{opacity:1,transform:"translateY(0)"},{opacity:0,transform:"translateY(-8px)"}],
+      {duration:380,easing:"cubic-bezier(.4,0,.2,1)",fill:"forwards"}
+    );
+    try{await welcomeFade.finished}catch{}
+  }
+
+  targetLogo.style.opacity="0";
+  action();
+  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+
+  const target=targetLogo.getBoundingClientRect();
+  if(!target.width||!target.height){
+    flight.remove();
+    targetLogo.style.opacity="";
+    return;
+  }
+
+  const dx=target.left-start.left;
+  const dy=target.top-start.top;
+  const scale=target.width/start.width;
+  const flightAnimation=flight.animate(
+    [
+      {transform:"translate3d(0,0,0) scale(1)"},
+      {transform:`translate3d(${dx}px,${dy}px,0) scale(${scale})`}
+    ],
+    {duration:1120,easing:"cubic-bezier(.2,.78,.22,1)",fill:"forwards"}
+  );
+  const logoReveal=targetLogo.animate(
+    [{opacity:0},{opacity:1}],
+    {duration:300,delay:850,easing:"ease-out",fill:"forwards"}
+  );
+  const copyReveal=heroCopy?.animate(
+    [
+      {opacity:0,transform:"translateY(16px)"},
+      {opacity:1,transform:"translateY(0)"}
+    ],
+    {duration:760,delay:260,easing:"cubic-bezier(.2,.75,.25,1)",fill:"both"}
+  );
+
+  try{
+    await Promise.all([
+      flightAnimation.finished,
+      logoReveal.finished,
+      ...(copyReveal?[copyReveal.finished]:[])
+    ]);
+  }catch{}
+  flight.remove();
+  logoReveal.cancel();
+  targetLogo.style.opacity="";
+  if(copyReveal)copyReveal.cancel();
+}
+
 async function finishInitialBoot(action){
   if(initialBootPending){
     await bootWelcomeDelay;
     await bootMinimumDelay;
     initialBootPending=false;
+    if(action===showAuthStage){
+      await animateBootIntoLanding(action);
+      return;
+    }
   }
   action();
+}
+function initFaqScrollReveal(){
+  if(initFaqScrollReveal.done)return;
+  initFaqScrollReveal.done=true;
+  const heading=document.querySelector(".home-faq-heading");
+  const cards=[...document.querySelectorAll(".home-faq-card")];
+  const targets=[...(heading?[heading]:[]),...cards];
+  if(!targets.length)return;
+
+  const reduce=window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  if(reduce||typeof IntersectionObserver!=="function"){
+    targets.forEach(target=>target.classList.add("is-revealed"));
+    return;
+  }
+
+  targets.forEach(target=>target.classList.add("reveal-pending"));
+  const observer=new IntersectionObserver(entries=>{
+    entries.forEach(entry=>{
+      if(!entry.isIntersecting)return;
+      entry.target.classList.remove("reveal-pending");
+      entry.target.classList.add("is-revealed");
+      observer.unobserve(entry.target);
+    });
+    if(!observer.takeRecords().length&&targets.every(target=>target.classList.contains("is-revealed"))){
+      observer.disconnect();
+    }
+  },{threshold:.12,rootMargin:"0px 0px -5% 0px"});
+  targets.forEach(target=>observer.observe(target));
 }
 const phoneOK=p=>/^1[3-9]\d{9}$/.test(p);
 async function call(path,data,options={}){
@@ -428,6 +548,7 @@ function showAuthStage(){
   $("pageFooter").hidden=true;
   $("changePassword").hidden=true;
   $("logout").hidden=true;
+  initFaqScrollReveal();
 }
 function setJourneyStep(step){
   document.querySelectorAll("[data-journey-step]").forEach(button=>{
