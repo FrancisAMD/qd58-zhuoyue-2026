@@ -54,7 +54,8 @@ const DB={
             memberCount:2,leaderName:"威海校区组长",region:"黑龙江省",
             universityCategory:"mainland",educationLevel:"undergraduate",
             degreeLevelsJson:'["undergraduate"]',
-            projectTagsJson:'["ordinary_undergraduate","public","project_985","project_211","double_first_class"]',
+            projectTagsJson:'[]',
+            profileCatalogTagsJson:'["ordinary_undergraduate","public","project_985","project_211","double_first_class"]',
             catalogProjectTagsJson:'["project_985_legacy"]'
           }]};
         }
@@ -127,8 +128,12 @@ const teamListBody=await teamList.json();
 assert.equal(teamListBody.items.length,1);
 assert.equal(teamListBody.items[0].university,"哈尔滨工业大学");
 assert.equal(teamListBody.items[0].region,"黑龙江省");
-assert.equal(teamListBody.items[0].projectTagsJson,'["ordinary_undergraduate","public","project_985","project_211","double_first_class"]',
-  "team API must preserve the project tags from the imported profile JSON");
+assert.equal(teamListBody.items[0].projectTagsJson,'[]',
+  "test fixture uses an empty legacy project tag column");
+assert.equal(teamListBody.items[0].profileCatalogTagsJson,'["ordinary_undergraduate","public","project_985","project_211","double_first_class"]',
+  "team API must expose imported tags from profile_university_catalog");
+assert.equal(teamListBody.items[0].catalogProjectTagsJson,'["project_985_legacy"]',
+  "team API must also expose normalized relational catalog tags");
 assert.equal(teamListBody.items[0].catalogProjectTagsJson,'["project_985_legacy"]',
   "team API must also expose normalized relational catalog tags");
 assert.deepEqual(teamListBody.filterOptions.regions,["黑龙江省","山东省","上海市"]);
@@ -138,6 +143,8 @@ assert.match(teamListSql.sql,/province_name_zh/,"region must come from universit
 assert.match(teamListSql.sql,/project_tags_json/,"tier filters must use catalog project tags");
 assert.match(teamListSql.sql,/json_group_array\(catalog_tag\.tag_code\)/,
   "team cards must receive project tags from the normalized university_tags table too");
+assert.match(teamListSql.sql,/profile_catalog\.tags_json/,
+  "team cards must also receive tags maintained by the profile catalog importer");
 assert.match(teamListSql.sql,/degree_levels_json/,"cards must include catalog degree-level metadata");
 assert.match(teamListSql.sql,/COUNT\(u\.id\) AS memberCount/,"team size must count active users");
 assert.equal(teamListSql.bindings.slice(-2)[0],20,"team directory should page twenty teams by default");
@@ -147,6 +154,8 @@ assert.equal(filteredTeamList.status,200);
 const filteredTeamSql=queries.filter(item=>item.kind==="all"&&item.sql.startsWith("SELECT teams.* FROM (")).at(-1);
 assert.match(filteredTeamSql.sql,/teams\.region=\?/);
 assert.match(filteredTeamSql.sql,/json_each\(CASE WHEN json_valid\(teams\.projectTagsJson\)/);
+assert.match(filteredTeamSql.sql,/json_each\(CASE WHEN json_valid\(teams\.profileCatalogTagsJson\)/,
+  "team level filters must inspect tags stored by the profile catalog seeder");
 assert.match(filteredTeamSql.sql,/teams\.memberCount>=\?/);
 assert.match(filteredTeamSql.sql,/teams\.memberCount<=\?/);
 for(const value of ["工业","黑龙江省","project_985_legacy",2,20])assert.ok(filteredTeamSql.bindings.includes(value));
