@@ -22,7 +22,7 @@ assert.match(js,/密码已被登录接口接受，但随后读取管理员会话
 assert.match(js,/已登录；部分面板加载失败/);
 assert.doesNotMatch(js,/DEMO_DATA|renderDemo|openDemo|dashboardDemo/,"admin JavaScript must not contain fictional demo datasets or renderers");
 assert.doesNotMatch(css,/\.admin-demo|\.demo-warning|\.demo-tabs/,"admin stylesheet must not retain the demo UI");
-assert.match(html,/style\.css\?v=20261128-admin-account-in-sidebar-v1/,"admin must load the latest sidebar account layout stylesheet");
+assert.match(html,/style\.css\?v=20261128-roster-name-direct-child-v2/,"admin must load the latest sidebar account layout stylesheet");
 assert.match(html,/typography\.css\?v=20261128-hierarchy-v2/,"admin must load the shared typography system after its component stylesheets");
 assert.match(typography,/--type-body:15px/,"admin body copy should share the fifteen-pixel body tier");
 assert.match(typography,/--type-secondary:13\.5px/,"admin secondary text should share the readable secondary tier");
@@ -136,9 +136,13 @@ assert.doesNotMatch(js,/58ER · MEMBER/,"roster cards must not show the decorati
 assert.match(js,/class="admin-person-grade admin-person-info-box"><small>当前年级/,"roster card grade must have its own labeled block");
 assert.match(js,/class="admin-person-high-school admin-person-info-box"><small>高中/,"roster card high school must have its own labeled block");
 assert.ok(css.includes("#peoplePanel .admin-person-info-row{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;"),"high school and grade blocks should appear side by side");
-assert.match(html,/style\.css\?v=20261128-admin-account-in-sidebar-v1/,"admin must load the latest shared stylesheet");
-assert.match(html,/admin\.js\?v=20261128-admin-account-in-sidebar-v1/,"admin must load the current admin script");
-assert.ok(css.includes("#peoplePanel .admin-person-card-heading h4{margin:0!important;text-align:left!important;"),"member name should sit directly in the first card layer");
+assert.match(html,/style\.css\?v=20261128-roster-name-direct-child-v2/,"admin must load the latest shared stylesheet");
+assert.match(html,/admin\.js\?v=20261128-roster-name-direct-child-v2/,"admin must load the current admin script");
+assert.match(js,/<h4 class="admin-person-name">\+safe\(name\)\+'<\\/h4>'/,"member name should render as a direct heading, without a wrapping header module");
+assert.doesNotMatch(js,/<header class="admin-person-card-heading"/,"roster name must not use the global site header element");
+assert.match(css,/#peoplePanel \.admin-person-card > \.admin-person-name\{[\s\S]*?background:transparent[\s\S]*?font-family:"Noto Serif SC"/,"member name should be unboxed and use the intended serif title font");
+assert.match(css,/#peoplePanel \.admin-person-card > \.admin-person-name\{[\s\S]*?margin:0 0 12px/,"member name spacing should be controlled without an empty header gap");
+assert.doesNotMatch(css,/admin-person-card-heading|admin-person-identity/,"obsolete name-header styles should be removed");
 assert.match(js,/class="admin-person-card"/,"each person must render as an independent card");
 assert.match(js,/class="admin-person-facts"/,"person cards must group key account facts");
 assert.match(js,/class="admin-person-details"/,"full profile details must expand inside the person card");
@@ -192,7 +196,7 @@ assert.ok(html.indexOf('id="peoplePanel"')<html.indexOf('id="teamsPanel"')&&html
 assert.doesNotMatch(html,/value="viewer"/,"new administrator creation must not offer a read-only role");
 assert.match(html,/普通管理员仅可查看统计概览、审核海外高校、管理地区群聊二维码/);
 assert.match(html,/data-nav-target="teamsPanel" data-nav-permission="overview"/,"ordinary admins can access teams through the overview permission");
-assert.match(html,/admin\.js\?v=20261128-admin-account-in-sidebar-v1/,"admin script cache must be versioned with the sidebar account layout");
+assert.match(html,/admin\.js\?v=20261128-roster-name-direct-child-v2/,"admin script cache must be versioned with the sidebar account layout");
 assert.match(js,/async function downloadRosterExport\(format\)/,"CSV and XLSX should share the blob download path");
 assert.match(js,/credentials:"include"/,"roster exports must include the admin session cookie");
 assert.match(js,/mode:"cors"/,"roster exports must use CORS fetch instead of a top-level cross-origin navigation");
