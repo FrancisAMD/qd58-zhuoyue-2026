@@ -1,5 +1,6 @@
 import { WorkflowEntrypoint } from "cloudflare:workers";
 import { normalizeD1ExportResponse } from "./d1-backup-export.js";
+import { acquireD1ExportLock, releaseD1ExportLock, renewD1ExportLock } from "./d1-backup-lock.js";
 import {
   backupManifestKey, backupObjectKey, decryptBackupPart, encryptBackupPart,
   getBackupMasterKey, signBackupManifest, unwrapBackupDataKey,
@@ -309,6 +310,7 @@ export class D1BackupWorkflow extends WorkflowEntrypoint {
     }
 
     const keyVersion = String(this.env.BACKUP_ACTIVE_KEY_VERSION || "v1");
+    let exportLockAcquired = false;
     const manifest = {
       format: "qd58-d1-backup",
       schemaVersion: 1,
@@ -332,6 +334,11 @@ export class D1BackupWorkflow extends WorkflowEntrypoint {
         await writeManifest(this.env, manifest);
         return { backupId, status: "running" };
       });
+      await step.do("acquire-d1-export-lock", async () => {
+        const lock = await acquireD1ExportLock(this.env.D1_BACKUPS,event.instanceId);
+        return {ownerId:lock.ownerId,leaseExpiresAt:lock.leaseExpiresAt};
+      });
+      exportLockAcquired = true;
 
       let exportState = await step.do("start-d1-export", async () => {
         try {
@@ -347,6 +354,10 @@ export class D1BackupWorkflow extends WorkflowEntrypoint {
         if (exportState.value.status === "error") throw new Error("backup_d1_export_failed");
         if (!exportState.value.bookmark) throw new Error("backup_d1_export_bookmark_missing");
         if (pollCount >= 180) throw new Error("backup_d1_export_timeout");
+        await step.do("renew-d1-export-lock-" + pollCount, async () => {
+          const renewed = await renewD1ExportLock(this.env.D1_BACKUPS,event.instanceId);
+          return {ownerId:renewed.ownerId,leaseExpiresAt:renewed.leaseExpiresAt};
+        });
         await step.sleep("wait-for-d1-export-" + pollCount, 10000);
         const bookmark = exportState.value.bookmark;
         exportState = await step.do("poll-d1-export-" + pollCount, async () => ({
@@ -381,6 +392,10 @@ export class D1BackupWorkflow extends WorkflowEntrypoint {
           return { ok: false, deleted: 0, errorCode: safeErrorCode(error) };
         }
       });
+      await step.do("release-d1-export-lock", async () => ({
+        released:await releaseD1ExportLock(this.env.D1_BACKUPS,event.instanceId)
+      }));
+      exportLockAcquired = false;
       return {
         backupId, status: completed.status,
         plaintextBytes: completed.plaintextBytes,
@@ -397,6 +412,15 @@ export class D1BackupWorkflow extends WorkflowEntrypoint {
         });
       } catch (recordError) {
         console.error("Backup failure could not be recorded",safeErrorCode(recordError));
+      }
+      if (exportLockAcquired) {
+        try {
+          await step.do("release-d1-export-lock-after-failure", async () => ({
+            released:await releaseD1ExportLock(this.env.D1_BACKUPS,event.instanceId)
+          }));
+        } catch (releaseError) {
+          console.error("D1 export lease release failed; it will expire automatically",safeErrorCode(releaseError));
+        }
       }
       throw error;
     }
