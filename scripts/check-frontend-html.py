@@ -56,8 +56,13 @@ for font_name, font_path in font_files.items():
 for page_name, page_text in (("index.html", html_text), ("admin.html", admin_text), ("privacy.html", privacy_text)):
     if 'typography.css?v=20261128-local-fonts-v1' not in page_text:
         parser.errors.append(f"{page_name} must load the current local-font typography stylesheet.")
-    if 'style.css?v=20261128-custom-consent-checkbox-v1' not in page_text:
+    if page_name == "index.html" and 'app.js?v=20261128-boot-assets-before-session-v1' not in page_text:
+        parser.errors.append("index.html must load the resource-gated startup script.")
+
+    if 'style.css?v=20261128-boot-assets-before-session-v1' not in page_text:
         parser.errors.append(f"{page_name} must load the current local-font base stylesheet.")
+if 'id="bootScreen" class="boot-screen" role="status" aria-live="polite" hidden' not in html_text:
+    parser.errors.append("The welcome splash must remain hidden until local fonts and logos are preloaded.")
 if "fonts.googleapis.com" in style_text or "fonts.googleapis.com" in typography_text:
     parser.errors.append("Google Fonts must not be requested; all Chinese fonts must be self-hosted.")
 if 'lxgw-wenkai-lite-regular.woff2' not in typography_text:
