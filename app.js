@@ -750,7 +750,32 @@ $("profile").onsubmit=async event=>{
     msg("profileMsg",errors[error.message]||"保存失败，请检查资料后重试",true);
   }
 };
-document.querySelectorAll("[data-toggle-password]").forEach(b=>b.onclick=()=>{const input=$(b.dataset.togglePassword);const visible=input.type==="password";input.type=visible?"text":"password";b.textContent=visible?"隐藏":"显示"});document.querySelectorAll("[data-view]").forEach(x=>x.onclick=()=>{document.querySelectorAll("[data-view]").forEach(b=>b.classList.toggle("active",b===x));view=x.dataset.view;render()});$("search").oninput=render;$("retrySession").onclick=()=>{
+document.querySelectorAll("[data-toggle-password]").forEach(b=>b.onclick=()=>{const input=$(b.dataset.togglePassword);const visible=input.type==="password";input.type=visible?"text":"password";b.textContent=visible?"隐藏":"显示"});document.querySelectorAll("[data-view]").forEach(x=>x.onclick=()=>{document.querySelectorAll("[data-view]").forEach(b=>b.classList.toggle("active",b===x));view=x.dataset.view;render()});$("search").oninput=render;function selectDonationAmount(amount){
+  if(amount!==5&&amount!==15)return;
+  const image=$("donationQrImage");
+  if(!image)return;
+  const light=image.dataset["amount"+amount+"LightSrc"];
+  const dark=image.dataset["amount"+amount+"DarkSrc"];
+  if(!light||!dark)return;
+  image.dataset.lightSrc=light;
+  image.dataset.darkSrc=dark;
+  image.dataset.fallbackSrc=light;
+  image.dataset.selectedAmount=String(amount);
+  const theme=document.documentElement.dataset.theme==="dark"?"dark":"light";
+  const target=theme==="dark"?dark:light;
+  image.dataset.activeThemeSrc=target;
+  image.alt="￥"+amount+" 捐赠收款二维码";
+  image.src=target;
+  document.querySelectorAll("[data-donation-amount]").forEach(button=>{
+    const selected=Number(button.dataset.donationAmount)===amount;
+    button.classList.toggle("active",selected);
+    button.setAttribute("aria-pressed",String(selected));
+  });
+}
+document.querySelectorAll("[data-donation-amount]").forEach(button=>{
+  button.addEventListener("click",()=>selectDonationAmount(Number(button.dataset.donationAmount)));
+});
+$("retrySession").onclick=()=>{
   $("bootError").hidden=true;
   $("retrySession").hidden=true;
   $("bootWelcome").hidden=true;
