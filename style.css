@@ -1477,3 +1477,108 @@ body :where(input,select,textarea){
   background:#29382f;
   border-color:#46584b;
 }
+
+
+/* QD58 welcome splash: a larger school mark, placed slightly above center. */
+.boot-screen{
+  box-sizing:border-box;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:100%;
+  min-height:100vh;
+  min-height:100svh;
+  padding:28px 20px 16vh;
+  background:var(--bg);
+  color:var(--ink);
+  text-align:center;
+}
+.boot-content{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  width:min(100%,520px);
+  gap:0;
+  transform:translateY(-2vh);
+}
+.boot-logo{
+  display:block;
+  width:clamp(176px,22vw,244px);
+  height:clamp(176px,22vw,244px);
+  margin:0 auto 25px;
+  object-fit:contain;
+  object-position:center;
+  filter:drop-shadow(0 16px 30px rgba(20,45,29,.13));
+  animation:boot-logo-enter .9s cubic-bezier(.2,.7,.2,1) both;
+}
+.boot-copy{
+  display:grid;
+  justify-items:center;
+  min-height:88px;
+  align-content:center;
+  gap:12px;
+  width:100%;
+  animation:boot-copy-enter .7s .15s ease both;
+}
+.boot-status{
+  margin:0;
+  color:var(--muted);
+  font:600 15px/1.8 system-ui,"Noto Sans SC","Microsoft YaHei",sans-serif;
+  letter-spacing:.18em;
+}
+.boot-welcome{
+  display:grid;
+  justify-items:center;
+  gap:8px;
+}
+.boot-welcome[hidden]{display:none!important}
+.boot-welcome strong{
+  color:var(--ink);
+  font:600 clamp(23px,3vw,29px)/1.55 "Noto Serif SC","Songti SC","STSong",serif;
+  letter-spacing:.08em;
+}
+.boot-welcome span{
+  color:var(--green);
+  font:500 16px/1.6 Georgia,"Times New Roman",serif;
+  letter-spacing:.13em;
+}
+.boot-error{
+  max-width:440px;
+  margin:0;
+  color:#b86c5f;
+  font:500 13px/1.8 system-ui,"Noto Sans SC","Microsoft YaHei",sans-serif;
+}
+.boot-retry{
+  margin-top:16px;
+  min-width:128px;
+}
+@keyframes boot-logo-enter{
+  from{opacity:0;transform:translateY(12px) scale(.96)}
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
+@keyframes boot-copy-enter{
+  from{opacity:0;transform:translateY(7px)}
+  to{opacity:1;transform:translateY(0)}
+}
+@media(max-width:760px){
+  .boot-screen{
+    min-height:100vh;
+    min-height:100svh;
+    padding:24px 22px 14vh;
+  }
+  .boot-content{width:100%;transform:translateY(-1vh)}
+  .boot-logo{
+    width:clamp(156px,48vw,204px);
+    height:clamp(156px,48vw,204px);
+    margin-bottom:22px;
+  }
+  .boot-copy{min-height:82px;gap:10px}
+  .boot-status{font-size:14px;letter-spacing:.14em}
+  .boot-welcome strong{font-size:23px;letter-spacing:.05em}
+  .boot-welcome span{font-size:15px;letter-spacing:.1em}
+  .boot-error{font-size:12px}
+}
+@media(prefers-reduced-motion:reduce){
+  .boot-logo,.boot-copy{animation:none}
+}
