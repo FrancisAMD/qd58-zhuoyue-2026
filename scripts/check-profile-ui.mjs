@@ -94,6 +94,7 @@ assert.ok(css.includes("width:clamp(176px,22vw,244px)"),"boot logo should be lar
 assert.ok(css.includes('"Noto Serif SC","Songti SC","STSong",serif!important'),"Chinese welcome copy should use an elegant serif face");
 assert.ok(css.includes("Georgia,\"Times New Roman\",serif!important"),"English welcome copy should use a refined serif face");
 assert.match(html,/id="journeySteps"/,"homepage must retain the three-step navigation");
+assert.match(html,/style\.css\?v=20261128-admin-sidebar-home-width-v1/,"homepage alignment update must bust its stylesheet cache");
 assert.ok(css.includes("#appStage>.journey-steps,")&&css.includes("#appStage>#accountBottom{")&&css.includes("width:min(100%,1156px);")&&css.includes("padding-left:28px;"),"desktop journey sections and account removal notice must share the same outer width and inner gutters");
 assert.ok(css.includes("@media(max-width:760px){")&&css.includes("#appStage>.section#groups,")&&css.includes("width:100%;")&&css.includes("padding-left:16px;"),"mobile journey sections and account removal notice must share the same width and gutters");
 assert.ok(css.includes("#appStage>#accountBottom{\n  padding-top:0;"),"account removal notice should align directly beneath the same content column");
