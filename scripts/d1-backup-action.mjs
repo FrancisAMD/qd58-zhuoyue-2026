@@ -80,20 +80,7 @@ function awsDownload(key, filePath) {
 function awsDelete(key) {
   aws(["s3api", "delete-object", "--bucket", BUCKET, "--key", key, "--output", "json"]);
 }
-function awsHead(key) {
-  try {
-    const output = execFileSync("aws", [
-      "s3api", "head-object", "--bucket", BUCKET, "--key", key,
-      "--endpoint-url", endpoint(), , "--output", "json"
-    ], {
-      encoding: "utf8", maxBuffer: 1024 * 1024, stdio: ["ignore", "pipe", "pipe"],
-      env: { ...process.env, AWS_DEFAULT_REGION: "auto", AWS_REGION: "auto", AWS_EC2_METADATA_DISABLED: "true" }
-    });
-    return JSON.parse(output);
-  } catch {
-    return null;
-  }
-}
+
 async function postD1Export(bookmark) {
   const accountId = requiredEnv("CLOUDFLARE_ACCOUNT_ID");
   const apiToken = requiredEnv("CLOUDFLARE_API_TOKEN");
@@ -460,6 +447,7 @@ async function main() {
   requiredEnv("CLOUDFLARE_ACCOUNT_ID");
   requiredEnv("BACKUP_MASTER_KEY_V1");
   const action = process.env.BACKUP_ACTION === "verify" ? "verify" : "backup";
+  if (action === "verify" && !process.env.BACKUP_ID) fail("backup_id_required_for_verification");
   const backupId = validateBackupId(process.env.BACKUP_ID || randomId());
   const requestedBy = String(process.env.BACKUP_REQUESTED_BY || "").slice(0, 80);
   const requestedAt = String(process.env.BACKUP_REQUESTED_AT || "");
