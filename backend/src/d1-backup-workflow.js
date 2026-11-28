@@ -24,14 +24,14 @@ function concatBytes(parts, size) {
   for (const part of parts) { result.set(part, offset); offset += part.byteLength; }
   return result;
 }
-function normalizeExportResult(result) {
-  const nested = result?.result || {};
+function normalizeExportResult(payload) {
+  const nested = payload?.result || {};
   return {
-    status: result?.status || (nested.signed_url ? "complete" : "pending"),
-    bookmark: result?.at_bookmark || "",
-    error: result?.error || "",
+    status: payload?.status || "pending",
+    bookmark: payload?.at_bookmark || "",
+    error: payload?.error || "",
     signedUrl: nested.signed_url || "",
-    filename: nested.filename || ""
+    filename: nested.filename || payload?.filename || ""
   };
 }
 async function cloudflareExport(env, body) {
@@ -50,7 +50,7 @@ async function cloudflareExport(env, body) {
   if (!response.ok || payload?.success !== true || !payload.result) {
     throw new Error("backup_d1_export_api_failed");
   }
-  return normalizeExportResult(payload.result);
+  return normalizeExportResult(payload);
 }
 async function writeManifest(env, manifest) {
   const master = await getBackupMasterKey(env, manifest.keyVersion);
@@ -365,13 +365,20 @@ export class D1BackupWorkflow extends WorkflowEntrypoint {
         return await encryptAndUpload(this.env, manifest, exportState.value.signedUrl);
       });
       const completed = await readManifest(this.env, backupId);
-      const retention = await step.do("prune-expired-backups", async () => pruneExpiredBackups(this.env));
+      const retention = await step.do("prune-expired-backups", async () => {
+        try { return { ok: true, ...(await pruneExpiredBackups(this.env)) }; }
+        catch (error) {
+          console.error("Backup retention cleanup failed", safeErrorCode(error));
+          return { ok: false, deleted: 0, errorCode: safeErrorCode(error) };
+        }
+      });
       return {
         backupId, status: completed.status,
         plaintextBytes: completed.plaintextBytes,
         ciphertextBytes: completed.ciphertextBytes,
         partCount: completed.partCount,
-        retentionDeleted: retention.deleted
+        retentionDeleted: retention.deleted,
+        retentionWarning: retention.ok ? null : retention.errorCode
       };
     } catch (error) {
       await failManifest(this.env, backupId, error, "backup");
