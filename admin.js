@@ -720,16 +720,63 @@ $("nextPage").onclick=()=>{
 $("lastPage").onclick=()=>{
   if(page<totalPages){page=totalPages;loadPeople().catch(error=>showError("peopleMeta",error));}
 };
-$("export").onclick=()=>{
-  readFilters();
-  const query=params({format:"csv"});
-  location.href=API+"/admin/people?"+query;
-};
-$("exportXlsx").onclick=()=>{
-  readFilters();
-  const query=params({format:"xlsx"});
-  location.href=API+"/admin/people?"+query;
-};
+async function downloadRosterExport(format){
+  const button=$(format==="xlsx"?"exportXlsx":"export");
+  const originalText=button.textContent;
+  button.disabled=true;
+  $("peopleMeta").textContent=format==="xlsx"?"正在生成 Excel 文件……":"正在生成 CSV 文件……";
+  try{
+    readFilters();
+    const query=params({format});
+    const response=await fetch(API+"/admin/people?"+query,{
+      method:"GET",
+      mode:"cors",
+      credentials:"include",
+      cache:"no-store",
+      headers:{Accept:format==="xlsx"
+        ?"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        :"text/csv"}
+    });
+    if(!response.ok){
+      let payload={};
+      try{payload=await response.json();}catch{}
+      const error=new Error(payload.error||"roster_export_failed");
+      error.status=response.status;
+      error.payload=payload;
+      throw error;
+    }
+    const blob=await response.blob();
+    if(!blob.size)throw new Error("roster_export_empty");
+    const contentType=(response.headers.get("content-type")||"").toLowerCase();
+    if(format==="xlsx"&&!contentType.includes("spreadsheetml.sheet")){
+      throw new Error("roster_export_unexpected_content_type");
+    }
+    if(format==="csv"&&!contentType.includes("text/csv")){
+      throw new Error("roster_export_unexpected_content_type");
+    }
+    const filename=format==="xlsx"?"zhuoyue-2026-roster.xlsx":"zhuoyue-2026-roster.csv";
+    const objectUrl=URL.createObjectURL(blob);
+    try{
+      const link=document.createElement("a");
+      link.href=objectUrl;
+      link.download=filename;
+      link.style.display="none";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    }finally{
+      setTimeout(()=>URL.revokeObjectURL(objectUrl),30000);
+    }
+    $("peopleMeta").textContent=(format==="xlsx"?"Excel":"CSV")+" 导出完成，已按当前筛选条件生成文件。";
+  }catch(error){
+    showError("peopleMeta",error);
+  }finally{
+    button.disabled=false;
+    button.textContent=originalText;
+  }
+}
+$("export").onclick=()=>downloadRosterExport("csv");
+$("exportXlsx").onclick=()=>downloadRosterExport("xlsx");
 $("refreshAudit").onclick=()=>loadAudit().catch(error=>showError("auditRows",error));
 $("refreshUniversityReviews").onclick=()=>loadUniversityReviews().catch(error=>showError("universityReviewMsg",error));
 $("uploadGroupQr").onclick=uploadGroupQr;
