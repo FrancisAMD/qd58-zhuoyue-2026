@@ -140,7 +140,7 @@ assert.match(html,/style\.css\?v=20261128-local-fonts-v1/,"admin must load the l
 assert.match(html,/admin\.js\?v=20261128-team-tier-tag-codes-v2/,"admin must load the current admin script");
 assert.ok(js.includes("'<h4 class=\"admin-person-name\">'+safe(name)+'</h4>'+"),"member name should render directly inside the card, without a wrapping header module");
 assert.doesNotMatch(js,/<header class="admin-person-card-heading"/,"roster name must not use the global site header element");
-assert.match(css,/#peoplePanel \.admin-person-card > \.admin-person-name\{[\s\S]*?background:transparent[\s\S]*?font-family:"Noto Serif SC"/,"member name should be unboxed and use the intended serif title font");
+assert.match(css,/#peoplePanel \.admin-person-card > \.admin-person-name\{[\s\S]*?background:transparent[\s\S]*?font-family:"LXGW WenKai Lite"/,"member name should be unboxed and use the intended serif title font");
 assert.match(css,/#peoplePanel \.admin-person-card > \.admin-person-name\{[\s\S]*?margin:0 0 12px/,"member name spacing should be controlled without an empty header gap");
 assert.doesNotMatch(css,/admin-person-card-heading|admin-person-identity/,"obsolete name-header styles should be removed");
 assert.match(js,/class="admin-person-card"/,"each person must render as an independent card");
