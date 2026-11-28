@@ -226,6 +226,45 @@ const ADMIN_PERMISSIONS = {
 function hasAdminPermission(admin, permission) {
   return !!admin && (ADMIN_PERMISSIONS[admin.role] || []).includes(permission);
 }
+const GITHUB_BACKUP_REPOSITORY = "FrancisAMD/qd58-zhuoyue-2026";
+const GITHUB_BACKUP_WORKFLOW = "d1-backup.yml";
+async function dispatchGithubBackup(env, {action, backupId, requestedBy, requestedAt}) {
+  const token = env.GITHUB_BACKUP_DISPATCH_TOKEN;
+  if (typeof token !== "string" || token.length < 20) return false;
+  try {
+    const result = await fetch(
+      "https://api.github.com/repos/" + GITHUB_BACKUP_REPOSITORY +
+      "/actions/workflows/" + GITHUB_BACKUP_WORKFLOW + "/dispatches",
+      {
+        method: "POST",
+        headers: {
+          authorization: "Bearer " + token,
+          accept: "application/vnd.github+json",
+          "content-type": "application/json",
+          "x-github-api-version": "2022-11-28"
+        },
+        body: JSON.stringify({
+          ref: "main",
+          inputs: {
+            action,
+            backup_id: backupId,
+            requested_by: requestedBy || "",
+            requested_at: requestedAt || ""
+          }
+        }),
+        signal: AbortSignal.timeout(10000)
+      }
+    );
+    if (result.status !== 204) {
+      console.error("GitHub backup workflow dispatch rejected", {status:result.status});
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error("GitHub backup workflow dispatch failed", error?.message || "unknown");
+    return false;
+  }
+}
 const GROUP_CHAT_REGIONS = [{"key":"beijing","label":"北京市","kind":"mainland"},{"key":"tianjin","label":"天津市","kind":"mainland"},{"key":"hebei","label":"河北省","kind":"mainland"},{"key":"shanxi","label":"山西省","kind":"mainland"},{"key":"inner-mongolia","label":"内蒙古自治区","kind":"mainland"},{"key":"liaoning","label":"辽宁省","kind":"mainland"},{"key":"jilin","label":"吉林省","kind":"mainland"},{"key":"heilongjiang","label":"黑龙江省","kind":"mainland"},{"key":"shanghai","label":"上海市","kind":"mainland"},{"key":"jiangsu","label":"江苏省","kind":"mainland"},{"key":"zhejiang","label":"浙江省","kind":"mainland"},{"key":"anhui","label":"安徽省","kind":"mainland"},{"key":"fujian","label":"福建省","kind":"mainland"},{"key":"jiangxi","label":"江西省","kind":"mainland"},{"key":"shandong","label":"山东省","kind":"mainland"},{"key":"henan","label":"河南省","kind":"mainland"},{"key":"hubei","label":"湖北省","kind":"mainland"},{"key":"hunan","label":"湖南省","kind":"mainland"},{"key":"guangdong","label":"广东省","kind":"mainland"},{"key":"guangxi","label":"广西壮族自治区","kind":"mainland"},{"key":"hainan","label":"海南省","kind":"mainland"},{"key":"chongqing","label":"重庆市","kind":"mainland"},{"key":"sichuan","label":"四川省","kind":"mainland"},{"key":"guizhou","label":"贵州省","kind":"mainland"},{"key":"yunnan","label":"云南省","kind":"mainland"},{"key":"tibet","label":"西藏自治区","kind":"mainland"},{"key":"shaanxi","label":"陕西省","kind":"mainland"},{"key":"gansu","label":"甘肃省","kind":"mainland"},{"key":"qinghai","label":"青海省","kind":"mainland"},{"key":"ningxia","label":"宁夏回族自治区","kind":"mainland"},{"key":"xinjiang","label":"新疆维吾尔自治区","kind":"mainland"},{"key":"hmt","label":"港澳台","kind":"hmt"},{"key":"overseas","label":"海外","kind":"overseas"}];
 const GROUP_CHAT_REGION_BY_KEY = new Map(GROUP_CHAT_REGIONS.map(item=>[item.key,item]));
 const GROUP_CHAT_REGION_BY_LABEL = new Map(GROUP_CHAT_REGIONS.filter(item=>item.kind==="mainland").map(item=>[item.label,item]));
@@ -635,8 +674,7 @@ async function route(request, env) {
       smsCredentialsConfigured:!!env.ALIBABA_ACCESS_KEY_ID&&!!env.ALIBABA_ACCESS_KEY_SECRET,
       smsTemplateConfigured:!!env.ALIBABA_SIGN_NAME&&!!env.ALIBABA_TEMPLATE_CODE,
       backupStorageConfigured:!!env.D1_BACKUPS,
-      backupWorkflowConfigured:!!env.D1_BACKUP_WORKFLOW,
-      backupExportConfigured:!!env.CLOUDFLARE_ACCOUNT_ID&&!!env.CLOUDFLARE_API_TOKEN&&!!env.D1_DATABASE_ID,
+      backupDispatchConfigured:typeof env.GITHUB_BACKUP_DISPATCH_TOKEN==="string"&&env.GITHUB_BACKUP_DISPATCH_TOKEN.length>=20,
       backupEncryptionConfigured:typeof env.BACKUP_MASTER_KEY_V1==="string"&&env.BACKUP_MASTER_KEY_V1.length>=32
     }
   },200,origin,env);
@@ -1952,27 +1990,21 @@ if(path==="/api/teams/transfer" && method==="POST") {
     if (!hasAdminPermission(admin,"backups:manage")) return response({error:"forbidden"},403,origin,env);
     if (!env.D1_BACKUPS) return response({error:"backup_storage_not_configured"},503,origin,env);
     if (method === "POST") {
-      if (!env.D1_BACKUP_WORKFLOW || !env.CLOUDFLARE_ACCOUNT_ID || !env.CLOUDFLARE_API_TOKEN ||
-          !env.D1_DATABASE_ID || !env.BACKUP_MASTER_KEY_V1) {
-        return response({error:"backup_configuration_incomplete"},503,origin,env);
-      }
+      if (!env.BACKUP_MASTER_KEY_V1) return response({error:"backup_configuration_incomplete"},503,origin,env);
+      if (!env.GITHUB_BACKUP_DISPATCH_TOKEN) return response({error:"backup_dispatch_not_configured"},503,origin,env);
       const backupId = randomHex(16);
-      try {
-        const instance = await env.D1_BACKUP_WORKFLOW.create({
-          id: backupId,
-          params: { backupId, source: "manual", requestedBy: admin.id, requestedAt: new Date().toISOString() }
-        });
-        let auditRecorded = true;
-        try { await writeAudit(env.DB,"admin",admin.id,"admin.backup.started","d1_backup",backupId,{source:"manual"}); }
-        catch (error) {
-          auditRecorded = false;
-          console.error("Manual backup started but audit write failed",error?.message||"unknown");
-        }
-        return response({ok:true,backupId,workflowInstanceId:instance.id,auditRecorded},202,origin,env);
-      } catch (error) {
-        console.error("Manual D1 backup could not be started",error?.message||"unknown");
-        return response({error:"backup_start_failed"},503,origin,env);
+      const requestedAt = new Date().toISOString();
+      const dispatched = await dispatchGithubBackup(env,{
+        action:"backup",backupId,requestedBy:admin.id,requestedAt
+      });
+      if (!dispatched) return response({error:"backup_dispatch_failed"},503,origin,env);
+      let auditRecorded = true;
+      try { await writeAudit(env.DB,"admin",admin.id,"admin.backup.started","d1_backup",backupId,{source:"manual",runner:"github-actions"}); }
+      catch (error) {
+        auditRecorded = false;
+        console.error("Manual backup started but audit write failed",error?.message||"unknown");
       }
+      return response({ok:true,backupId,runner:"github-actions",auditRecorded},202,origin,env);
     }
     try {
       const items = [];
@@ -2020,8 +2052,7 @@ if(path==="/api/teams/transfer" && method==="POST") {
       const truncated = items.length > 100;
       return response({
         items:items.slice(0,100),unreadable,truncated,
-        workflowConfigured:!!env.D1_BACKUP_WORKFLOW,
-        exportConfigured:!!env.CLOUDFLARE_ACCOUNT_ID&&!!env.CLOUDFLARE_API_TOKEN&&!!env.D1_DATABASE_ID,
+        dispatchConfigured:typeof env.GITHUB_BACKUP_DISPATCH_TOKEN==="string"&&env.GITHUB_BACKUP_DISPATCH_TOKEN.length>=20,
         encryptionConfigured:typeof env.BACKUP_MASTER_KEY_V1==="string"&&env.BACKUP_MASTER_KEY_V1.length>=32
       },200,origin,env);
     } catch (error) {
@@ -2067,18 +2098,18 @@ if(path==="/api/teams/transfer" && method==="POST") {
       }
       if (action === "verify" && method === "POST") {
         if (manifest.status !== "completed") return response({error:"backup_not_ready"},409,origin,env);
-        if (!env.D1_BACKUP_WORKFLOW) return response({error:"backup_workflow_not_configured"},503,origin,env);
-        const instanceId = "verify-" + backupId + "-" + randomHex(8);
-        const instance = await env.D1_BACKUP_WORKFLOW.create({
-          id:instanceId,params:{action:"verify",backupId,requestedBy:admin.id}
+        if (!env.GITHUB_BACKUP_DISPATCH_TOKEN) return response({error:"backup_dispatch_not_configured"},503,origin,env);
+        const dispatched = await dispatchGithubBackup(env,{
+          action:"verify",backupId,requestedBy:admin.id,requestedAt:new Date().toISOString()
         });
+        if (!dispatched) return response({error:"backup_dispatch_failed"},503,origin,env);
         let auditRecorded = true;
-        try { await writeAudit(env.DB,"admin",admin.id,"admin.backup.verification_started","d1_backup",backupId,{}); }
+        try { await writeAudit(env.DB,"admin",admin.id,"admin.backup.verification_started","d1_backup",backupId,{runner:"github-actions"}); }
         catch (error) {
           auditRecorded = false;
           console.error("Backup verification started but audit write failed",error?.message||"unknown");
         }
-        return response({ok:true,workflowInstanceId:instance.id,auditRecorded},202,origin,env);
+        return response({ok:true,runner:"github-actions",auditRecorded},202,origin,env);
       }
       if (!action && method === "DELETE") {
         if (manifest.status === "running") return response({error:"backup_running"},409,origin,env);
@@ -2178,20 +2209,6 @@ if(path==="/api/teams/transfer" && method==="POST") {
 
   return response({error:"not_found"},404,origin,env);
 }
-async function scheduledBackupExportActive(env) {
-  if (!env.D1_BACKUPS || typeof env.D1_BACKUPS.get !== "function") return false;
-  try {
-    const object = await env.D1_BACKUPS.get("d1-backups/v1/locks/export.json");
-    if (!object) return false;
-    const lease = await object.json();
-    return !!lease?.ownerId && Number(lease.leaseExpiresAt) > Date.now();
-  } catch (error) {
-    // Fail closed: if the lease cannot be inspected, do not issue D1 work
-    // while a long-running export may be making the database unavailable.
-    console.error("Scheduled maintenance skipped because backup lease could not be checked",error?.message||"unknown");
-    return true;
-  }
-}
 export default {
   fetch(request,env) {
     return route(request,env).catch(e=>{
@@ -2200,19 +2217,13 @@ export default {
     });
   },
   scheduled(_controller,env,ctx) {
-    ctx.waitUntil((async()=>{
-      if (await scheduledBackupExportActive(env)) {
-        console.info("Scheduled D1 maintenance skipped during database export");
-        return;
-      }
-      await Promise.all([
-        expirePendingTransfers(env.DB).catch(error=>{
-          console.error("Scheduled transfer expiry failed",error?.message||"unknown");
-        }),
-        cleanupExpiredSecurityData(env.DB).catch(error=>{
-          console.error("Scheduled security-data cleanup failed",error?.message||"unknown");
-        })
-      ]);
-    })());
+    ctx.waitUntil(Promise.all([
+      expirePendingTransfers(env.DB).catch(error=>{
+        console.error("Scheduled transfer expiry failed",error?.message||"unknown");
+      }),
+      cleanupExpiredSecurityData(env.DB).catch(error=>{
+        console.error("Scheduled security-data cleanup failed",error?.message||"unknown");
+      })
+    ]));
   }
 };
