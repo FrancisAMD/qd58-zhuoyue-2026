@@ -50,7 +50,6 @@ assert.match(html,/class="admin-workspace"/,"dashboard panels must be arranged b
 assert.match(html,/id="adminSidebarToggle"[^>]*aria-controls="adminSidebar"/,"admin workspace must provide an accessible sidebar toggle");
 assert.match(html,/id="adminWorkspace"/,"sidebar toggle must control the authenticated workspace");
 assert.doesNotMatch(html,/class="admin-toolbar"/,"the separate top admin toolbar must be removed");
-assert.doesNotMatch(html,/class="admin-toolbar"/,"the separate top admin toolbar must be removed");
 const sidebarRoleCard=html.slice(html.indexOf('<aside class="admin-sidebar"'),html.indexOf('<div class="admin-main-content">'));
 assert.match(sidebarRoleCard,/class="admin-section-nav"/);
 assert.ok(sidebarRoleCard.indexOf('class="admin-section-nav"')<sidebarRoleCard.indexOf('class="admin-sidebar-role-card"'),"account controls must be placed below the sidebar navigation");
@@ -139,10 +138,7 @@ assert.match(js,/class="admin-person-high-school admin-person-info-box"><small>é
 assert.ok(css.includes("#peoplePanel .admin-person-info-row{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;"),"high school and grade blocks should appear side by side");
 assert.match(html,/style\.css\?v=20261128-admin-account-in-sidebar-v1/,"admin must load the latest shared stylesheet");
 assert.match(html,/admin\.js\?v=20261128-admin-account-in-sidebar-v1/,"admin must load the current admin script");
-assert.ok(css.includes(".admin-person-card-heading{")&&css.includes("grid-template-columns:minmax(0,1fr) auto;"),"roster identity header should use a stable two-column layout");
-assert.ok(css.includes(".admin-person-high-school{")&&css.includes(".admin-person-grade>small{"),"high-school and grade rows should have clear separate typography");
-assert.match(html,/style\.css\?v=20261128-donation-amount-member-card-v1/,"admin member card update must bust the shared stylesheet cache");
-assert.match(html,/style\.css\?v=20261128-admin-person-layout-v1/,"admin roster layout fix must bust stylesheet cache");\nassert.match(css,/#peoplePanel \.admin-person-card-heading[\\s\\S]*?grid-template-columns:minmax\\(0,1fr\\) minmax\\(112px,max-content\\)/,"roster heading should retain horizontal name/highschool and grade layout");\nassert.match(css,/#peoplePanel \.admin-person-high-school[\\s\\S]*?flex-direction:row/,"high-school label and value should remain horizontal");\nassert.match(html,/admin\\.js\\?v=20261128-member-card-heading-v2/,"admin member card update must bust the admin script cache");
+assert.ok(css.includes("#peoplePanel .admin-person-card-heading h4{margin:0!important;text-align:left!important;"),"member name should sit directly in the first card layer");
 assert.match(js,/class="admin-person-card"/,"each person must render as an independent card");
 assert.match(js,/class="admin-person-facts"/,"person cards must group key account facts");
 assert.match(js,/class="admin-person-details"/,"full profile details must expand inside the person card");
