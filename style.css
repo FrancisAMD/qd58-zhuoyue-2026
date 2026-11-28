@@ -1109,8 +1109,7 @@ body select option{
   }
 }
 
-/* Homepage FAQ: bring the Q&A directly under the hero and make each answer
-   an intentional, readable panel rather than an unstyled text list. */
+/* Homepage FAQ: answers are full paper-surface modules, not inset grey fields. */
 .home-faq{
   width:min(100%,1100px);
   margin:8px auto 74px;
@@ -1127,64 +1126,52 @@ body select option{
   font:600 clamp(25px,3vw,34px)/1.45 "Noto Serif SC",serif;
   color:var(--ink);
 }
-.home-faq-list{
-  display:grid;
-  gap:12px;
-}
-.home-faq-list details{
-  overflow:hidden;
-  border:1px solid var(--line);
-  border-radius:12px;
-  background:var(--paper);
-  box-shadow:0 8px 22px #294a3409;
-}
-.home-faq-list summary{
+.home-faq-list{display:grid;gap:19px}
+.home-faq-card{display:grid;gap:10px;min-width:0}
+.home-faq-question{
   display:flex;
   align-items:center;
-  gap:14px;
-  min-height:66px;
-  padding:17px 20px;
+  gap:13px;
+  min-width:0;
+  padding:0 4px;
   color:var(--ink);
-  font-size:14px;
-  font-weight:650;
-  line-height:1.6;
-  cursor:pointer;
-  list-style:none;
 }
-.home-faq-list summary::-webkit-details-marker{display:none}
-.home-faq-list summary::after{
-  content:"+";
-  flex:0 0 auto;
-  margin-left:auto;
-  color:var(--green);
-  font:400 23px/1 system-ui,sans-serif;
+.home-faq-question strong{
+  min-width:0;
+  font-size:15px;
+  font-weight:700;
+  line-height:1.65;
+  overflow-wrap:anywhere;
 }
-.home-faq-list details[open] summary::after{content:"−"}
 .home-faq-number{
   display:inline-flex;
   align-items:center;
   justify-content:center;
   flex:0 0 54px;
-  min-height:27px;
+  min-height:28px;
   padding:4px 7px;
-  border-radius:6px;
+  border:1px solid var(--line);
+  border-radius:7px;
   background:var(--mint);
   color:var(--green);
-  font:700 9px system-ui,sans-serif;
+  font:700 10px/1.3 system-ui,sans-serif;
   letter-spacing:.7px;
 }
 .home-faq-answer{
-  margin:0 14px 14px;
-  padding:15px 17px;
-  border:1px solid var(--field-border);
-  border-radius:9px;
-  background:var(--field-bg);
+  display:block;
+  min-width:0;
+  margin:0;
+  padding:18px 20px;
+  border:1px solid var(--line);
+  border-radius:13px;
+  background:var(--paper);
+  box-shadow:0 8px 22px rgba(25,47,32,.055);
 }
 .home-faq-answer p{
   margin:0;
   color:var(--ink);
-  font-size:12px;
-  line-height:1.95;
+  font-size:15px;
+  line-height:1.9;
   overflow-wrap:anywhere;
 }
 .home-faq-answer a{
@@ -1193,13 +1180,53 @@ body select option{
   text-decoration:underline;
   text-underline-offset:3px;
 }
-:root[data-theme="dark"] body .home-faq-list details{
+:root[data-theme="dark"] body .home-faq-answer{
   background:var(--paper);
   border-color:var(--line);
+  box-shadow:0 8px 22px rgba(0,0,0,.12);
 }
-:root[data-theme="dark"] body .home-faq-answer{
-  background:var(--field-bg);
-  border-color:var(--field-border);
+
+/* Homepage visual: use the school mark as the centerpiece in both themes. */
+.art-logo{
+  position:absolute;
+  z-index:1;
+  left:36%;
+  top:20%;
+  display:block;
+  width:170px;
+  height:170px;
+  object-fit:contain;
+  object-position:center;
+  filter:drop-shadow(0 12px 22px rgba(25,47,32,.16));
+}
+.art .float,.art>small{z-index:2}
+.dialog .mark.auth-brand{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  width:100%;
+  margin:0 42px 18px 0;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  color:var(--ink);
+  font:600 18px/1.45 system-ui,"Noto Sans SC","Microsoft YaHei",sans-serif;
+  letter-spacing:.02em;
+}
+.dialog .auth-brand img{
+  display:block;
+  flex:0 0 52px;
+  width:52px;
+  height:52px;
+  object-fit:contain;
+}
+.dialog .auth-brand span{
+  display:block;
+  min-width:0;
+  color:var(--ink);
+  font:650 18px/1.45 system-ui,"Noto Sans SC","Microsoft YaHei",sans-serif;
+  overflow-wrap:anywhere;
 }
 @media(max-width:760px){
   .home-faq{
@@ -1208,18 +1235,21 @@ body select option{
   }
   .home-faq-heading{margin-bottom:16px}
   .home-faq-heading h2{font-size:24px}
-  .home-faq-list{gap:10px}
-  .home-faq-list summary{
-    gap:10px;
-    min-height:60px;
-    padding:14px 13px;
-    font-size:12px;
-  }
-  .home-faq-number{flex-basis:49px;font-size:8px}
-  .home-faq-answer{margin:0 9px 9px;padding:12px 13px}
-  .home-faq-answer p{font-size:11px;line-height:1.9}
+  .home-faq-list{gap:16px}
+  .home-faq-question{gap:10px;padding:0 2px}
+  .home-faq-question strong{font-size:14px}
+  .home-faq-number{flex-basis:49px;font-size:9px}
+  .home-faq-answer{padding:15px 16px}
+  .home-faq-answer p{font-size:14px;line-height:1.85}
+  .art-logo{left:calc(36% + 1px);top:21%;width:128px;height:128px;}
+  .dialog .mark.auth-brand{font-size:16px;gap:10px}
+  .dialog .auth-brand img{flex-basis:46px;width:46px;height:46px}
+  .dialog .auth-brand span{font-size:16px}
 }
-
+@media(max-width:380px){
+  .art-logo{left:calc(36% - 4px);width:118px;height:118px}
+  .dialog .auth-brand span{font-size:15px}
+}
 
 /* First and second journey steps: one green card per step, no outer form frame. */
 #profile.profile-form-shell{
