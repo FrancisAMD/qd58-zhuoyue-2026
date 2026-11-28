@@ -666,7 +666,7 @@ async function route(request, env) {
   if(!isTrustedAppOrigin(origin,env) && !originlessPublicRead)
     return response({error:"origin_forbidden"},403,origin,env);
   if(path==="/api/health" && method==="GET") return response({
-    ok:true,service:"zhuoyue-2026-api",build:"encrypted-d1-backup-20261128",
+    ok:true,service:"zhuoyue-2026-api",build:"github-actions-d1-backup-20261128",
     passwordKdf:"pbkdf2-sha256-100000",
     readiness:{
       rateLimitConfigured:typeof env.RATE_LIMIT_HMAC_SECRET==="string"&&env.RATE_LIMIT_HMAC_SECRET.length>=32,
