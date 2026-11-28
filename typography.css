@@ -144,3 +144,49 @@ body .admin-detail-toggle{font-size:14px!important}
 @media(prefers-reduced-motion:reduce){
   body{scroll-behavior:auto}
 }
+
+
+/* Explicitly normalize legacy compact components that previously used 8–12px. */
+body :is(.form-kicker,.admin-sidebar-heading,.directory-school>div>span,
+  .directory-toolbar>div span,.admin-team-card-heading>span,
+  .admin-team-card>div span,.selected-university-type>span,
+  .selected-university-panel>span,.selected-university-panel>div>span,
+  .selected-university-panel>div>p,.selected-university-panel>p,
+  .university-search-empty,.register-phone-status,
+  .donation-qr-placeholder span,.donation-qr-note,
+  .donation-list-summary,.donation-list-empty,.donation-footnote,
+  .backup-card-heading small,.backup-card-verification,
+  .group-qr-ready,.group-qr-missing,.group-chat-status,
+  .group-chat-roster-cell small,.group-chat-roster-status,
+  .transfer-record>div small,.transfer-record time,
+  .admin-review-summary small,.admin-review-card>small,
+  .admin-profile-field small,.admin-profile-preview small,
+  .captcha-help,.auth-note,.deletion-warning,#deletePreflightMsg,
+  #deleteCaptchaHint,.contact-private,.directory-count,.note,
+  .step-hint,.field-help,.admin-panel-status){
+  font-size:var(--type-secondary)!important;
+  line-height:1.65;
+}
+body :is(.float,.art>small,.admin-profile-preview span,
+  .admin-team-card-tags span,.classmate-meta span,
+  .university-category-chip,.university-tag-chip,
+  .journey-steps button>span,.profile-step-indicator span,
+  .donation-list-rank){
+  font-size:var(--type-chip)!important;
+  line-height:1.55;
+}
+body :is(.site-footer-title,.university-result-action,.contact-link,
+  .admin-detail-toggle,.admin-delete-button,.danger-link){
+  font-size:14px!important;
+  line-height:1.5;
+}
+body :is(.admin-profile-field b,.donation-list-row>strong,
+  .donation-qr-placeholder strong,.selected-university-panel>div>strong){
+  font-size:15px!important;
+  line-height:1.6;
+}
+body .donation-list-amount{font-size:14px!important}
+body .donation-admin-fields label{font-size:14px!important}
+body :is(.backup-state-success,.backup-state-failed,.backup-state-running){
+  font-size:13px!important;
+}
