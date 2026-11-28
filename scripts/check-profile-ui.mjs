@@ -5,6 +5,7 @@ const root=new URL("../",import.meta.url);
 const html=readFileSync(new URL("index.html",root),"utf8");
 const js=readFileSync(new URL("app.js",root),"utf8");
 const css=readFileSync(new URL("style.css",root),"utf8");
+const theme=readFileSync(new URL("theme.js",root),"utf8");
 
 assert.match(html,/name="highSchool" value="青岛五十八中"/,"high-school field must default to Qingdao No. 58 High School");
 assert.match(html,/<option selected>大一<\/option>/,"grade selector must default to freshman year");
@@ -54,6 +55,15 @@ assert.match(css,/\.home-faq-answer p\{[\s\S]*?font:400 15px\/1\.9 system-ui/,"F
 assert.match(css,/body\{\s*font-size:16px;/,"site body text baseline should be increased to sixteen pixels");
 assert.ok(css.includes("font-size:max(14px,1em)!important"),"supporting copy should not fall below fourteen pixels");
 assert.match(css,/Readability pass:[\s\S]*?preserving h1-h6 sizes/,"global readability pass must explicitly exclude heading elements");
+assert.match(html,/id="donationQrImage"[^>]*data-light-src="assets\/donation-qr-15-light\.png"[^>]*data-dark-src="assets\/donation-qr-15-dark\.png"/,"donation QR must declare separate light and dark assets");
+assert.match(theme,/root\.dataset\.theme === "dark" \? "dark" : "light"/,"donation QR mode must follow the active root theme");
+assert.match(theme,/image\.dataset\[theme \+ "Src"\]/,"theme script must select the matching QR asset");
+assert.match(theme,/DOMContentLoaded", updateDonationQr/,"initial QR selection must run after the head-loaded theme script can see the image");
+assert.match(theme,/new MutationObserver\(updateDonationQr\)/,"QR must react if the data-theme attribute changes");
+assert.match(theme,/image\.src = "assets\/donation-qr-15\.png"/,"old QR must remain as a safe fallback while theme-specific images are not deployed");
+assert.match(css,/--field-bg:#29382f/,"deep dark nested surface should match the supplied green-grey reference");
+assert.match(css,/--field-border:#46584b/,"deep dark nested surface should use the muted green-grey border");
+assert.match(css,/:root\[data-theme="dark"\] body :is\([\s\S]*?#teamSummary>\.directory-team-grid>div,[\s\S]*?#results\.cards>\.classmate-card\.panel,[\s\S]*?\.admin-team-card,[\s\S]*?background:#29382f!important/,"main nested info cards should use the same deep pine-grey surface");
 const pageTitle = html.match(/<title>([^<]+)<\/title>/)?.[1] || "";
 assert.ok(pageTitle.length > 0, "index.html must define the canonical page title");
 assert.match(html, /<footer id="pageFooter" class="site-footer" hidden>/, "member footer must use the new responsive footer layout");
