@@ -58,6 +58,8 @@ assert.match(html,/class="home-faq-question"/,"FAQ cards should have a dedicated
 assert.match(html,/class="home-faq-answer"/,"FAQ answers should be present in the static card layout");
 assert.match(css,/\.home-faq-list\{[\s\S]*?grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/,"FAQ should use three horizontal columns on desktop");
 assert.match(css,/@media\(max-width:760px\)[\s\S]*?\.home-faq-list\{grid-template-columns:minmax\(0,1fr\)/,"FAQ should stack vertically on mobile");
+assert.match(css,/\.home-faq-card\{[\s\S]*?border:1px solid var\(--field-border\);[\s\S]*?background:var\(--field-bg\);/,"FAQ cards should use the same neutral second-level surface as other modules");
+assert.match(css,/:root\[data-theme="dark"\] body \.home-faq-card\{\s*background:var\(--field-bg\);\s*border-color:var\(--field-border\);/,"FAQ cards should use the matching dark neutral surface");
 assert.match(css,/\.home-faq-question strong\{[\s\S]*?"Source Han Sans CN"/,"FAQ question text should use the site's readable sans-serif text face");
 assert.match(css,/\.home-faq-answer p\{[\s\S]*?font:400 15px\/1\.9 "Source Han Sans CN"/,"FAQ answer copy should use a larger readable font");
 assert.match(html,/typography\.css\?v=20261128-local-fonts-v1/,"homepage must load the shared typography system last");
