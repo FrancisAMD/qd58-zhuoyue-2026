@@ -22,7 +22,7 @@ assert.match(js,/密码已被登录接口接受，但随后读取管理员会话
 assert.match(js,/已登录；部分面板加载失败/);
 assert.doesNotMatch(js,/DEMO_DATA|renderDemo|openDemo|dashboardDemo/,"admin JavaScript must not contain fictional demo datasets or renderers");
 assert.doesNotMatch(css,/\.admin-demo|\.demo-warning|\.demo-tabs/,"admin stylesheet must not retain the demo UI");
-assert.match(html,/style\.css\?v=20261128-profile-form-compact-v1/,"admin must load the latest sidebar account layout stylesheet");
+assert.match(html,/style\.css\?v=20261128-form-spacing-layout-v2/,"admin must load the latest sidebar account layout stylesheet");
 assert.match(html,/typography\.css\?v=20261128-local-fonts-v1/,"admin must load the shared typography system after its component stylesheets");
 assert.match(typography,/--type-body:15px/,"admin body copy should share the fifteen-pixel body tier");
 assert.match(typography,/--type-secondary:13\.5px/,"admin secondary text should share the readable secondary tier");
@@ -136,7 +136,7 @@ assert.doesNotMatch(js,/58ER · MEMBER/,"roster cards must not show the decorati
 assert.match(js,/class="admin-person-grade admin-person-info-box"><small>当前年级/,"roster card grade must have its own labeled block");
 assert.match(js,/class="admin-person-high-school admin-person-info-box"><small>高中/,"roster card high school must have its own labeled block");
 assert.match(css,/#peoplePanel \.admin-person-info-row\{\s*display:grid!important;\s*grid-template-columns:minmax\(0,1fr\) minmax\(0,1fr\)!important;/,"high school and grade blocks should appear side by side");
-assert.match(html,/style\.css\?v=20261128-profile-form-compact-v1/,"admin must load the latest shared stylesheet");
+assert.match(html,/style\.css\?v=20261128-form-spacing-layout-v2/,"admin must load the latest shared stylesheet");
 assert.match(html,/admin\.js\?v=20261128-team-tier-tag-codes-v2/,"admin must load the current admin script");
 assert.ok(js.includes("'<h4 class=\"admin-person-name\">'+safe(name)+'</h4>'+"),"member name should render directly inside the card, without a wrapping header module");
 assert.doesNotMatch(js,/<header class="admin-person-card-heading"/,"roster name must not use the global site header element");
