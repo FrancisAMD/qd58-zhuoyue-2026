@@ -2113,8 +2113,14 @@ if(path==="/api/teams/transfer" && method==="POST") {
         }
         if (manifest.objectKey) await env.D1_BACKUPS.delete(manifest.objectKey);
         await env.D1_BACKUPS.delete(backupManifestKey(backupId));
-        await writeAudit(env.DB,"admin",admin.id,"admin.backup.deleted","d1_backup",backupId,{status:manifest.status});
-        return response({ok:true,deleted:true,backupId},200,origin,env);
+        let auditRecorded = true;
+        try {
+          await writeAudit(env.DB,"admin",admin.id,"admin.backup.deleted","d1_backup",backupId,{status:manifest.status});
+        } catch (auditError) {
+          auditRecorded = false;
+          console.error("Backup deleted but audit write failed",auditError?.message||"unknown");
+        }
+        return response({ok:true,deleted:true,backupId,auditRecorded},200,origin,env);
       }
       return response({error:"method_not_allowed"},405,origin,env);
     } catch (error) {
