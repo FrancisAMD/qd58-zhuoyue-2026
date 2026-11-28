@@ -310,10 +310,9 @@ async function pruneExpiredBackups(tempDir, currentBackupId) {
       console.warn("Retention skipped an unreadable backup manifest", safeError(error));
     }
   }
-  const validCompleted = manifests
-    .filter(item => item.status === "completed" && item.backupId !== currentBackupId)
-    .sort((a,b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
-  const newestCompletedId = validCompleted[0]?.backupId || currentBackupId;
+  // The current backup has just been re-read and cryptographically verified.
+  // Preserve it as the known-good recovery point even if older backups expire.
+  const newestCompletedId = currentBackupId;
   let deleted = 0;
   for (const manifest of manifests) {
     const created = Date.parse(manifest.createdAt);
@@ -395,14 +394,23 @@ async function backup(tempDir, backupId, requestedBy, requestedAt) {
       plaintextBytes: verification.plaintextBytes
     };
     await uploadManifest(completedManifest, tempDir);
-    const retention = await pruneExpiredBackups(tempDir, backupId);
+    let retention = { deleted: 0, retentionDays: 30, warning: "" };
+    try {
+      retention = await pruneExpiredBackups(tempDir, backupId);
+    } catch (retentionError) {
+      // A retention error must never turn an already verified backup into a
+      // failed backup or overwrite its completed manifest.
+      retention.warning = safeError(retentionError);
+      console.warn("Backup is complete, but expired-object cleanup failed", retention.warning);
+    }
     console.info("D1 backup completed", JSON.stringify({
       backupId,
       plaintextBytes: encrypted.plaintextBytes,
       ciphertextBytes: encrypted.ciphertextBytes,
       partCount: encrypted.parts.length,
       verification: "passed",
-      retentionDeleted: retention.deleted
+      retentionDeleted: retention.deleted,
+      retentionWarning: retention.warning || null
     }));
   } catch (error) {
     await markFailed(manifest, error, tempDir);
