@@ -3,23 +3,23 @@
   const root = document.documentElement;
   const preference = window.matchMedia("(prefers-color-scheme: dark)");
 
-  const updateDonationQr = () => {
-    const image = document.getElementById("donationQrImage");
-    if (!image) return;
-
+  const updateThemeImages = () => {
     const theme = root.dataset.theme === "dark" ? "dark" : "light";
-    const target = image.dataset[theme + "Src"];
-    if (!target || image.dataset.activeThemeSrc === target) return;
+    document.querySelectorAll("img[data-light-src][data-dark-src]").forEach(image => {
+      const target = image.dataset[theme + "Src"];
+      if (!target || image.dataset.activeThemeSrc === target) return;
 
-    image.dataset.activeThemeSrc = target;
-    image.onerror = () => {
-      image.onerror = null;
-      if (image.dataset.activeThemeSrc !== target) return;
-      // Keep the currently deployed page usable until both theme-specific QR
-      // files have been added to the public assets directory.
-      image.src = "assets/donation-qr-15.png";
-    };
-    image.src = target;
+      image.dataset.activeThemeSrc = target;
+      image.onerror = () => {
+        image.onerror = null;
+        if (image.dataset.activeThemeSrc !== target) return;
+        const fallback = image.dataset.fallbackSrc || image.dataset.lightSrc;
+        if (fallback && image.src !== new URL(fallback, document.baseURI).href) {
+          image.src = fallback;
+        }
+      };
+      image.src = target;
+    });
   };
 
   const applyPreference = () => {
@@ -32,17 +32,17 @@
       themeColor.content = theme === "dark" ? "#151f19" : "#f3f6f2";
     }
 
-    updateDonationQr();
+    updateThemeImages();
   };
 
   applyPreference();
 
   // theme.js is loaded in <head>, before the donation image exists in the DOM.
-  document.addEventListener("DOMContentLoaded", updateDonationQr, { once: true });
+  document.addEventListener("DOMContentLoaded", updateThemeImages, { once: true });
 
   // Keep the QR image in sync if another script changes the theme attribute.
   if (typeof MutationObserver === "function") {
-    const themeObserver = new MutationObserver(updateDonationQr);
+    const themeObserver = new MutationObserver(updateThemeImages);
     themeObserver.observe(root, { attributes: true, attributeFilter: ["data-theme"] });
   }
 
