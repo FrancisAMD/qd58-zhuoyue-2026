@@ -9,8 +9,8 @@ const derivedOtherSalt=await derivePassword("worker-smoke-password",new Uint8Arr
 if(derived.length!==32 || derived.some((v,i)=>v!==derivedAgain[i]) || derived.every((v,i)=>v===derivedOtherSalt[i])) throw new Error("PBKDF2 100000 smoke test failed");
 const ok=await worker.fetch(new Request("https://api.58er.eon21.space/api/health"),env);
 const health=await ok.json();
-if(ok.status!==200 || !health.ok || health.build!=="registration-otp-ownership-20261128" || health.passwordKdf!=="pbkdf2-sha256-100000") throw new Error("health route/build marker failed");
-if(!health.readiness||health.readiness.rateLimitConfigured!==true||health.readiness.turnstileConfigured!==false||health.readiness.smsCredentialsConfigured!==false||health.readiness.smsTemplateConfigured!==false) throw new Error("health readiness must report missing configuration without exposing values");
+if(ok.status!==200 || !health.ok || health.build!=="encrypted-d1-backup-20261128" || health.passwordKdf!=="pbkdf2-sha256-100000") throw new Error("health route/build marker failed");
+if(!health.readiness||health.readiness.rateLimitConfigured!==true||health.readiness.turnstileConfigured!==false||health.readiness.smsCredentialsConfigured!==false||health.readiness.smsTemplateConfigured!==false||health.readiness.backupStorageConfigured!==false||health.readiness.backupWorkflowConfigured!==false||health.readiness.backupExportConfigured!==false||health.readiness.backupEncryptionConfigured!==false) throw new Error("health readiness must report missing configuration without exposing values");
 const configuredHealth=await worker.fetch(new Request("https://api.58er.eon21.space/api/health"),{
   APP_ORIGIN:"https://58er.eon21.space",
   RATE_LIMIT_HMAC_SECRET:RATE_LIMIT_TEST_SECRET,
