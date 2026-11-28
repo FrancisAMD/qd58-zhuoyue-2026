@@ -258,7 +258,7 @@ async function dispatchGithubBackup(env, {action, backupId, requestedBy, request
         signal: AbortSignal.timeout(10000)
       }
     );
-    if (result.status === 204) return {ok:true};
+    if (result.status === 200 || result.status === 204) return {ok:true};
     const remaining = result.headers.get("x-ratelimit-remaining");
     let error = "backup_dispatch_failed";
     if (result.status === 401) error = "github_token_invalid";
