@@ -53,7 +53,7 @@ assert.match(css,/\.home-faq-list\{[\s\S]*?grid-template-columns:repeat\(3,minma
 assert.match(css,/@media\(max-width:760px\)[\s\S]*?\.home-faq-list\{grid-template-columns:minmax\(0,1fr\)/,"FAQ should stack vertically on mobile");
 assert.match(css,/\.home-faq-question strong\{[\s\S]*?system-ui,"Noto Sans SC"/,"FAQ question text should use the site's readable sans-serif text face");
 assert.match(css,/\.home-faq-answer p\{[\s\S]*?font:400 15px\/1\.9 system-ui/,"FAQ answer copy should use a larger readable font");
-assert.match(html,/typography\.css\?v=20261128-hierarchy-v1/,"homepage must load the shared typography system last");
+assert.match(html,/typography\.css\?v=20261128-hierarchy-v2/,"homepage must load the shared typography system last");
 assert.match(typography,/--type-body:15px/,"main copy should use a balanced fifteen-pixel size");
 assert.match(typography,/--type-secondary:13\.5px/,"supporting copy should remain readable without becoming oversized");
 assert.match(typography,/--type-control:15px/,"form controls should have a consistent readable size");
@@ -64,6 +64,10 @@ assert.match(typography,/body h4\{font-size:var\(--type-card-title\)!important/,
 assert.doesNotMatch(typography,/body :where\([^)]*(?:span|strong|b)[^)]*\)\s*\{[^}]*font-size/,"inline emphasis must inherit from its semantic parent, not be globally enlarged");
 assert.doesNotMatch(css,/font-size:max\(14px,1em\)!important/,"the recursive global text enlargement rule must stay removed");
 assert.match(typography,/--type-chip:13px/,"badges and metadata must not drop to micro-sized text");
+assert.match(typography,/body :is\(\.float,\.art>small,\.admin-profile-preview span/,"remaining decorative and profile metadata text must use the shared chip tier");
+assert.match(typography,/body :is\(\.admin-profile-field b,\.donation-list-row>strong/,"profile values and donor names must use the normal data-value tier");
+assert.match(typography,/body :is\(\.backup-state-success,\.backup-state-failed,\.backup-state-running\)/,"backup state badges must not retain tiny type");
+assert.doesNotMatch(typography,/font-size:\s*(?:[89]|1[01]|12)px(?:\s|!|;|\/)/,"the shared typography file must not define micro-sized text");
 assert.match(html,/id="donationQrImage"[^>]*data-light-src="assets\/donation-qr-15-light\.png"[^>]*data-dark-src="assets\/donation-qr-15-dark\.png"/,"donation QR must declare separate light and dark assets");
 assert.match(theme,/root\.dataset\.theme === "dark" \? "dark" : "light"/,"donation QR mode must follow the active root theme");
 assert.match(theme,/image\.dataset\[theme \+ "Src"\]/,"theme script must select the matching QR asset");
