@@ -1,0 +1,13 @@
+.backup-list{display:grid;gap:12px;margin-top:14px}
+.backup-card{border:1px solid var(--line,rgba(80,100,90,.2));border-radius:16px;padding:14px;background:var(--panel,rgba(255,255,255,.5));display:grid;gap:11px}
+.backup-card-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.backup-card-heading>div{display:grid;gap:4px;min-width:0}
+.backup-card-heading small,.backup-card-meta,.backup-card-verification{font-size:.86rem;color:var(--muted,#68756d)}
+.backup-state-success,.backup-state-failed,.backup-state-running{font-size:.78rem;font-weight:650;padding:5px 9px;border-radius:99px;white-space:nowrap}
+.backup-state-success{color:#176b49;background:rgba(34,160,103,.12)}
+.backup-state-failed{color:#a12e2e;background:rgba(220,70,70,.12)}
+.backup-state-running{color:#8c6411;background:rgba(214,160,45,.15)}
+.backup-card-meta{display:flex;flex-wrap:wrap;gap:7px 18px}
+.backup-card-actions{display:flex;flex-wrap:wrap;gap:8px}
+.backup-card-actions button{font-size:.86rem}
+@media(max-width:640px){.backup-card{padding:12px}.backup-card-heading{align-items:flex-start}.backup-card-actions button{flex:1 1 auto}}
