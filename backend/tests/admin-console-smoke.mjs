@@ -131,6 +131,13 @@ assert.match(js,/每位同学以独立卡片展示高校、年级、地区、入
 assert.match(js,/pageSize=10/,"roster should retain ten records per page");
 assert.match(html,/仅显示最近 10 条记录/);
 assert.match(js,/function renderProfilePreview\(item\)/);
+assert.doesNotMatch(js,/58ER · MEMBER/,"roster cards must not show the decorative member kicker");
+assert.match(js,/class="admin-person-high-school"/,"roster card header must show a clearly labeled high-school row");
+assert.match(js,/class="admin-person-grade"><small>当前年级<\/small><strong>/,"roster card grade must have its own labeled badge");
+assert.ok(css.includes(".admin-person-card-heading{")&&css.includes("grid-template-columns:minmax(0,1fr) auto;"),"roster identity header should use a stable two-column layout");
+assert.ok(css.includes(".admin-person-high-school{")&&css.includes(".admin-person-grade>small{"),"high-school and grade rows should have clear separate typography");
+assert.match(html,/style\.css\?v=20261128-donation-amount-member-card-v1/,"admin member card update must bust the shared stylesheet cache");
+assert.match(html,/admin\.js\?v=20261128-member-card-heading-v2/,"admin member card update must bust the admin script cache");
 assert.match(js,/class="admin-person-card"/,"each person must render as an independent card");
 assert.match(js,/class="admin-person-facts"/,"person cards must group key account facts");
 assert.match(js,/class="admin-person-details"/,"full profile details must expand inside the person card");
