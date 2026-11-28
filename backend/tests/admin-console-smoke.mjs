@@ -195,6 +195,11 @@ assert.doesNotMatch(html,/groupChatConfirmationRows|groupChatConfirmationRegion/
 assert.ok(html.indexOf('id="peoplePanel"')<html.indexOf('id="teamsPanel"')&&html.indexOf('id="teamsPanel"')<html.indexOf('id="universityReviewPanel"'),"roster and teams must precede operational modules in the agreed order");
 assert.doesNotMatch(html,/value="viewer"/,"new administrator creation must not offer a read-only role");
 assert.match(html,/普通管理员仅可查看统计概览、审核海外高校、管理地区群聊二维码/);
+for(const code of ["project_985","project_211","double_first_class"]) {
+  assert.ok(js.includes('"'+code+'"'),"team card labels must recognize imported catalog tag "+code);
+}
+assert.ok(js.includes("team.catalogProjectTagsJson"),"team cards must also read normalized university tags from the API");
+
 assert.match(html,/data-nav-target="teamsPanel" data-nav-permission="overview"/,"ordinary admins can access teams through the overview permission");
 assert.match(html,/admin\.js\?v=20261128-roster-name-direct-child-v2/,"admin script cache must be versioned with the sidebar account layout");
 assert.match(js,/async function downloadRosterExport\(format\)/,"CSV and XLSX should share the blob download path");
