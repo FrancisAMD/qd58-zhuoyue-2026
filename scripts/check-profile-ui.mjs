@@ -48,6 +48,12 @@ assert.match(html,/id="homeFaq"/,"the homepage FAQ must remain directly after th
 assert.match(css,/--field-bg:#edf0ed/,"light mode must use a neutral grey fill for second-level surfaces");
 assert.match(css,/--field-bg:#1A241E/,"dark mode must use a neutral grey fill for second-level surfaces");
 assert.match(css,/body input:not\(\[type="checkbox"\]\)[\s\S]*?background:var\(--field-bg\)!important/,"editable fields must use the shared grey surface token");
+assert.equal((html.match(/type="checkbox"/g)||[]).length,2,"the public forms should expose exactly the profile and registration consent checkboxes");
+assert.match(html,/id="consent" required/,"profile privacy consent must remain required");
+assert.match(html,/id="accountConsent" required/,"registration phone and verification consent must remain required");
+assert.match(css,/\.check>input\[type="checkbox"\]\{[\s\S]*?appearance:none;[\s\S]*?width:24px!important;[\s\S]*?height:24px!important;[\s\S]*?border-radius:7px;[\s\S]*?background:var\(--field-bg\);/,"consent checkboxes should use the larger custom theme-aware control");
+assert.match(css,/\.check>input\[type="checkbox"\]:checked\{[\s\S]*?background:var\(--green\);/,"checked consent controls should use the site's forest-green accent");
+assert.match(css,/\.check>input\[type="checkbox"\]:focus-visible\{/,"custom checkboxes must retain a visible keyboard focus indicator");
 assert.match(css,/#results\.cards>\.classmate-card\.panel\{[\s\S]*?background:var\(--field-bg\)!important/,"classmate tiles must use grey surfaces inside the green directory panel");
 assert.match(css,/#teamSummary>\.directory-team-grid>div\{[\s\S]*?background:var\(--field-bg\)!important/,"team summary tiles must use grey surfaces");
 assert.match(css,/#groups>#directory\.directory-panel\{[\s\S]*?margin-top:24px!important/,"the directory panel must keep a vertical gutter after group chat");
@@ -129,7 +135,7 @@ assert.ok(css.includes("width:clamp(176px,22vw,244px)"),"boot logo should be lar
 assert.ok(css.includes('"LXGW WenKai Lite",serif!important'),"Chinese welcome copy should use an elegant serif face");
 assert.ok(css.includes("Georgia,\"Times New Roman\",serif!important"),"English welcome copy should use a refined serif face");
 assert.match(html,/id="journeySteps"/,"homepage must retain the three-step navigation");
-assert.match(html,/style\.css\?v=20261128-faq-inline-content-v1/,"homepage must load the latest shared stylesheet");
+assert.match(html,/style\.css\?v=20261128-custom-consent-checkbox-v1/,"homepage must load the latest shared stylesheet");
 assert.match(html,/class="hero-mark"[\s\S]*?class="art-logo"[\s\S]*?width="390" height="390"/,"homepage hero should show one enlarged school logo in a clean right-side container");
 const heroMarkMarkup=html.match(/<div class="hero-mark">([\s\S]*?)<\/div>/)?.[1]||"";
 assert.doesNotMatch(heroMarkMarkup,/class="float|<small|THE JOURNEY CONTINUES|山海有归期|燃星星之火/,"homepage hero mark must contain only the school logo, with no decorative labels or overlay copy");
