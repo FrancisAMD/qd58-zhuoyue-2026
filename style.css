@@ -270,7 +270,11 @@ header>div:last-child{display:flex;align-items:center;gap:8px}
   color:#fff;
   font-weight:650;
 }
-.admin-main-content{min-width:0}
+.admin-main-content{min-width:0;min-height:calc(100vh - 210px)}
+.admin-main-content>[data-admin-view]{margin:0}
+.admin-main-content>[data-admin-view][hidden]{display:none!important}
+.admin-main-content>[data-admin-view]:not([hidden]){animation:admin-view-enter .16s ease-out}
+@keyframes admin-view-enter{from{opacity:.75;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
 .admin-main-content>section{margin:0 0 18px;scroll-margin-top:96px}
 .admin-main-content>.admin-overview-panel{margin-bottom:18px}
 .admin-overview-panel .admin-panel-status{margin:0 0 8px}
