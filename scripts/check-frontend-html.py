@@ -66,7 +66,7 @@ for page_name, page_text in (("index.html", html_text), ("admin.html", admin_tex
     if page_name == "index.html" and 'app.js?v=20261128-external-stage-actions-v1' not in page_text:
         parser.errors.append("index.html must load the resource-gated startup script.")
 
-    if 'style.css?v=20261128-profile-form-compact-v1' not in page_text:
+    if 'style.css?v=20261128-form-spacing-layout-v2' not in page_text:
         parser.errors.append(f"{page_name} must load the current local-font base stylesheet.")
 if 'id="bootScreen" class="boot-screen" role="status" aria-live="polite" hidden' not in html_text:
     parser.errors.append("The welcome splash must remain hidden until local fonts and logos are preloaded.")
