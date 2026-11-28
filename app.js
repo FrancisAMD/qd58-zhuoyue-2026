@@ -124,7 +124,28 @@ async function call(path,data,options={}){
   }
 }
 function msg(id,s,bad=false){$(id).textContent=s;$(id).classList.toggle("bad",bad)}
-function auth(v="login"){$("modal").classList.add("show");["login","register","reset","changePassword","deleteAccount"].forEach(x=>$(x+"Form").hidden=x!==v);$("authTabs").hidden=v==="reset"||v==="changePassword"||v==="deleteAccount";document.querySelectorAll("[data-auth]").forEach(b=>b.classList.toggle("active",b.dataset.auth===v));if(v==="register"||v==="reset"||v==="deleteAccount")captcha(v)}
+let modalScrollY=0;
+function openAuthModal(){
+  const modal=$("modal");
+  if(modal.classList.contains("show"))return;
+  modalScrollY=window.scrollY||window.pageYOffset||0;
+  document.documentElement.classList.add("modal-scroll-locked");
+  document.body.style.setProperty("--modal-scroll-y",`-${modalScrollY}px`);
+  document.body.classList.add("modal-scroll-locked");
+  modal.classList.add("show");
+  modal.setAttribute("aria-hidden","false");
+}
+function closeAuthModal(){
+  const modal=$("modal");
+  if(!modal.classList.contains("show"))return;
+  modal.classList.remove("show");
+  modal.setAttribute("aria-hidden","true");
+  document.body.classList.remove("modal-scroll-locked");
+  document.documentElement.classList.remove("modal-scroll-locked");
+  document.body.style.removeProperty("--modal-scroll-y");
+  window.scrollTo(0,modalScrollY);
+}
+function auth(v="login"){openAuthModal();["login","register","reset","changePassword","deleteAccount"].forEach(x=>$(x+"Form").hidden=x!==v);$("authTabs").hidden=v==="reset"||v==="changePassword"||v==="deleteAccount";document.querySelectorAll("[data-auth]").forEach(b=>b.classList.toggle("active",b.dataset.auth===v));if(v==="register"||v==="reset"||v==="deleteAccount")captcha(v)}
 function captcha(v){if(!window.turnstile||widgets[v]!==undefined)return;const target={register:"regCaptcha",reset:"resetCaptcha",deleteAccount:"deleteCaptcha"}[v];const action={register:"register",reset:"password_reset",deleteAccount:"account_delete"}[v];widgets[v]=turnstile.render("#"+target,{sitekey:SITEKEY,theme:"auto",action,callback:t=>{tokens[v]=t;consumedTokens[v]=false;},"expired-callback":()=>{tokens[v]="";consumedTokens[v]=false;},"error-callback":()=>{tokens[v]="";consumedTokens[v]=false;}})}function resetCaptcha(v){if(window.turnstile&&widgets[v]!==undefined)turnstile.reset(widgets[v]);tokens[v]="";consumedTokens[v]=false}
 function errorText(e){if(e.message==="consent_required")return "请先阅读隐私说明并勾选同意";if(e.message==="sms_not_configured")return "短信服务未配置完整：请检查 Worker 的 ALIBABA_ACCESS_KEY_ID、ALIBABA_ACCESS_KEY_SECRET、ALIBABA_SIGN_NAME 和 ALIBABA_TEMPLATE_CODE。";if(e.message==="rate_limit_secret_not_configured")return "短信安全限流配置缺失：Worker 需要 RATE_LIMIT_HMAC_SECRET（至少 32 位）。";if(e.message==="turnstile_failed")return "Cloudflare 验证未能被后端确认：请刷新页面重新验证；若持续出现，请检查 Worker 的 TURNSTILE_SECRET_KEY 是否对应当前站点。";if(e.message==="current_password_invalid")return "当前密码不正确，请重新输入";if(e.message==="same_password")return "新密码不能与当前密码相同";if(e.message==="password_change_conflict"||e.message==="password_reset_conflict")return "密码状态刚刚发生变化，请重新验证后再试";if(e.message==="weak_password")return "密码长度需要为 10–128 位";if(e.message==="unauthorized")return "登录状态已失效，请重新登录";if(e.message==="university_metadata_conflict")return "这所高校的地区或办学层次与已有资料不一致，请联系组织者核对";if(e.message==="university_catalog_selection_required")return "请从高校目录中选择一所已核验高校";if(e.message==="university_not_selectable")return "所选高校尚未核验或已停用，请重新搜索选择";if(e.message==="leader_transfer_required")return "你目前仍是有其他队员的队长，请先完成队长转让后再删除账号";if(e.message==="account_delete_confirm_required")return "请输入 DELETE 完成二次确认";if(e.message==="account_delete_conflict")return "账号状态刚刚发生变化，请重新登录后检查";if(e.message==="rate_limited"){const scope=e.details?.limitScope;if(scope==="phone_daily")return "本手机号今日短信额度已用完，请在倒计时结束后重试";if(scope==="ip_hourly")return "当前网络短信请求过于频繁，请稍后重试";if(scope==="cooldown")return "发送间隔不足，请稍后重试";return "操作过于频繁，请稍后再试"}return ({invalid_credentials:"手机号或密码错误",invalid_phone:"手机号格式不正确",invalid_code:"验证码错误或已过期",rate_limited:"操作过于频繁，请稍后再试",turnstile_failed:"人机验证未通过",phone_already_registered:"该手机号已有账号，请直接登录；如忘记密码，请使用“忘记密码”"})[e.message]||"暂时无法完成操作，请稍后重试"}
 function formatWait(seconds){const n=Math.max(0,Math.ceil(Number(seconds)||0));if(n<60)return n+"秒后重试";if(n<3600)return Math.ceil(n/60)+"分钟后重试";const days=Math.floor(n/86400),hours=Math.floor((n%86400)/3600),minutes=Math.ceil((n%3600)/60);if(days)return days+"天"+(hours?hours+"小时":"")+"后重试";return hours+"小时"+(minutes?minutes+"分钟":"")+"后重试"}function cooldown(b,seconds=60){const end=Date.now()+Math.max(1,Number(seconds)||60)*1000;b.disabled=true;const tick=()=>{const n=Math.max(0,Math.ceil((end-Date.now())/1000));b.textContent=n?formatWait(n):"获取验证码";if(n)setTimeout(tick,n>=3600?60000:n>=60?1000:500);else b.disabled=false};tick()}
@@ -753,7 +774,7 @@ $("transferItems").addEventListener("click",async event=>{
     msg("teamSummaryMsg",labels[error.message]||"处理转让邀请失败，请刷新后重试。",true);
   }finally{button.disabled=false;}
 });
-document.querySelectorAll("[data-close]").forEach(x=>x.onclick=()=>$("modal").classList.remove("show"));
+document.querySelectorAll("[data-close]").forEach(x=>x.onclick=()=>closeAuthModal());
 document.querySelectorAll("[data-university-category]").forEach(b=>b.onclick=()=>{
   if(categoryLocked)return;
   selectUniversityCategory(b.dataset.universityCategory);
@@ -794,12 +815,12 @@ document.querySelectorAll("[data-journey-step]").forEach(button=>button.onclick=
 });
 $("continueToDetails").onclick=()=>showRegistrationStep("profile");
 $("backToUniversityStep").onclick=showRegistrationStep.bind(null,"university");
-$("clearSelectedUniversity").onclick=clearSelectedUniversity;$("changePassword").onclick=()=>auth("changePassword");document.querySelectorAll("[data-auth]").forEach(x=>x.onclick=()=>auth(x.dataset.auth));$("forgot").onclick=()=>auth("reset");$("backLogin").onclick=()=>auth("login");$("cancelPasswordChange").onclick=()=>$("modal").classList.remove("show");$("deleteAccountOpen").onclick=()=>auth("deleteAccount");$("cancelDeleteAccount").onclick=()=>$("modal").classList.remove("show");$("deleteSend").onclick=()=>sendCode("deleteAccount");$("regSend").onclick=()=>sendCode("register");$("resetSend").onclick=()=>sendCode("reset");
-$("loginForm").onsubmit=async e=>{e.preventDefault();try{await call("/auth/login",{phone:$("loginPhone").value.trim(),password:$("loginPassword").value});$("modal").classList.remove("show");await load()}catch(x){msg("loginMsg",errorText(x),true)}};
-$("registerForm").onsubmit=async e=>{e.preventDefault();const phone=$("regPhone").value.trim();if($("regPass").value!==$("regPass2").value)return msg("regMsg","两次密码不一致",true);$("regExistingAccount").hidden=true;try{await call("/auth/register",{phone,code:$("regCode").value.trim(),password:$("regPass").value,accountConsent:$("accountConsent").checked});$("modal").classList.remove("show");await load()}catch(x){if(x.message==="phone_already_registered")$("regExistingAccount").hidden=false;msg("regMsg",errorText(x),true)}};
+$("clearSelectedUniversity").onclick=clearSelectedUniversity;$("changePassword").onclick=()=>auth("changePassword");document.querySelectorAll("[data-auth]").forEach(x=>x.onclick=()=>auth(x.dataset.auth));$("forgot").onclick=()=>auth("reset");$("backLogin").onclick=()=>auth("login");$("cancelPasswordChange").onclick=()=>closeAuthModal();$("deleteAccountOpen").onclick=()=>auth("deleteAccount");$("cancelDeleteAccount").onclick=()=>closeAuthModal();$("deleteSend").onclick=()=>sendCode("deleteAccount");$("regSend").onclick=()=>sendCode("register");$("resetSend").onclick=()=>sendCode("reset");
+$("loginForm").onsubmit=async e=>{e.preventDefault();try{await call("/auth/login",{phone:$("loginPhone").value.trim(),password:$("loginPassword").value});closeAuthModal();await load()}catch(x){msg("loginMsg",errorText(x),true)}};
+$("registerForm").onsubmit=async e=>{e.preventDefault();const phone=$("regPhone").value.trim();if($("regPass").value!==$("regPass2").value)return msg("regMsg","两次密码不一致",true);$("regExistingAccount").hidden=true;try{await call("/auth/register",{phone,code:$("regCode").value.trim(),password:$("regPass").value,accountConsent:$("accountConsent").checked});closeAuthModal();await load()}catch(x){if(x.message==="phone_already_registered")$("regExistingAccount").hidden=false;msg("regMsg",errorText(x),true)}};
 $("resetForm").onsubmit=async e=>{e.preventDefault();if($("resetPass").value!==$("resetPass2").value)return msg("resetMsg","两次密码不一致",true);try{await call("/auth/password/reset",{phone:$("resetPhone").value.trim(),code:$("resetCode").value.trim(),newPassword:$("resetPass").value});msg("resetMsg","密码已重置，请返回登录");setTimeout(()=>auth("login"),900)}catch(x){msg("resetMsg",errorText(x),true)}};
 $("deleteAccountForm").onsubmit=async e=>{e.preventDefault();if($("deleteConfirm").value.trim()!=="DELETE")return msg("deleteMsg","请输入 DELETE 完成二次确认",true);try{await call("/account/delete",{password:$("deletePassword").value,code:$("deleteCode").value.trim(),confirmText:"DELETE"});msg("deleteMsg","账号资料已匿名化，正在退出…");$("deleteAccountForm").reset();location.replace("index.html")}catch(x){msg("deleteMsg",errorText(x),true);if(x.message==="unauthorized")setTimeout(()=>auth("login"),900)}};
-$("changePasswordForm").onsubmit=async e=>{e.preventDefault();const currentPassword=$("currentPassword").value,newPassword=$("newPassword").value;if(newPassword!==$("confirmNewPassword").value)return msg("changePassMsg","两次新密码不一致",true);if(newPassword.length<10)return msg("changePassMsg","新密码至少需要 10 位",true);try{await call("/auth/password/change",{currentPassword,newPassword});msg("changePassMsg","密码修改成功，其他设备已退出登录");$("changePasswordForm").reset();document.querySelectorAll("#changePasswordForm .password-toggle").forEach(b=>{const input=$(b.dataset.togglePassword);input.type="password";b.textContent="显示"});setTimeout(()=>$("modal").classList.remove("show"),1200)}catch(x){msg("changePassMsg",errorText(x),true);if(x.message==="unauthorized")setTimeout(()=>auth("login"),900)}};
+$("changePasswordForm").onsubmit=async e=>{e.preventDefault();const currentPassword=$("currentPassword").value,newPassword=$("newPassword").value;if(newPassword!==$("confirmNewPassword").value)return msg("changePassMsg","两次新密码不一致",true);if(newPassword.length<10)return msg("changePassMsg","新密码至少需要 10 位",true);try{await call("/auth/password/change",{currentPassword,newPassword});msg("changePassMsg","密码修改成功，其他设备已退出登录");$("changePasswordForm").reset();document.querySelectorAll("#changePasswordForm .password-toggle").forEach(b=>{const input=$(b.dataset.togglePassword);input.type="password";b.textContent="显示"});setTimeout(()=>closeAuthModal(),1200)}catch(x){msg("changePassMsg",errorText(x),true);if(x.message==="unauthorized")setTimeout(()=>auth("login"),900)}};
 $("logout").onclick=async()=>{try{await fetch(API+"/auth/logout",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:"{}"})}finally{location.reload()}};
 $("profile").onsubmit=async event=>{
   event.preventDefault();
