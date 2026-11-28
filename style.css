@@ -960,8 +960,8 @@ header>div:last-child{display:flex;align-items:center;gap:8px}
 :root[data-theme="dark"] body{
   --bg:#151f19;
   --paper:#202f26ed;
-  --field-bg:#303a35;
-  --field-border:#526057;
+  --field-bg:#29382f;
+  --field-border:#46584b;
 }
 
 /* All editable fields use one neutral, high-contrast surface in both themes. */
@@ -1218,4 +1218,91 @@ body select option{
   .home-faq-number{flex-basis:49px;font-size:8px}
   .home-faq-answer{margin:0 9px 9px;padding:12px 13px}
   .home-faq-answer p{font-size:11px;line-height:1.9}
+}
+
+
+/* First and second journey steps: one green card per step, no outer form frame. */
+#profile.profile-form-shell{
+  display:block;
+  width:100%;
+  max-width:none;
+  margin:20px 0 0;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+}
+#profile.profile-form-shell>h3{
+  margin:0 0 16px;
+  padding:0;
+  color:var(--ink);
+  font:600 22px/1.45 "Noto Serif SC",serif;
+}
+#profile.profile-form-shell>.profile-stage-panel{
+  margin:0;
+  padding:24px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:var(--paper);
+  box-shadow:0 12px 32px #294a3408;
+}
+#profile .university-type-grid{
+  margin-top:18px;
+  gap:14px;
+}
+#profile .university-type-card{
+  min-height:158px;
+  padding:18px;
+  border-radius:12px;
+  background:var(--field-bg)!important;
+  border-color:var(--field-border);
+}
+#profile .university-type-card.selected{
+  background:var(--mint)!important;
+  border:2px solid var(--green);
+}
+#registrationDetailsPanel>.cols{
+  gap:14px;
+}
+#registrationDetailsPanel>label:not(.check),
+#registrationDetailsPanel #admissionFields>label{
+  margin:13px 0;
+}
+#registrationDetailsPanel input,
+#registrationDetailsPanel select,
+#registrationDetailsPanel textarea{
+  border-radius:8px;
+}
+:root[data-theme="dark"] body{
+  --field-bg:#29382f;
+  --field-border:#46584b;
+}
+:root[data-theme="dark"] body #profile.profile-form-shell{
+  background:transparent;
+  border:0;
+  box-shadow:none;
+}
+:root[data-theme="dark"] body #profile.profile-form-shell>.profile-stage-panel{
+  background:var(--paper);
+  border-color:var(--line);
+}
+:root[data-theme="dark"] body #profile .university-type-card{
+  background:var(--field-bg)!important;
+  border-color:var(--field-border);
+}
+:root[data-theme="dark"] body #profile .university-type-card.selected{
+  background:var(--mint)!important;
+  border-color:var(--green);
+}
+@media(max-width:760px){
+  #profile.profile-form-shell{margin-top:16px}
+  #profile.profile-form-shell>.profile-stage-panel{
+    padding:17px;
+    border-radius:12px;
+  }
+  #profile.profile-form-shell>h3{font-size:19px;margin-bottom:13px}
+  #profile .university-type-grid{gap:11px}
+  #profile .university-type-card{min-height:145px;padding:14px}
+  #registrationDetailsPanel>.cols{gap:2px}
 }
