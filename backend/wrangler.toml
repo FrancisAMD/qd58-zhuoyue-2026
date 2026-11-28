@@ -13,12 +13,18 @@ migrations_dir = "migrations"
 [[r2_buckets]]
 binding = "GROUP_QR"
 bucket_name = "qd58-group-chat-qr"
+[[r2_buckets]]
+binding = "D1_BACKUPS"
+bucket_name = "qd58-d1-backups"
 [secrets]
 required = [
   "RATE_LIMIT_HMAC_SECRET",
   "TURNSTILE_SECRET_KEY",
   "ALIBABA_ACCESS_KEY_ID",
-  "ALIBABA_ACCESS_KEY_SECRET"
+  "ALIBABA_ACCESS_KEY_SECRET",
+  "CLOUDFLARE_ACCOUNT_ID",
+  "CLOUDFLARE_API_TOKEN",
+  "BACKUP_MASTER_KEY_V1"
 ]
 [vars]
 APP_ORIGIN = "https://58er.eon21.space"
@@ -27,6 +33,10 @@ OTP_TTL_SECONDS = "300"
 OTP_MAX_ATTEMPTS = "5"
 OTP_SEND_COOLDOWN_SECONDS = "60"
 TRANSFER_TTL_SECONDS = "604800"
+D1_DATABASE_ID = "3d32e597-57e9-4e52-833b-98bdec7ffb0b"
+D1_DATABASE_NAME = "qd58-zhuoyue-db"
+BACKUP_ACTIVE_KEY_VERSION = "v1"
+BACKUP_RETENTION_DAYS = "30"
 # Alibaba PNVS non-secret configuration
 ALIBABA_SIGN_NAME = "恒创联众"
 ALIBABA_TEMPLATE_CODE = "100001"
@@ -37,3 +47,10 @@ ALIBABA_TEMPLATE_CODE = "100001"
 # wrangler secret put ALIBABA_ACCESS_KEY_SECRET
 [triggers]
 crons = ["*/15 * * * *"]
+
+[[workflows]]
+name = "qd58-d1-backup"
+binding = "D1_BACKUP_WORKFLOW"
+class_name = "D1BackupWorkflow"
+# 18:00 UTC = 03:00 the following day in Japan (Asia/Tokyo).
+schedules = ["0 18 * * *"]
