@@ -62,7 +62,7 @@ assert.ok(js.includes('$("adminRole").textContent=({owner:"所有者",admin:"普
 assert.ok(css.includes(".admin-sidebar-toggle{")&&css.includes("grid-column:1/-1;"),"sidebar toggle should appear at the upper-left of the dashboard workspace");
 assert.ok(css.includes(".admin-workspace.is-sidebar-collapsed .admin-sidebar{")&&css.includes("display:none!important"),"collapsed state should hide the sidebar while preserving the content area");
 assert.ok(css.includes(".admin-sidebar-role-card{")&&css.includes("background:var(--field-bg);"),"role indicator should be a small card under navigation");
-assert.ok(css.includes("@media(max-width:760px){\n  .admin-sidebar{")&&css.includes(".admin-section-nav{\n    display:grid;"),"expanded mobile navigation should stack into a compact grid");
+assert.ok(css.includes(".admin-section-nav{")&&css.includes("grid-template-columns:repeat(2,minmax(0,1fr));"),"expanded mobile navigation should stack into a compact grid");
 
 const navPermissions = [
   ["overviewPanel","overview"],
