@@ -43,4 +43,9 @@ assert.match(css, /\.site-footer\{[\s\S]*?display:flex;[\s\S]*?justify-content:s
 assert.match(css, /@media\(max-width:760px\)\{[\s\S]*?\.site-footer\{[\s\S]*?display:grid;[\s\S]*?grid-template-columns:minmax\(0,1fr\)/, "mobile footer must stack identity, tagline and actions into three rows");
 assert.match(css, /\.site-footer-actions\{[\s\S]*?display:flex;[\s\S]*?justify-content:flex-start/, "mobile footer actions must share the third row");
 
+const directoryGapFix = css.lastIndexOf("/* Directory heading spacing: do not apply flex gaps");
+assert.ok(directoryGapFix>=0,"directory page should include an explicit heading-spacing override");
+const directoryLayoutFix=css.slice(directoryGapFix);
+assert.match(directoryLayoutFix,/#groups\{\s*gap:0;\s*\}/,"directory heading must not inherit a flex gap between eyebrow, title and lead");
+assert.match(directoryLayoutFix,/#groups>\.directory-school,[\s\S]*?#groups>\.directory-actions\{\s*margin-top:22px!important;\s*\}/,"directory content cards must retain separation after removing heading flex gaps");
 console.log("Profile UI smoke tests: defaults, fixed textarea, centered badges and stage spacing passed.");
