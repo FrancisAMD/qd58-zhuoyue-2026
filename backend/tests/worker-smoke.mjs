@@ -10,7 +10,7 @@ if(derived.length!==32 || derived.some((v,i)=>v!==derivedAgain[i]) || derived.ev
 const ok=await worker.fetch(new Request("https://api.58er.eon21.space/api/health"),env);
 const health=await ok.json();
 if(ok.status!==200 || !health.ok || health.build!=="encrypted-d1-backup-20261128" || health.passwordKdf!=="pbkdf2-sha256-100000") throw new Error("health route/build marker failed");
-if(!health.readiness||health.readiness.rateLimitConfigured!==true||health.readiness.turnstileConfigured!==false||health.readiness.smsCredentialsConfigured!==false||health.readiness.smsTemplateConfigured!==false||health.readiness.backupStorageConfigured!==false||health.readiness.backupWorkflowConfigured!==false||health.readiness.backupExportConfigured!==false||health.readiness.backupEncryptionConfigured!==false) throw new Error("health readiness must report missing configuration without exposing values");
+if(!health.readiness||health.readiness.rateLimitConfigured!==true||health.readiness.turnstileConfigured!==false||health.readiness.smsCredentialsConfigured!==false||health.readiness.smsTemplateConfigured!==false||health.readiness.backupStorageConfigured!==false||health.readiness.backupDispatchConfigured!==false||health.readiness.backupEncryptionConfigured!==false) throw new Error("health readiness must report missing configuration without exposing values");
 const configuredHealth=await worker.fetch(new Request("https://api.58er.eon21.space/api/health"),{
   APP_ORIGIN:"https://58er.eon21.space",
   RATE_LIMIT_HMAC_SECRET:RATE_LIMIT_TEST_SECRET,
@@ -18,10 +18,11 @@ const configuredHealth=await worker.fetch(new Request("https://api.58er.eon21.sp
   ALIBABA_ACCESS_KEY_ID:"fake-id",
   ALIBABA_ACCESS_KEY_SECRET:"fake-secret",
   ALIBABA_SIGN_NAME:"fake-sign",
-  ALIBABA_TEMPLATE_CODE:"fake-template"
+  ALIBABA_TEMPLATE_CODE:"fake-template",
+  GITHUB_BACKUP_DISPATCH_TOKEN:"fake-github-token"
 });
 const configuredReadiness=(await configuredHealth.json()).readiness;
-if(configuredReadiness.rateLimitConfigured!==true||configuredReadiness.turnstileConfigured!==true||configuredReadiness.smsCredentialsConfigured!==true||configuredReadiness.smsTemplateConfigured!==true) throw new Error("health readiness must recognize complete test configuration");
+if(configuredReadiness.rateLimitConfigured!==true||configuredReadiness.turnstileConfigured!==true||configuredReadiness.smsCredentialsConfigured!==true||configuredReadiness.smsTemplateConfigured!==true||configuredReadiness.backupDispatchConfigured!==true) throw new Error("health readiness must recognize complete test configuration");
 const blocked=await worker.fetch(new Request("https://api.58er.eon21.space/api/auth/login",{method:"POST",headers:{"content-type":"application/json",origin:"https://evil.example"},body:JSON.stringify({phone:"13800000000",password:"test"})}),env);
 if(blocked.status!==403 || (await blocked.json()).error!=="origin_forbidden") throw new Error("foreign Origin must be rejected");
 for (const method of ["POST","PUT","DELETE"]) {
