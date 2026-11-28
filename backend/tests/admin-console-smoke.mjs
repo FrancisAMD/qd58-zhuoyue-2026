@@ -208,3 +208,4 @@ assert.match(js,/历史只读账号（待删除）/,"legacy viewer accounts must
 assert.match(js,/admin-person-info-box[\\s\\S]*?高中学校未填写/,"high school should be a separate info block");
 assert.match(js,/admin-person-info-box[\\s\\S]*?当前年级/,"grade should be a separate info block");
 assert.match(css,/#peoplePanel \.admin-person-info-box[\\s\\S]*?flex-direction:column/,"high-school and grade cards should be separate vertical blocks");
+\nassert.match(js,/admin-person-info-row/,'high school and grade should share a horizontal row');\nassert.match(css,/#peoplePanel \\.admin-person-info-row\\{display:grid/,'high school and grade blocks should be side by side');\n
