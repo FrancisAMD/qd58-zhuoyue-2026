@@ -1,6 +1,6 @@
 <!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f3f6f2">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=20261127-v1">
-  <link rel="shortcut icon" href="/favicon.svg?v=20261127-v1"><script src="theme.js?v=20261128-welcome-screen-v1"></script><title>返校宣讲 · 青岛五十八中2026-2027校友组队平台</title><link rel="stylesheet" href="style.css?v=20261128-donation-amount-member-card-v1"><link rel="stylesheet" href="donations.css?v=20261127-auto-theme-v1"><link rel="stylesheet" href="ui-sections.css?v=20261128-donation-amount-member-card-v1"><script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" defer></script><link rel="stylesheet" href="typography.css?v=20261128-hierarchy-v2">
+  <link rel="shortcut icon" href="/favicon.svg?v=20261127-v1"><script src="theme.js?v=20261128-donation-qr-fix-v2"></script><title>返校宣讲 · 青岛五十八中2026-2027校友组队平台</title><link rel="stylesheet" href="style.css?v=20261128-donation-amount-member-card-v1"><link rel="stylesheet" href="donations.css?v=20261127-auto-theme-v1"><link rel="stylesheet" href="ui-sections.css?v=20261128-donation-qr-layout-v2"><script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" defer></script><link rel="stylesheet" href="typography.css?v=20261128-hierarchy-v2">
 </head><body class="session-checking">
 <div id="bootScreen" class="boot-screen" role="status" aria-live="polite">
   <div class="boot-content">
@@ -180,6 +180,7 @@
       <span>选择捐赠金额</span>
       <div class="donation-amount-options" role="group" aria-label="选择捐赠金额">
         <button type="button" data-donation-amount="5" aria-pressed="false">￥5</button>
+        <button type="button" data-donation-amount="10" aria-pressed="false">￥10</button>
         <button type="button" data-donation-amount="15" class="active" aria-pressed="true">￥15</button>
       </div>
     </div>
@@ -188,13 +189,18 @@
         src="assets/donation-qr-15-light.png"
         data-light-src="assets/donation-qr-15-light.png"
         data-dark-src="assets/donation-qr-15-dark.png"
-        data-fallback-src="assets/donation-qr-15-light.png"
         data-amount-5-light-src="assets/donation-qr-5-light.png"
         data-amount-5-dark-src="assets/donation-qr-5-dark.png"
+        data-amount-10-light-src="assets/donation-qr-10-light.png"
+        data-amount-10-dark-src="assets/donation-qr-10-dark.png"
         data-amount-15-light-src="assets/donation-qr-15-light.png"
         data-amount-15-dark-src="assets/donation-qr-15-dark.png"
         data-selected-amount="15"
-        alt="￥15 捐赠收款二维码" width="480" height="640" loading="lazy">
+        alt="￥15 捐赠收款二维码" width="1312" height="1787" loading="lazy">
+      <div id="donationQrPending" class="donation-qr-pending" hidden aria-live="polite">
+        <strong id="donationQrPendingTitle">二维码正在准备</strong>
+        <span id="donationQrPendingText">对应金额的收款二维码上传后，会在这里显示。</span>
+      </div>
     </div>
   </div>
   <div class="donation-copy">
@@ -259,4 +265,4 @@
 <label>当前登录密码<div class="password-box"><input id="deletePassword" type="password" autocomplete="current-password" required><button type="button" class="password-toggle" data-toggle-password="deletePassword">显示</button></div></label>
 <label>输入 DELETE 确认<input id="deleteConfirm" autocomplete="off" required></label>
 <button class="btn wide danger-button">永久删除账号</button><button type="button" class="text" id="cancelDeleteAccount">取消</button><p id="deleteMsg" class="msg" aria-live="polite"></p>
-</form></section></div><script src="app.js?v=20261128-donation-amounts-v1" defer></script><script src="account-deletion-ui.js?v=20261127-delete-preflight-v1" defer></script></body></html>
+</form></section></div><script src="app.js?v=20261128-donation-amounts-v2" defer></script><script src="account-deletion-ui.js?v=20261127-delete-preflight-v1" defer></script></body></html>
