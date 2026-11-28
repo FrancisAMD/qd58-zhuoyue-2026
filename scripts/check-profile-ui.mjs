@@ -58,8 +58,9 @@ assert.match(html,/class="home-faq-question"/,"FAQ cards should have a dedicated
 assert.match(html,/class="home-faq-answer"/,"FAQ answers should be present in the static card layout");
 assert.match(css,/\.home-faq-list\{[\s\S]*?grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/,"FAQ should use three horizontal columns on desktop");
 assert.match(css,/@media\(max-width:760px\)[\s\S]*?\.home-faq-list\{grid-template-columns:minmax\(0,1fr\)/,"FAQ should stack vertically on mobile");
-assert.match(css,/\.home-faq-card\{[\s\S]*?border:1px solid var\(--field-border\);[\s\S]*?background:var\(--field-bg\);/,"FAQ cards should use the same neutral second-level surface as other modules");
-assert.match(css,/:root\[data-theme="dark"\] body \.home-faq-card\{\s*background:var\(--field-bg\);\s*border-color:var\(--field-border\);/,"FAQ cards should use the matching dark neutral surface");
+assert.match(css,/\.home-faq-card\{\s*display:flex;[\s\S]*?padding:0;[\s\S]*?border:0;[\s\S]*?background:transparent;[\s\S]*?box-shadow:none;/,"FAQ entries should sit directly on the parent module surface without nested cards");
+assert.match(css,/\.home-faq-card:not\(:first-child\)\{[\s\S]*?border-left:1px solid var\(--line\);/,"desktop FAQ columns should use a subtle divider instead of separate card backgrounds");
+assert.doesNotMatch(css,/:root\[data-theme="dark"\] body \.home-faq-card\{/,"FAQ entries should not regain a nested card surface in dark mode");
 assert.match(css,/\.home-faq-question strong\{[\s\S]*?"Source Han Sans CN"/,"FAQ question text should use the site's readable sans-serif text face");
 assert.match(css,/\.home-faq-answer p\{[\s\S]*?font:400 15px\/1\.9 "Source Han Sans CN"/,"FAQ answer copy should use a larger readable font");
 assert.match(html,/typography\.css\?v=20261128-local-fonts-v1/,"homepage must load the shared typography system last");
@@ -128,7 +129,7 @@ assert.ok(css.includes("width:clamp(176px,22vw,244px)"),"boot logo should be lar
 assert.ok(css.includes('"LXGW WenKai Lite",serif!important'),"Chinese welcome copy should use an elegant serif face");
 assert.ok(css.includes("Georgia,\"Times New Roman\",serif!important"),"English welcome copy should use a refined serif face");
 assert.match(html,/id="journeySteps"/,"homepage must retain the three-step navigation");
-assert.match(html,/style\.css\?v=20261128-faq-neutral-surfaces-v1/,"homepage must load the latest shared stylesheet");
+assert.match(html,/style\.css\?v=20261128-faq-inline-content-v1/,"homepage must load the latest shared stylesheet");
 assert.match(html,/class="hero-mark"[\s\S]*?class="art-logo"[\s\S]*?width="390" height="390"/,"homepage hero should show one enlarged school logo in a clean right-side container");
 const heroMarkMarkup=html.match(/<div class="hero-mark">([\s\S]*?)<\/div>/)?.[1]||"";
 assert.doesNotMatch(heroMarkMarkup,/class="float|<small|THE JOURNEY CONTINUES|山海有归期|燃星星之火/,"homepage hero mark must contain only the school logo, with no decorative labels or overlay copy");
