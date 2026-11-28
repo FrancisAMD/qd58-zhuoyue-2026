@@ -1405,38 +1405,6 @@ body select option{
   .home-faq-answer p{font-size:15px;line-height:1.95}
 }
 
-/* Readability pass: increase all supporting copy while preserving h1-h6 sizes. */
-body{
-  font-size:16px;
-  font-family:system-ui,"Noto Sans SC","Microsoft YaHei",sans-serif;
-}
-body :where(p,label,small,li,td,th,summary,a,time,figcaption,span,strong,b,em,code,
-  button:not(.x):not(.password-toggle),
-  input,select,textarea,
-  .muted,.field-help,.step-hint,.eyebrow,.note,.lead,.msg,
-  .type-number,.site-footer-tagline,.admin-panel-status,
-  .admin-review-summary small,.admin-review-card>small,
-  .admin-profile-field small,.admin-profile-preview small,
-  .group-chat-status,.group-qr-ready,.group-qr-missing){
-  font-size:max(14px,1em)!important;
-}
-body :where(input,select,textarea){
-  font-size:16px!important;
-}
-@media(max-width:760px){
-  body :where(p,label,small,li,td,th,summary,a,time,figcaption,span,strong,b,em,code,
-    button:not(.x):not(.password-toggle),
-    input,select,textarea,
-    .muted,.field-help,.step-hint,.eyebrow,.note,.lead,.msg,
-    .type-number,.site-footer-tagline,.admin-panel-status,
-    .admin-review-summary small,.admin-review-card>small,
-    .admin-profile-field small,.admin-profile-preview small,
-    .group-chat-status,.group-qr-ready,.group-qr-missing){
-    font-size:max(14px,1em)!important;
-  }
-}
-
-
 /* Deep pine-grey second-level surfaces, sampled from the supplied team-card reference. */
 :root[data-theme="dark"] body{
   --field-bg:#1A241E;
