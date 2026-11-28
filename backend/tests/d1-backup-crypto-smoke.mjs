@@ -24,7 +24,11 @@ assert.equal(await verifyBackupManifest(signed,master),true);
 assert.equal(await verifyBackupManifest({...signed,status:"failed"},master),false);
 assert.equal(await verifyBackupManifest(signed,new Uint8Array(32).fill(4)),false);
 
-const plain=crypto.getRandomValues(new Uint8Array(256*1024+13));
+const plain=new Uint8Array(256*1024+13);
+for(let offset=0;offset<plain.length;offset+=64*1024){
+  const length=Math.min(64*1024,plain.length-offset);
+  plain.set(crypto.getRandomValues(new Uint8Array(length)),offset);
+}
 const encrypted=await encryptBackupPart(dataKey,backupId,1,plain);
 assert.equal(encrypted.cipherBytes,plain.length+16);
 const roundTrip=await decryptBackupPart(dataKey,backupId,{
