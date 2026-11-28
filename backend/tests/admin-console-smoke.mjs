@@ -7,18 +7,20 @@ const js = readFileSync(new URL("admin.js",root),"utf8");
 const css = readFileSync(new URL("style.css",root),"utf8");
 const backupCss = readFileSync(new URL("backup-admin.css",root),"utf8");
 
-for(const id of ["adminLogin","adminMsg","demoPanel","demoTabs","demoContent","demoSearch","dashboard","adminPanelStatus","universityReviewPanel","universityReviewRows","refreshUniversityReviews","teamsPanel","teamsGrid"]) {
+for(const id of ["adminLogin","adminMsg","dashboard","adminPanelStatus","universityReviewPanel","universityReviewRows","refreshUniversityReviews","teamsPanel","teamsGrid","teamFilters","teamRegion","teamLevel","teamMinMembers","teamMaxMembers","teamPageLabel","adminFooter"]) {
   assert.match(html,new RegExp('id="'+id+'"'),"admin.html must contain #"+id);
 }
-assert.match(html,/演示模式/);
-assert.match(html,/不读取、不写入 D1/);
-assert.match(html,/内置 Demo 后台预览/);
+assert.doesNotMatch(html,/<header[\s>]/,"admin page no longer needs a site-wide top header");
+assert.doesNotMatch(html,/demoPanel|openDemo|dashboardDemo|内置 Demo|演示模式/i,"admin demo markup and entry points must be removed");
+assert.match(html,/class="site-footer"[\s\S]*?去远方求证，回原点作答。[\s\S]*?返回首页/,"admin footer should reuse the homepage identity and return-home action");
+assert.doesNotMatch(html,/class="site-footer-button site-footer-github"/,"admin footer should replace the GitHub action with Return Home");
 assert.match(js,/async function enter\(options=\{\}\)/);
 assert.match(js,/await req\("\/admin\/me"\)/);
 assert.match(js,/Promise\.allSettled/);
 assert.match(js,/密码已被登录接口接受，但随后读取管理员会话返回 401/);
 assert.match(js,/已登录；部分面板加载失败/);
-assert.match(js,/const DEMO_DATA=/);
+assert.doesNotMatch(js,/DEMO_DATA|renderDemo|openDemo|dashboardDemo/,"admin JavaScript must not contain fictional demo datasets or renderers");
+assert.doesNotMatch(css,/\.admin-demo|\.demo-warning|\.demo-tabs/,"admin stylesheet must not retain the demo UI");
 assert.match(js,/loadUniversityReviews/);
 assert.match(js,/universities:review/);
 assert.match(html,/OVERSEAS UNIVERSITY REVIEW/);
@@ -35,7 +37,7 @@ const renderStart=js.indexOf("function renderDemo()");
 const renderEnd=js.indexOf("function openDemo()",renderStart);
 assert.ok(renderStart>=0 && renderEnd>renderStart,"demo renderer must exist");
 assert.doesNotMatch(js.slice(renderStart,renderEnd),/\breq\s*\(/,"demo renderer must not call admin API");
-console.log("Admin console UI tests: PASS (login/session separation, panel isolation and API-free fictional demo).");
+console.log("Admin console UI tests: PASS (login/session separation, no demo data, homepage footer and team filters).");
 
 assert.match(html,/id="adminSectionNav"/,"authenticated dashboard must provide a sidebar navigation container");
 assert.match(html,/class="admin-workspace"/,"dashboard panels must be arranged beside the sidebar");
@@ -82,6 +84,22 @@ assert.match(js,/当前有成员的大学团队/);
 assert.match(js,/item\.majorDiscipline/);
 assert.match(js,/item\.admissionCategory/);
 assert.doesNotMatch(js,/item\.phone|item\.secondaryPhone|item\.wechatId/,"admin details must not read private contact fields");
+assert.match(html,/id="teamRegion"/,"team filters should include catalog regions");
+assert.match(html,/id="teamLevel"/,"team filters should include project tiers");
+assert.match(html,/id="teamMinMembers"/);
+assert.match(html,/id="teamMaxMembers"/);
+assert.match(js,/async function loadTeams\\(\\)/,"teams should load from the dedicated server-side listing endpoint");
+assert.match(js,/req\\("\\/admin\\/teams\\?"/,"team filters must be sent to the Worker API");
+assert.match(js,/teamFilters=\\{\\}/);
+assert.match(js,/project_985_legacy/);
+assert.match(js,/project_211_legacy/);
+assert.match(js,/double_first_class_round1/);
+assert.match(js,/teamMinMembers/);
+assert.match(js,/teamMaxMembers/);
+assert.match(css,/\\.team-filters/);
+assert.match(css,/\\.admin-team-card-tags/);
+assert.match(html,/id="teamFirstPage"/);
+assert.match(html,/id="teamNextPage"/);
 assert.match(css,/\.admin-profile-details/);
 assert.match(css,/\.admin-team-grid/);
 assert.match(css,/justify-self:center/);
