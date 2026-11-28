@@ -1,5 +1,5 @@
 const API="https://api.58er.eon21.space/api", $=id=>document.getElementById(id);
-let current=null,page=1,pageSize=50,totalPages=1,filters={},overviewRefreshTimer=null;
+let current=null,page=1,pageSize=10,totalPages=1,filters={},overviewRefreshTimer=null;
 
 async function req(path,data,methodOverride){
   let response;
@@ -243,9 +243,15 @@ function renderPersonDetails(item){
     '</div></td></tr>';
 }
 async function loadPeople(){
-  const data=await req("/admin/people?"+params());
-  const pagination=data.pagination||{};
-  totalPages=Math.max(1,pagination.totalPages||1);
+  let data=await req("/admin/people?"+params());
+  let pagination=data.pagination||{};
+  totalPages=Math.max(1,Number(pagination.totalPages)||1);
+  if(page>totalPages){
+    page=totalPages;
+    data=await req("/admin/people?"+params());
+    pagination=data.pagination||{};
+    totalPages=Math.max(1,Number(pagination.totalPages)||1);
+  }
   const items=data.items||[];
   $("peopleMeta").textContent="共 "+(pagination.total||0)+" 条账号记录。每行直接显示性别、专业、招生大类和寄语摘要；点击“完整资料”查看详细信息。手机号、第二手机号、微信号和密码不会在管理员页面或导出中展示。";
   $("peopleRows").innerHTML=items.map(item=>{
@@ -256,9 +262,11 @@ async function loadPeople(){
       '</div></td></tr>'+
       renderPersonDetails(item);
   }).join("")||'<tr><td colspan="10">没有符合条件的记录</td></tr>';
-  $("pageLabel").textContent="第 "+(pagination.page||1)+" / "+totalPages+" 页";
+  $("pageLabel").textContent="第 "+(pagination.page||page)+" / "+totalPages+" 页 · 本页 "+items.length+" 条 · 共 "+(pagination.total||0)+" 条";
+  $("firstPage").disabled=page<=1;
   $("prevPage").disabled=page<=1;
   $("nextPage").disabled=page>=totalPages;
+  $("lastPage").disabled=page>=totalPages;
 }
 async function loadAudit(){
   const data=await req("/admin/audit?page=1&pageSize=10");
