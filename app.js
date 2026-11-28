@@ -341,7 +341,9 @@ function showDirectoryStage(){
 }
 function showAppStage(profile={}){
   document.body.classList.remove("session-checking");$("bootScreen").hidden=true;$("mainContent").hidden=false;
-  $("authStage").hidden=true;$("appStage").hidden=false;$("pageFooter").hidden=false;
+  $("authStage").hidden=true;$("appStage").hidden=false;
+  $("siteFooterTitle").textContent=document.title;
+  $("pageFooter").hidden=false;
   $("changePassword").hidden=false;$("logout").hidden=false;$("accountBottom").hidden=false;$("gate").hidden=true;
   $("profile").hidden=false;
   const pending=profile.profileReviewStatus==="pending";
