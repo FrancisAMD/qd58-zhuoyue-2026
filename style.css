@@ -219,6 +219,98 @@ header>div:last-child{display:flex;align-items:center;gap:8px}
 @media(max-width:520px){.university-type-grid-three{grid-template-columns:1fr}.university-result{padding:11px}}
 
 
+/* Permission-aware administrator sidebar */
+.admin-workspace{
+  display:grid;
+  grid-template-columns:minmax(190px,230px) minmax(0,1fr);
+  align-items:start;
+  gap:20px;
+}
+.admin-sidebar{
+  position:sticky;
+  top:94px;
+  align-self:start;
+  max-height:calc(100vh - 112px);
+  overflow:auto;
+  padding:16px 12px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:var(--paper);
+  box-shadow:0 10px 30px rgba(28,50,36,.06);
+}
+.admin-sidebar-heading{
+  padding:4px 10px 12px;
+  color:var(--muted);
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:1px;
+}
+.admin-section-nav{display:grid;gap:4px}
+.admin-section-nav button{
+  width:100%;
+  padding:10px 11px;
+  border:0;
+  border-radius:8px;
+  background:transparent;
+  color:var(--ink);
+  font:inherit;
+  font-size:12px;
+  line-height:1.5;
+  text-align:left;
+  cursor:pointer;
+  transition:background .16s ease,color .16s ease;
+}
+.admin-section-nav button:hover{
+  background:var(--mint);
+  color:var(--green);
+}
+.admin-section-nav button.active,
+.admin-section-nav button[aria-current="location"]{
+  background:var(--green);
+  color:#fff;
+  font-weight:650;
+}
+.admin-main-content{min-width:0}
+.admin-main-content>section{margin:0 0 18px;scroll-margin-top:96px}
+.admin-main-content>.admin-overview-panel{margin-bottom:18px}
+.admin-overview-panel .admin-panel-status{margin:0 0 8px}
+.admin-overview-panel .admin-stats{margin:0}
+#teamsPanel,#universityReviewPanel,#groupChatQrPanel,#donationManagementPanel,
+#peoplePanel,#auditPanel,#backupPanel,#managePanel{scroll-margin-top:96px}
+@media(max-width:900px){
+  .admin-workspace{grid-template-columns:190px minmax(0,1fr);gap:14px}
+  .admin-sidebar{padding:12px 8px}
+}
+@media(max-width:760px){
+  .admin-workspace{grid-template-columns:minmax(0,1fr);gap:12px}
+  .admin-sidebar{
+    position:sticky;
+    top:76px;
+    z-index:4;
+    max-height:none;
+    padding:8px 10px;
+    border-radius:11px;
+    overflow:hidden;
+    backdrop-filter:blur(14px);
+  }
+  .admin-sidebar-heading{display:none}
+  .admin-section-nav{
+    display:flex;
+    gap:6px;
+    overflow-x:auto;
+    overscroll-behavior-x:contain;
+    scrollbar-width:thin;
+    padding-bottom:2px;
+  }
+  .admin-section-nav button{
+    flex:0 0 auto;
+    width:auto;
+    white-space:nowrap;
+    padding:9px 12px;
+  }
+  .admin-main-content>section{scroll-margin-top:146px}
+}
+
 /* Admin console: separate authentication state from panel availability. */
 .admin-toolbar-actions,.admin-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .admin-panel-status{min-height:18px;margin:5px 0 10px;color:var(--muted);font-size:11px}
