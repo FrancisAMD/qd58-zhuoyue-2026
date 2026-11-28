@@ -1,3 +1,19 @@
+/* Self-hosted fonts: no remote font CSS or font-file requests. */
+@font-face{
+  font-family:"LXGW WenKai Lite";
+  src:url("./assets/fonts/lxgw-wenkai-lite-regular.woff2") format("woff2");
+  font-style:normal;
+  font-weight:400;
+  font-display:swap;
+}
+@font-face{
+  font-family:"Source Han Sans CN";
+  src:url("./assets/fonts/source-han-sans-cn-variable.woff2") format("woff2");
+  font-style:normal;
+  font-weight:250 900;
+  font-display:swap;
+}
+
 /* QD58 unified typography system.
    Load after every page stylesheet. No broad span/strong rules: inline content
    inherits from its semantic parent and cannot be enlarged recursively. */
@@ -14,7 +30,7 @@
 }
 html{font-size:100%;text-size-adjust:100%;-webkit-text-size-adjust:100%}
 body{
-  font-family:system-ui,"Noto Sans SC","Microsoft YaHei",sans-serif!important;
+  font-family:"Source Han Sans CN",sans-serif!important;
   font-size:var(--type-body)!important;
   line-height:1.72;
   font-weight:400;
@@ -22,7 +38,7 @@ body{
   -webkit-font-smoothing:antialiased;
 }
 body :is(h1,h2,h3,h4,h5,h6){
-  font-family:"Noto Serif SC","Songti SC","STSong",serif!important;
+  font-family:"LXGW WenKai Lite",serif!important;
   font-weight:600;
   line-height:1.42;
   letter-spacing:normal;
@@ -68,12 +84,12 @@ body :is(label,.admin-filters label,.auth-form label,.section label,.dialog labe
   line-height:1.6;
 }
 body :is(input,select,textarea){
-  font-family:system-ui,"Noto Sans SC","Microsoft YaHei",sans-serif!important;
+  font-family:"Source Han Sans CN",sans-serif!important;
   font-size:var(--type-control)!important;
   line-height:1.5;
 }
 body :is(button,.btn,.ghost,.text,.site-footer-button,.admin-section-nav button){
-  font-family:system-ui,"Noto Sans SC","Microsoft YaHei",sans-serif!important;
+  font-family:"Source Han Sans CN",sans-serif!important;
   font-size:14px!important;
   line-height:1.45;
   font-weight:600;
