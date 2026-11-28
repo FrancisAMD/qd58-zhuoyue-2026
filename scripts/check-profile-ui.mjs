@@ -51,9 +51,9 @@ assert.match(css,/\.home-faq-list\{[\s\S]*?grid-template-columns:repeat\(3,minma
 assert.match(css,/@media\(max-width:760px\)[\s\S]*?\.home-faq-list\{grid-template-columns:minmax\(0,1fr\)/,"FAQ should stack vertically on mobile");
 assert.match(css,/\.home-faq-question strong\{[\s\S]*?system-ui,"Noto Sans SC"/,"FAQ question text should use the site's readable sans-serif text face");
 assert.match(css,/\.home-faq-answer p\{[\s\S]*?font:400 15px\/1\.9 system-ui/,"FAQ answer copy should use a larger readable font");
-assert.match(css,/body\\{\\s*font-size:16px;/,"site body text baseline should be increased to sixteen pixels");
+assert.match(css,/body\{\s*font-size:16px;/,"site body text baseline should be increased to sixteen pixels");
 assert.match(css,/font-size:max\\(14px,1em\\)!important/,"supporting copy should not fall below fourteen pixels");
-assert.match(css,/Readability pass:[\\s\\S]*?preserving h1-h6 sizes/,"global readability pass must explicitly exclude heading elements");
+assert.match(css,/Readability pass:[\s\S]*?preserving h1-h6 sizes/,"global readability pass must explicitly exclude heading elements");
 const pageTitle = html.match(/<title>([^<]+)<\/title>/)?.[1] || "";
 assert.ok(pageTitle.length > 0, "index.html must define the canonical page title");
 assert.match(html, /<footer id="pageFooter" class="site-footer" hidden>/, "member footer must use the new responsive footer layout");
