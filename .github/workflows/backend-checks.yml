@@ -18,6 +18,7 @@ jobs:
         with:
           python-version: "3.x"
       - run: npm ci
+      - run: npx wrangler deploy --dry-run --config backend/wrangler.toml
       - run: npm run check:worker
       - run: npm run test:worker
       - run: npm run test:catalog
