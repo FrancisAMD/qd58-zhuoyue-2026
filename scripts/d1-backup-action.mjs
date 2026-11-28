@@ -51,7 +51,7 @@ function requiredEnv(name) {
 }
 function aws(args) {
   try {
-    return execFileSync("aws", [...args, "--endpoint-url", endpoint(), "--no-cli-pager"], {
+    return execFileSync("aws", [...args, "--endpoint-url", endpoint(), ], {
       encoding: "utf8", maxBuffer: 64 * 1024 * 1024,
       stdio: ["ignore", "pipe", "pipe"],
       env: {
@@ -84,7 +84,7 @@ function awsHead(key) {
   try {
     const output = execFileSync("aws", [
       "s3api", "head-object", "--bucket", BUCKET, "--key", key,
-      "--endpoint-url", endpoint(), "--no-cli-pager", "--output", "json"
+      "--endpoint-url", endpoint(), , "--output", "json"
     ], {
       encoding: "utf8", maxBuffer: 1024 * 1024, stdio: ["ignore", "pipe", "pipe"],
       env: { ...process.env, AWS_DEFAULT_REGION: "auto", AWS_REGION: "auto", AWS_EC2_METADATA_DISABLED: "true" }
