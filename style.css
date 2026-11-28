@@ -2189,3 +2189,19 @@ body select option{
 #profile .profile-stage-panel label:not(.check)>input,
 #profile .profile-stage-panel label:not(.check)>select,
 #profile .profile-stage-panel label:not(.check)>textarea{margin-top:5px;}
+
+/* Lock the background page while authentication dialogs are open. */
+html.modal-scroll-locked{overflow:hidden!important;}
+body.modal-scroll-locked{
+  position:fixed!important;
+  top:var(--modal-scroll-y,0px)!important;
+  left:0;
+  right:0;
+  width:100%;
+  overflow:hidden!important;
+}
+.modal.show{overflow:hidden;overscroll-behavior:contain;}
+.dialog{
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+}
