@@ -54,7 +54,8 @@ async function preloadBootLogo(image){
     await preloadImageSource(fallback);
     target=fallback;
   }
-  if(image.src!==target)image.src=target;
+  const normalizedTarget=new URL(target,document.baseURI).href;
+  if(image.src!==normalizedTarget)image.src=target;
   image.dataset.activeThemeSrc=target;
   await waitForLogoElement(image);
 }
