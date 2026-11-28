@@ -2040,3 +2040,11 @@ body select option{
 #peoplePanel .admin-person-info-box small{color:var(--muted)!important;font-size:12px!important;line-height:1.5!important;}
 #peoplePanel .admin-person-info-box strong{display:block!important;width:100%!important;color:var(--ink)!important;font-size:15px!important;line-height:1.6!important;overflow-wrap:anywhere!important;white-space:normal!important;}
 @media(max-width:420px){#peoplePanel .admin-person-info-row{gap:8px!important;}#peoplePanel .admin-person-info-box{padding:9px!important;}#peoplePanel .admin-person-info-box strong{font-size:14px!important;}}
+
+
+/* Keep administrator identity and sign-out controls inside the sidebar role card. */
+#adminSidebar .admin-sidebar-role-card{gap:10px;}
+#adminSidebar .admin-sidebar-account{display:grid;gap:3px;padding-top:9px;border-top:1px solid var(--field-border);min-width:0;}
+#adminSidebar .admin-sidebar-account small{color:var(--muted);font-size:11px;line-height:1.4;}
+#adminSidebar .admin-sidebar-account b{color:var(--ink);font-size:13px;font-weight:700;line-height:1.5;overflow-wrap:anywhere;}
+#adminSidebar .admin-sidebar-logout{width:100%;min-height:36px;margin-top:1px;justify-content:center;padding:8px 10px;font-size:12px;}
