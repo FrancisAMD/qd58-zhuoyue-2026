@@ -155,5 +155,16 @@ assert.ok(html.indexOf('id="peoplePanel"')<html.indexOf('id="teamsPanel"')&&html
 assert.doesNotMatch(html,/value="viewer"/,"new administrator creation must not offer a read-only role");
 assert.match(html,/普通管理员仅可查看统计概览、审核海外高校、管理地区群聊二维码/);
 assert.match(html,/data-nav-target="teamsPanel" data-nav-permission="overview"/,"ordinary admins can access teams through the overview permission");
+assert.match(html,/admin\.js\?v=20261128-roster-export-fetch-v1/,"roster export fix must bust the admin script cache");
+assert.match(js,/async function downloadRosterExport\(format\)/,"CSV and XLSX should share the blob download path");
+assert.match(js,/credentials:"include"/,"roster exports must include the admin session cookie");
+assert.match(js,/mode:"cors"/,"roster exports must use CORS fetch instead of a top-level cross-origin navigation");
+assert.match(js,/response\.blob\(\)/,"roster export responses must be downloaded as binary blobs");
+assert.match(js,/URL\.createObjectURL\(blob\)/,"roster export must create a browser download URL");
+assert.match(js,/downloadRosterExport\("csv"\)/,"CSV button must use the authenticated fetch download path");
+assert.match(js,/downloadRosterExport\("xlsx"\)/,"XLSX button must use the authenticated fetch download path");
+assert.doesNotMatch(js,/location\.href=API\+"\/admin\/people\?"/,"roster exports must not navigate directly to the API host without an Origin header");
+assert.match(js,/roster_export_unexpected_content_type/,"unexpected response formats must not be downloaded as roster files");
+assert.match(js,/roster_export_empty/,"empty export files must be reported instead of downloaded");
 assert.match(js,/data-admin-delete/,"owner UI must provide admin deletion actions");
 assert.match(js,/历史只读账号（待删除）/,"legacy viewer accounts must be identifiable for cleanup");
