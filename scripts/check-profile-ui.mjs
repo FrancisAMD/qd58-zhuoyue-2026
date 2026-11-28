@@ -32,6 +32,9 @@ assert.ok(pageTitle.length > 0, "index.html must define the canonical page title
 assert.match(html, /<footer id="pageFooter" class="site-footer" hidden>/, "member footer must use the new responsive footer layout");
 assert.match(html, /id="siteFooterTitle" class="site-footer-title"/, "footer identity must be populated from the page title");
 assert.match(js, /\$\("siteFooterTitle"\)\.textContent=document\.title/, "footer identity must always match document.title");
+assert.match(html, /id="siteFooterTitle" class="site-footer-title">返校宣讲 · 青岛五十八中2026-2027校友组队平台<\/strong>/, "footer title must be present in HTML before app initialization");
+assert.match(css, /\.site-footer-title\{[\s\S]*?display:block;[\s\S]*?overflow-wrap:anywhere;/, "footer title must wrap instead of being clipped");
+assert.match(css, /@media\(max-width:760px\)[\s\S]*?\.site-footer-title\{[\s\S]*?display:block!important;[\s\S]*?visibility:visible!important;/, "mobile footer title must remain visible");
 assert.match(html, /class="site-footer-tagline">去远方求证，回原点作答。<\/span>/, "footer tagline must retain the requested wording");
 assert.match(html, /class="site-footer-button site-footer-github" href="https:\/\/github\.com\/FrancisAMD\/qd58-zhuoyue-2026"/, "GitHub footer action must be a button-style link");
 assert.match(html, /class="site-footer-button site-footer-admin" href="admin\.html"/, "admin footer action must be a button-style link");
