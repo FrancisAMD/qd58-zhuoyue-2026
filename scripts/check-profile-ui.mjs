@@ -127,7 +127,16 @@ assert.ok(css.includes('"LXGW WenKai Lite",serif!important'),"Chinese welcome co
 assert.ok(css.includes("Georgia,\"Times New Roman\",serif!important"),"English welcome copy should use a refined serif face");
 assert.match(html,/id="journeySteps"/,"homepage must retain the three-step navigation");
 assert.match(html,/style\.css\?v=20261128-local-fonts-v1/,"homepage must load the latest shared stylesheet");
-assert.match(html,/class="art-logo"[\s\S]*?data-light-src="assets\/58-logo-light\.png"[\s\S]*?data-dark-src="assets\/58-logo-dark\.png"/,"hero illustration must use the light/dark school logos");
+assert.match(html,/class="hero-mark"[\s\S]*?class="art-logo"[\s\S]*?width="390" height="390"/,"homepage hero should show one enlarged school logo in a clean right-side container");
+assert.doesNotMatch(html,/class="float [ab]"|THE JOURNEY CONTINUES · 2026|山海有归期|燃星星之火/,"homepage hero must not contain decorative labels or overlay copy");
+assert.match(css,/\.hero-mark\{[\s\S]*?background:transparent;[\s\S]*?box-shadow:none;/,"hero logo container must have no illustration background or shadow");
+assert.match(html,/id="join" class="section"><div class="journey-section-intro">[\s\S]*?JOIN THE COMMUNITY[\s\S]*?留下你的坐标[\s\S]*?登录后完善个人资料/,"page two heading and lead must be grouped in the shared intro block");
+assert.match(html,/id="groups" class="section directory-stage" hidden>\s*<div class="journey-section-intro">[\s\S]*?FIND YOUR TEAMMATES[\s\S]*?发现你的队友[\s\S]*?这里汇集与你就读同一所高校/,"page three heading and lead must be grouped in the shared intro block");
+assert.match(css,/#join\.section,[\s\S]*?#groups\.directory-stage\{\s*padding-top:65px;\s*\}/,"page two and page three must use the same desktop top offset");
+assert.match(css,/\.journey-section-intro\{[\s\S]*?gap:0;[\s\S]*?margin:0;/,"journey intro blocks must share fixed vertical rhythm without implicit flex gaps");
+assert.match(css,/\.journey-section-intro>\.eyebrow\{\s*margin:0 0 10px!important/,"journey eyebrow spacing must be explicit");
+assert.match(css,/\.journey-section-intro>h2\{\s*margin:0 0 12px!important/,"journey title spacing must be explicit");
+assert.match(css,/\.journey-section-intro>\.lead\{[\s\S]*?margin:0!important/,"journey lead must not inherit browser paragraph margins");
 assert.match(html,/class="auth-brand"[\s\S]*?2026 · 冬日返校计划/,"login modal must display the school logo and new campaign identity");
 assert.ok(css.includes('.dialog .auth-brand span{')&&css.includes('font:600 18px/1.45 "LXGW WenKai Lite",serif;'),"login brand should use the title serif font without the generic mark tile");
 assert.ok(css.includes("#appStage>.journey-steps,")&&css.includes("#appStage>#accountBottom{")&&css.includes("width:min(100%,1156px);")&&css.includes("padding-left:28px;"),"desktop journey sections and account removal notice must share the same outer width and inner gutters");
