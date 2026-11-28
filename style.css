@@ -160,7 +160,7 @@ header>div:last-child{display:flex;align-items:center;gap:8px}
 
 
 /* Administrator console */
-.admin-shell{max-width:1180px}
+.admin-shell{width:min(100%,1680px);max-width:1680px}
 .admin-login{max-width:440px}
 .admin-toolbar,.admin-heading,.pagination,.admin-account{display:flex;align-items:center;justify-content:space-between;gap:16px}
 .admin-toolbar{margin:18px 0}
@@ -180,14 +180,14 @@ header>div:last-child{display:flex;align-items:center;gap:8px}
 .admin-table th,.admin-table td{padding:12px 10px;text-align:left;border-bottom:1px solid var(--line)}
 .admin-table th{color:var(--muted);font-weight:600;background:var(--paper)}
 .admin-table td{color:var(--ink)}
-.pagination{justify-content:center;margin-top:18px;color:var(--muted);font-size:12px}
+.pagination{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;margin-top:18px;color:var(--muted);font-size:12px}.roster-pagination{padding:8px 0}.roster-pagination #pageLabel{min-width:250px;text-align:center;font-variant-numeric:tabular-nums}
 .pagination button:disabled{opacity:.4;cursor:not-allowed}
 .admin-account-list{display:grid;gap:8px;margin-top:16px}
 .admin-account{padding:12px 14px;border:1px solid var(--line);border-radius:8px}
 .muted{color:var(--muted);font-size:11px}
 :root[data-theme="dark"] body .admin-stats .stat{border-color:var(--line)}
 @media(max-width:760px){.admin-stats{grid-template-columns:repeat(2,1fr)}.admin-filters{grid-template-columns:1fr 1fr}.admin-heading{align-items:flex-start;flex-direction:column}.admin-toolbar{align-items:flex-start}.admin-account{align-items:flex-start}.admin-shell .panel{padding:17px}}
-@media(max-width:460px){.admin-filters{grid-template-columns:1fr}.admin-stats .stat{padding:14px}.admin-stats .stat b{font-size:22px}}
+@media(max-width:460px){.roster-pagination{gap:6px}.roster-pagination button{padding:9px 10px}.roster-pagination #pageLabel{order:-1;flex-basis:100%;min-width:0}.admin-filters{grid-template-columns:1fr}.admin-stats .stat{padding:14px}.admin-stats .stat b{font-size:22px}}
 
 .account-danger-zone{margin-top:22px;padding:18px 20px;border:1px solid #d8b7ae;border-radius:10px;background:#fff8f6}
 .account-danger-zone p{margin:0 0 10px;color:#8d716b;font-size:12px;line-height:1.8}
