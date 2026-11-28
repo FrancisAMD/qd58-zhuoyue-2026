@@ -47,10 +47,10 @@ assert.doesNotMatch(html,/<details>|<summary>/,"FAQ answers should be visible wi
 assert.equal((html.match(/class="home-faq-card"/g)||[]).length,3,"homepage FAQ must contain exactly three cards");
 assert.match(html,/class="home-faq-question"/,"FAQ cards should have a dedicated question heading");
 assert.match(html,/class="home-faq-answer"/,"FAQ answers should be present in the static card layout");
-assert.match(css,/\\.home-faq-list\\{[\\s\\S]*?grid-template-columns:repeat\\(3,minmax\\(0,1fr\\)\\)/,"FAQ should use three horizontal columns on desktop");
-assert.match(css,/@media\\(max-width:760px\\)[\\s\\S]*?\\.home-faq-list\\{grid-template-columns:minmax\\(0,1fr\\)/,"FAQ should stack vertically on mobile");
+assert.match(css,/\.home-faq-list\{[\s\S]*?grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/,"FAQ should use three horizontal columns on desktop");
+assert.match(css,/@media\(max-width:760px\)[\s\S]*?\.home-faq-list\{grid-template-columns:minmax\(0,1fr\)/,"FAQ should stack vertically on mobile");
 assert.match(css,/\\.home-faq-question strong\\{[\\s\\S]*?system-ui,"Noto Sans SC"/,"FAQ question text should use the site's readable sans-serif text face");
-assert.match(css,/\\.home-faq-answer p\\{[\\s\\S]*?font:400 15px\\/1\\.9 system-ui/,"FAQ answer copy should use a larger readable font");
+assert.match(css,/\.home-faq-answer p\{[\s\S]*?font:400 15px\/1\.9 system-ui/,"FAQ answer copy should use a larger readable font");
 assert.match(css,/body\\{\\s*font-size:16px;/,"site body text baseline should be increased to sixteen pixels");
 assert.match(css,/font-size:max\\(14px,1em\\)!important/,"supporting copy should not fall below fourteen pixels");
 assert.match(css,/Readability pass:[\\s\\S]*?preserving h1-h6 sizes/,"global readability pass must explicitly exclude heading elements");
