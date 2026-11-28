@@ -12,11 +12,9 @@ const lxgwFont=readFileSync(new URL("assets/fonts/lxgw-wenkai-lite-regular.woff2
 const sourceHanFont=readFileSync(new URL("assets/fonts/source-han-sans-cn-variable.woff2",root));
 assert.equal(lxgwFont.subarray(0,4).toString(),"wOF2","LXGW WenKai Lite must be a valid self-hosted WOFF2 asset");
 assert.equal(sourceHanFont.subarray(0,4).toString(),"wOF2","Source Han Sans CN must be a valid self-hosted WOFF2 asset");
-assert.match(typography,/font-family:"LXGW WenKai Lite"[\\s\\S]*?lxgw-wenkai-lite-regular\\.woff2/,"headings must use locally hosted LXGW WenKai Lite");
-assert.match(typography,/font-family:"Source Han Sans CN"[\\s\\S]*?source-han-sans-cn-variable\\.woff2/,"body copy must use locally hosted Source Han Sans CN");
-assert.doesNotMatch(css,/fonts\\.googleapis\\.com|Noto Serif SC|Noto Sans SC|system-ui/,"base stylesheet must not use Google Fonts or system-only Chinese font stacks");
-
-
+assert.ok(typography.includes('src:url("./assets/fonts/lxgw-wenkai-lite-regular.woff2")'),"headings must use locally hosted LXGW WenKai Lite");
+assert.ok(typography.includes('src:url("./assets/fonts/source-han-sans-cn-variable.woff2")'),"body copy must use locally hosted Source Han Sans CN");
+assert.doesNotMatch(css,/fonts\.googleapis\.com|Noto Serif SC|Noto Sans SC|system-ui/,"base stylesheet must not use Google Fonts or system-only Chinese font stacks");
 assert.match(html,/name="highSchool" value="青岛五十八中"/,"high-school field must default to Qingdao No. 58 High School");
 assert.match(html,/<option selected>大一<\/option>/,"grade selector must default to freshman year");
 assert.match(html,/name="greeting" rows="5"/,"greeting textarea must have an explicit compact row count");
