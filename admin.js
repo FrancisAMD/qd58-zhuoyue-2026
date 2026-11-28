@@ -213,12 +213,83 @@ async function loadOverview(){
     '<div class="stat"><small>已完成高校登记</small><b>'+Number(counts.completed||0)+'</b></div>'+
     '<div class="stat"><small>资料同意记录</small><b>'+Number(counts.consented||0)+'</b></div>'+
     '<div class="stat"><small>当前有成员的大学团队</small><b>'+Number(data.teamCount||0)+'</b></div>';
-  const teams=data.teams||[];
-  $("teamsGrid").innerHTML=teams.map(team=>
-    '<article class="admin-team-card"><div><b>'+safe(team.university||"未命名高校")+'</b><span>'+safe(team.leaderProvince||"地区未填写")+'</span></div>'+
-    '<strong>'+Number(team.memberCount||0)+' <small>人</small></strong>'+
-    '<p>组长：'+safe(team.leaderName||"待指定")+'</p></article>'
-  ).join("")||'<div class="directory-empty"><strong>目前没有在籍成员的高校团队</strong><p>同学移除高校后，空团队不会继续占据此列表。</p></div>';
+}
+function parseTeamJsonArray(value){
+  try{
+    const parsed=JSON.parse(value||"[]");
+    return Array.isArray(parsed)?parsed.filter(item=>typeof item==="string"):[];
+  }catch{return [];}
+}
+function teamLevelLabels(team){
+  const tags=parseTeamJsonArray(team.projectTagsJson);
+  const labels=[];
+  if(tags.includes("project_985_legacy"))labels.push("985");
+  if(tags.includes("project_211_legacy"))labels.push("211");
+  if(tags.includes("double_first_class_round1")||tags.includes("double_first_class_round2"))labels.push("双一流");
+  if(!labels.length)labels.push("其他 / 未标注");
+  return labels;
+}
+function teamDegreeLabels(team){
+  const levels=parseTeamJsonArray(team.degreeLevelsJson);
+  const labels=[];
+  if(levels.includes("undergraduate")||team.educationLevel==="undergraduate")labels.push("本科");
+  if(levels.includes("postgraduate"))labels.push("研究生");
+  if(levels.includes("doctoral"))labels.push("博士");
+  return labels.length?labels:["学历层级未标注"];
+}
+function renderTeamCard(team){
+  const category=({mainland:"中国内地",hmt:"港澳台",overseas:"海外",unclassified:"未分类"})[team.universityCategory]||"高校";
+  const badges=teamLevelLabels(team).concat(teamDegreeLabels(team));
+  return '<article class="admin-team-card">'+
+    '<div class="admin-team-card-heading"><b>'+safe(team.university||"未命名高校")+'</b><span>'+safe(team.region||"地区未填写")+'</span></div>'+
+    '<div class="admin-team-card-tags">'+badges.map(label=>'<span>'+safe(label)+'</span>').join("")+'<span>'+safe(category)+'</span></div>'+
+    '<strong>'+Number(team.memberCount||0)+' <small>位报名同学</small></strong>'+
+    '<p>组长：'+safe(team.leaderName||"待指定")+'</p>'+
+  '</article>';
+}
+function readTeamFilters(){
+  teamFilters={
+    q:$("teamQuery").value.trim(),
+    region:$("teamRegion").value,
+    level:$("teamLevel").value,
+    minMembers:$("teamMinMembers").value.trim(),
+    maxMembers:$("teamMaxMembers").value.trim()
+  };
+}
+function teamParams(){
+  const query=new URLSearchParams({page:String(teamPage),pageSize:String(teamPageSize)});
+  for(const [key,value] of Object.entries(teamFilters))if(value!=="")query.set(key,value);
+  return query;
+}
+async function loadTeams(){
+  const data=await req("/admin/teams?"+teamParams());
+  const regions=Array.isArray(data.filterOptions?.regions)?data.filterOptions.regions:[];
+  const selectedRegion=$("teamRegion").value||teamFilters.region||"";
+  if(regions.join("|")!==teamRegionOptions.join("|")){
+    teamRegionOptions=regions;
+    $("teamRegion").innerHTML='<option value="">全部地区</option>'+
+      regions.map(region=>'<option value="'+safe(region)+'">'+safe(region)+'</option>').join("");
+  }
+  $("teamRegion").value=regions.includes(selectedRegion)?selectedRegion:"";
+  teamTotalPages=Math.max(1,Number(data.pagination?.totalPages)||1);
+  if(teamPage>teamTotalPages){
+    teamPage=teamTotalPages;
+    return loadTeams();
+  }
+  const items=Array.isArray(data.items)?data.items:[];
+  $("teamsGrid").innerHTML=items.map(renderTeamCard).join("")||
+    '<div class="directory-empty"><strong>没有符合条件的高校团队</strong><p>尝试放宽地区、层级或报名人数条件。</p></div>';
+  const total=Number(data.pagination?.total)||0;
+  const start=total?((teamPage-1)*teamPageSize+1):0;
+  const end=Math.min(teamPage*teamPageSize,total);
+  $("teamsMeta").textContent="共 "+total+" 支高校团队"+
+    (total?"，当前显示第 "+start+"–"+end+" 支。":"。")+
+    " 地区与层级来自高校目录，报名人数按当前有效账号统计。";
+  $("teamPageLabel").textContent="第 "+teamPage+" / "+teamTotalPages+" 页 · 共 "+total+" 支";
+  $("teamFirstPage").disabled=teamPage<=1;
+  $("teamPrevPage").disabled=teamPage<=1;
+  $("teamNextPage").disabled=teamPage>=teamTotalPages;
+  $("teamLastPage").disabled=teamPage>=teamTotalPages;
 }
 function readFilters(){
   filters={
