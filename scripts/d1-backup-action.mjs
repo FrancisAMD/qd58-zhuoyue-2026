@@ -14,6 +14,8 @@ const API_ROOT = "https://api.cloudflare.com/client/v4";
 const BUCKET = process.env.R2_BUCKET || "qd58-d1-backups";
 const CHUNK_BYTES = 8 * 1024 * 1024;
 const MANIFEST_PREFIX = "d1-backups/v1/manifests/";
+const EXPORT_LOCK_KEY = "d1-backups/v1/locks/export.json";
+const EXPORT_LOCK_LEASE_MS = 2 * 60 * 60 * 1000;
 const MAX_EXPORT_POLLS = 180;
 const WAIT_MS = 10_000;
 
@@ -81,6 +83,20 @@ function awsDelete(key) {
   aws(["s3api", "delete-object", "--bucket", BUCKET, "--key", key, "--output", "json"]);
 }
 
+async function writeExportLock(tempDir, ownerId) {
+  const payload = {
+    schemaVersion: 1,
+    ownerId,
+    leaseExpiresAt: Date.now() + EXPORT_LOCK_LEASE_MS,
+    updatedAt: new Date().toISOString()
+  };
+  const path = join(tempDir, "export-lock.json");
+  await writeFile(path, JSON.stringify(payload), { mode: 0o600, flag: "w" });
+  awsUpload(path, EXPORT_LOCK_KEY, "application/json");
+}
+async function releaseExportLock() {
+  awsDelete(EXPORT_LOCK_KEY);
+}
 async function postD1Export(bookmark) {
   const accountId = requiredEnv("CLOUDFLARE_ACCOUNT_ID");
   const apiToken = requiredEnv("CLOUDFLARE_API_TOKEN");
@@ -115,7 +131,7 @@ async function postD1Export(bookmark) {
 async function wait(ms) {
   await new Promise(resolve => setTimeout(resolve, ms));
 }
-async function waitForD1Export() {
+async function waitForD1Export(tempDir, lockOwnerId) {
   let state = await postD1Export("");
   let polls = 0;
   while (state.status !== "complete") {
@@ -123,6 +139,7 @@ async function waitForD1Export() {
     if (!state.bookmark) fail("backup_d1_export_bookmark_missing");
     if (polls >= MAX_EXPORT_POLLS) fail("backup_d1_export_timeout");
     await wait(WAIT_MS);
+    await writeExportLock(tempDir, lockOwnerId);
     state = await postD1Export(state.bookmark);
     polls++;
     console.info("D1 export polling", JSON.stringify({ poll: polls, status: state.status }));
@@ -355,9 +372,16 @@ async function backup(tempDir, backupId, requestedBy, requestedAt) {
     verification: { status: "not_checked" }
   };
   await uploadManifest(manifest, tempDir);
+  let exportLockAcquired = false;
+  const lockOwnerId = "github-" + String(process.env.GITHUB_RUN_ID || randomId()) +
+    "-" + String(process.env.GITHUB_RUN_ATTEMPT || "1");
   try {
     console.info("Starting D1 export", JSON.stringify({ backupId, source: manifest.source }));
-    const exportState = await waitForD1Export();
+    await writeExportLock(tempDir, lockOwnerId);
+    exportLockAcquired = true;
+    const exportState = await waitForD1Export(tempDir, lockOwnerId);
+    await releaseExportLock();
+    exportLockAcquired = false;
     const sqlPath = join(tempDir, "d1-export.sql");
     const encryptedPath = join(tempDir, "d1-export.qd58enc");
     await downloadExport(exportState.signedUrl, sqlPath);
@@ -415,6 +439,11 @@ async function backup(tempDir, backupId, requestedBy, requestedAt) {
   } catch (error) {
     await markFailed(manifest, error, tempDir);
     throw error;
+  } finally {
+    if (exportLockAcquired) {
+      try { await releaseExportLock(); }
+      catch { console.warn("D1 export lock release failed; the lease will expire automatically."); }
+    }
   }
 }
 async function verify(tempDir, backupId) {
