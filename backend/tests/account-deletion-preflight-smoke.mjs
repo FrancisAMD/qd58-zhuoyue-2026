@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import guardedWorker from "../src/worker-entry.js";
+import guardedWorker from "../src/account-deletion-preflight.js";
 
 const APP_ORIGIN = "https://58er.eon21.space";
 const API_ORIGIN = "https://api.58er.eon21.space";
