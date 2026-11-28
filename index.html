@@ -1,6 +1,6 @@
 <!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f3f6f2">
   <link rel="icon" type="image/png" href="/assets/favicon/light/favicon-32x32.png?v=20261128-theme-favicon-v1" data-light-href="/assets/favicon/light/favicon-32x32.png?v=20261128-theme-favicon-v1" data-dark-href="/assets/favicon/dark/favicon-32x32.png?v=20261128-theme-favicon-v1">
-<link rel="shortcut icon" href="/assets/favicon/light/favicon.ico?v=20261128-theme-favicon-v1" data-light-href="/assets/favicon/light/favicon.ico?v=20261128-theme-favicon-v1" data-dark-href="/assets/favicon/dark/favicon.ico?v=20261128-theme-favicon-v1"><script src="theme.js?v=20261128-donation-qr-fix-v2"></script><title>返校宣讲 · 青岛五十八中2026-2027校友组队平台</title><link rel="stylesheet" href="style.css?v=20261128-profile-form-compact-v1"><link rel="stylesheet" href="donations.css?v=20261128-local-fonts-v1"><link rel="stylesheet" href="ui-sections.css?v=20261128-local-fonts-v1"><script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" defer></script><link rel="stylesheet" href="typography.css?v=20261128-local-fonts-v1">
+<link rel="shortcut icon" href="/assets/favicon/light/favicon.ico?v=20261128-theme-favicon-v1" data-light-href="/assets/favicon/light/favicon.ico?v=20261128-theme-favicon-v1" data-dark-href="/assets/favicon/dark/favicon.ico?v=20261128-theme-favicon-v1"><script src="theme.js?v=20261128-donation-qr-fix-v2"></script><title>返校宣讲 · 青岛五十八中2026-2027校友组队平台</title><link rel="stylesheet" href="style.css?v=20261128-form-spacing-layout-v2"><link rel="stylesheet" href="donations.css?v=20261128-local-fonts-v1"><link rel="stylesheet" href="ui-sections.css?v=20261128-local-fonts-v1"><script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" defer></script><link rel="stylesheet" href="typography.css?v=20261128-local-fonts-v1">
 </head><body class="session-checking">
 <div id="bootScreen" class="boot-screen" role="status" aria-live="polite" hidden>
   <div class="boot-content">
@@ -111,15 +111,13 @@
 <label>姓名<input name="name" required maxlength="80"></label>
 <label>性别<select name="gender" id="gender" required><option value="">请选择</option><option value="male">男</option><option value="female">女</option><option value="undisclosed">不愿透露</option></select></label>
 </div>
-<div class="cols">
+<div class="cols profile-field-pair">
 <label>高中学校<input name="highSchool" value="青岛五十八中" required maxlength="100"></label>
-</div>
-<div class="cols">
 <label>当前年级<select name="grade" required><option value="">请选择</option><option selected>大一</option><option>大二</option><option>大三</option><option>大四</option><option>研究生</option><option>博士生</option><option>已毕业</option></select></label>
-<label>专业大类<select name="majorDisciplineCode" id="majorDisciplineCode" required><option value="">请先加载 13 个学科门类</option></select></label>
 </div>
-<div id="admissionFields" hidden>
-<label>招生大类<select name="admissionCategoryId" id="admissionCategoryId"><option value="">请选择招生大类</option></select></label>
+<div class="cols profile-field-pair profile-major-admission-row">
+<label>专业大类<select name="majorDisciplineCode" id="majorDisciplineCode" required><option value="">请先加载 13 个学科门类</option></select></label>
+<label id="admissionFields" hidden>招生大类<select name="admissionCategoryId" id="admissionCategoryId"><option value="">请选择招生大类</option></select></label>
 </div>
 <div class="cols">
 <label>所在省份 / 地区<input name="province" id="profileProvince" maxlength="80" readonly required></label>
