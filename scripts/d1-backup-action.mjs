@@ -1,10 +1,11 @@
 import { execFileSync } from "node:child_process";
 import { mkdtemp, open, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { randomBytes } from "node:crypto";
 import {
-  decryptBackupPart, getBackupMasterKey, signBackupManifest,
+  decryptBackupPart, encryptBackupPart, getBackupMasterKey, signBackupManifest,
   unwrapBackupDataKey, verifyBackupManifest, wrapBackupDataKey
 } from "../backend/src/d1-backup-crypto.js";
 import { normalizeD1ExportResponse } from "../backend/src/d1-backup-export.js";
@@ -190,7 +191,7 @@ async function encryptExportFile(sourcePath, destinationPath, backupId, dataKeyB
       if (result.bytesRead !== length) fail("backup_export_file_truncated");
       const plaintext = new Uint8Array(buffer);
       const partNumber = parts.length + 1;
-      const encrypted = await (await import("../backend/src/d1-backup-crypto.js")).encryptBackupPart(
+      const encrypted = await encryptBackupPart(
         dataKeyBytes, backupId, partNumber, plaintext
       );
       await writeAll(output, Buffer.from(encrypted.ciphertext));
@@ -357,7 +358,7 @@ async function backup(tempDir, backupId, requestedBy, requestedAt) {
     schemaVersion: 1,
     backupId,
     status: "running",
-    source: requestedBy ? "manual" : "scheduled",
+    source: process.env.BACKUP_SOURCE === "manual" || requestedBy ? "manual" : "scheduled",
     requestedBy: requestedBy || null,
     workflowInstanceId: null,
     createdAt: requestedAt || new Date().toISOString(),
@@ -470,7 +471,7 @@ async function main() {
     await rm(tempDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 500 });
   }
 }
-const invoked = process.argv[1] && new URL(import.meta.url).pathname === new URL("file://" + process.argv[1]).pathname;
+const invoked = process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href;
 if (invoked) {
   main().catch(error => {
     console.error("D1 backup action failed:", safeError(error));
