@@ -97,6 +97,28 @@ function showError(id,error){
   if(element) element.textContent=errorMessage(error);
 }
 function has(permission){return !!current?.permissions?.includes(permission);}
+function setActiveAdminNav(targetId){
+  document.querySelectorAll("[data-admin-nav]").forEach(button=>{
+    const active=button.dataset.navTarget===targetId;
+    button.classList.toggle("active",active);
+    if(active)button.setAttribute("aria-current","location");
+    else button.removeAttribute("aria-current");
+  });
+}
+function syncAdminNavigation(){
+  const nav=$("adminSectionNav");
+  if(!nav)return;
+  const buttons=Array.from(nav.querySelectorAll("[data-admin-nav]"));
+  let firstVisible="";
+  for(const button of buttons){
+    const allowed=has(button.dataset.navPermission);
+    button.hidden=!allowed;
+    if(allowed&&!firstVisible)firstVisible=button.dataset.navTarget;
+  }
+  nav.hidden=!buttons.some(button=>!button.hidden);
+  const active=buttons.find(button=>!button.hidden&&button.dataset.navTarget===location.hash.slice(1));
+  setActiveAdminNav(active?.dataset.navTarget||firstVisible);
+}
 function setPanelFailure(target,message){
   const element=$(target);
   if(element) element.textContent=message;
@@ -133,6 +155,8 @@ async function enter(options={}){
   $("groupChatQrPanel").hidden=!has("group-chat:manage");
   $("donationManagementPanel").hidden=!has("donations:manage");
   $("backupPanel").hidden=!has("backups:manage");
+  $("overviewPanel").hidden=!has("overview");
+  syncAdminNavigation();
   if(!overviewRefreshTimer){
     overviewRefreshTimer=setInterval(()=>{
       if(current&&$("dashboard")&&!$("dashboard").hidden&&has("overview")){
@@ -551,6 +575,14 @@ function openDemo(){
   $("demoPanel").scrollIntoView({behavior:"smooth",block:"start"});
 }
 function closeDemo(){$("demoPanel").hidden=true;}
+$("adminSectionNav").addEventListener("click",event=>{
+  const button=event.target.closest("[data-admin-nav]");
+  if(!button||button.hidden)return;
+  const target=$(button.dataset.navTarget);
+  if(!target||target.hidden)return;
+  setActiveAdminNav(button.dataset.navTarget);
+  target.scrollIntoView({behavior:"smooth",block:"start"});
+});
 $("openDemo").addEventListener("click",openDemo);
 $("dashboardDemo").addEventListener("click",openDemo);
 $("closeDemo").addEventListener("click",closeDemo);
