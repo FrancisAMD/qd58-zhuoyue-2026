@@ -5,7 +5,7 @@
 主要模块：
 
 - `src/worker.js`：登录注册、Turnstile/阿里云 PNVS、资料、高校组队、组长转让、同校目录、管理员 API 与 owner 专属备份管理 API。
-- `src/d1-backup-workflow.js`、`src/d1-backup-crypto.js`、`src/d1-backup-lock.js`：每天定时执行 D1 SQL 导出，通过 R2 原子租约锁串行化导出，使用信封加密和 AES-256-GCM 分块加密后写入私有 R2，并支持分块完整性验证。
+- `src/d1-backup-workflow.js`、`src/d1-backup-crypto.js`、`src/d1-backup-lock.js`：每天定时执行 D1 SQL 导出，通过 R2 原子租约锁串行化导出，使用信封加密和 AES-256-GCM 分块加密后写入私有 R2，上传完成后会自动解密回读全部 R2 分块并校验 AES-GCM 标签和 SHA-256；后台还可手动重复验证。
 - `src/xlsx.js`：原生 XLSX 导出。
 - `src/university-catalog-import.js`：高校目录分阶段导入。
 - `src/account-deletion-ledger.js`：账号删除意图 R2 台账。
