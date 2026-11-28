@@ -105,7 +105,7 @@ assert.ok(uiSections.includes("aspect-ratio:1312 / 1787"),"donation image frame 
 assert.ok(uiSections.includes("object-fit:cover;\n  background:transparent"),"donation image must fill its frame without white side gutters");
 assert.ok(uiSections.includes(".donation-qr-pending[hidden]{display:none!important}"),"pending placeholder must respect its hidden state");
 assert.ok(html.includes("ui-sections.css?v=20261128-local-fonts-v1"),"donation QR layout must bust the component stylesheet cache");
-assert.ok(html.includes("app.js?v=20261128-account-privacy-footer-v1"),"donation amount logic must bust the frontend script cache");
+assert.ok(html.includes("app.js?v=20261128-boot-assets-before-session-v1"),"donation amount logic must bust the frontend script cache");
 assert.ok(html.includes("theme.js?v=20261128-donation-qr-fix-v2"),"donation theme handling must bust the theme script cache");
 assert.match(theme,/root\.dataset\.theme === "dark" \? "dark" : "light"/,"donation QR mode must follow the active root theme");
 assert.match(theme,/image\.id === "donationQrImage"/,"theme changes must use the donation-specific load state");
