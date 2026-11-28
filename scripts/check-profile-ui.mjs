@@ -48,7 +48,7 @@ assert.match(css, /--field-border:#354239/, "dark inner tiles should use matchin
 assert.match(css,/@media\(min-width:761px\)[\s\S]*?#join>#profile\s*\{[^}]*width:100%[^}]*max-width:none/,"desktop registration form must fill the section width and align with the journey and account bars");
 assert.match(html,/id="registerFields" class="register-fields"(?! disabled)/,"registration inputs must remain usable");
 assert.match(html,/id="regCreate"(?! disabled)/,"registration submit must be available after the SMS code is entered");
-assert.match(html,/app\.js\?v=20261128-external-stage-actions-v1/,"donation amount logic must bust the cached frontend script");
+assert.match(html,/app\.js\?v=20261128-modal-scroll-lock-v1/,"donation amount logic must bust the cached frontend script");
 assert.match(html,/完成短信验证后，系统才会确认该手机号是否已有账号/,"registration UI must explain phone ownership verification before account status");
 assert.match(html,/id="regExistingAccount"[^>]*hidden/,"existing-account guidance must remain hidden until server-side verification");
 assert.match(html,/id="regGoLogin"/,"a verified existing account must have a direct login action");
@@ -158,7 +158,7 @@ assert.ok(css.includes("width:clamp(176px,22vw,244px)"),"boot logo should be lar
 assert.ok(css.includes('"LXGW WenKai Lite",serif!important'),"Chinese welcome copy should use an elegant serif face");
 assert.ok(css.includes("Georgia,\"Times New Roman\",serif!important"),"English welcome copy should use a refined serif face");
 assert.match(html,/id="journeySteps"/,"homepage must retain the three-step navigation");
-assert.match(html,/style\.css\?v=20261128-external-stage-actions-v1/,"homepage must load the latest shared stylesheet");
+assert.match(html,/style\.css\?v=20261128-modal-scroll-lock-v1/,"homepage must load the latest shared stylesheet");
 assert.match(html,/class="hero-mark"[\s\S]*?class="art-logo"[\s\S]*?width="390" height="390"/,"homepage hero should show one enlarged school logo in a clean right-side container");
 const heroMarkMarkup=html.match(/<div class="hero-mark">([\s\S]*?)<\/div>/)?.[1]||"";
 assert.doesNotMatch(heroMarkMarkup,/class="float|<small|THE JOURNEY CONTINUES|山海有归期|燃星星之火/,"homepage hero mark must contain only the school logo, with no decorative labels or overlay copy");
