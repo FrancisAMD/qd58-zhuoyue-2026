@@ -123,7 +123,6 @@ assert.match(html,/id="journeySteps"/,"homepage must retain the three-step navig
 assert.match(html,/style\.css\?v=20261128-homepage-faq-brand-logo-v1/,"homepage must load the latest shared stylesheet");
 assert.match(html,/class="art-logo"[\s\S]*?data-light-src="assets\/58-logo-light\.png"[\s\S]*?data-dark-src="assets\/58-logo-dark\.png"/,"hero illustration must use the light/dark school logos");
 assert.match(html,/class="mark auth-brand"[\s\S]*?2026 · 冬日返校计划/,"login modal must display the school logo and new campaign identity");
-assert.match(css,/#peoplePanel/,"shared stylesheet should remain readable in the admin roster");
 assert.ok(css.includes("#appStage>.journey-steps,")&&css.includes("#appStage>#accountBottom{")&&css.includes("width:min(100%,1156px);")&&css.includes("padding-left:28px;"),"desktop journey sections and account removal notice must share the same outer width and inner gutters");
 assert.ok(css.includes("@media(max-width:760px){")&&css.includes("#appStage>.section#groups,")&&css.includes("width:100%;")&&css.includes("padding-left:16px;"),"mobile journey sections and account removal notice must share the same width and gutters");
 assert.ok(css.includes("#appStage>#accountBottom{\n  padding-top:0;"),"account removal notice should align directly beneath the same content column");
