@@ -64,7 +64,8 @@ if 'lxgw-wenkai-lite-regular.woff2' not in typography_text:
     parser.errors.append("LXGW WenKai Lite must be declared as a local web font.")
 if 'source-han-sans-cn-variable.woff2' not in typography_text:
     parser.errors.append("Source Han Sans CN must be declared as a local web font.")
-\nfor marker in [
+
+for marker in [
     'class="art-logo"',
     'data-light-src="assets/58-logo-light.png"',
     'data-dark-src="assets/58-logo-dark.png"',
