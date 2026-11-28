@@ -23,7 +23,7 @@ assert.doesNotMatch(js,/DEMO_DATA|renderDemo|openDemo|dashboardDemo/,"admin Java
 assert.doesNotMatch(css,/\.admin-demo|\.demo-warning|\.demo-tabs/,"admin stylesheet must not retain the demo UI");
 assert.match(html,/style\.css\?v=20261128-deep-pine-qr-v2/,"admin must load the shared surface stylesheet");
 assert.match(css,/--field-bg:#edf0ed/,"admin light mode must share the neutral field surface");
-assert.match(css,/--field-bg:#29382f/,"admin dark mode must share the neutral field surface");
+assert.match(css,/--field-bg:#1A241E/,"admin dark mode must share the neutral field surface");
 assert.match(css,/\.admin-team-card,[\s\S]*?\.admin-profile-field,[\s\S]*?background:var\(--field-bg\)!important/,"admin team and profile tiles must use the neutral inner surface");
 assert.match(js,/loadUniversityReviews/);
 assert.match(js,/universities:review/);
