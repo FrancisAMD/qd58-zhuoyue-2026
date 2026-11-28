@@ -3,10 +3,15 @@ import { normalizeD1ExportResponse } from "../src/d1-backup-export.js";
 
 const pending = normalizeD1ExportResponse({
   success:true,
-  type:"export",
-  status:"pending",
-  at_bookmark:"bookmark-123",
-  messages:["Preparing export"]
+  errors:[],
+  messages:[],
+  result:{
+    type:"export",
+    success:true,
+    status:"pending",
+    at_bookmark:"bookmark-123",
+    messages:["Preparing export"]
+  }
 });
 assert.deepEqual(pending,{
   status:"pending",bookmark:"bookmark-123",error:"",signedUrl:"",filename:""
@@ -14,12 +19,15 @@ assert.deepEqual(pending,{
 
 const completed = normalizeD1ExportResponse({
   success:true,
-  type:"export",
-  status:"complete",
-  at_bookmark:"bookmark-123",
   result:{
-    filename:"qd58.sql",
-    signed_url:"https://example.invalid/signed-export"
+    type:"export",
+    success:true,
+    status:"complete",
+    at_bookmark:"bookmark-123",
+    result:{
+      filename:"qd58.sql",
+      signed_url:"https://example.invalid/signed-export"
+    }
   }
 });
 assert.deepEqual(completed,{
@@ -31,7 +39,9 @@ assert.deepEqual(completed,{
 });
 
 const failed = normalizeD1ExportResponse({
-  success:true,status:"error",at_bookmark:"bookmark-err",error:"export failed"
+  success:true,result:{
+    type:"export",success:true,status:"error",at_bookmark:"bookmark-err",error:"export failed"
+  }
 });
 assert.equal(failed.status,"error");
 assert.equal(failed.error,"export failed");
