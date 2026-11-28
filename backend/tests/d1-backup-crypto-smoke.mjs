@@ -3,7 +3,7 @@ import {
   decryptBackupPart, encryptBackupPart, getBackupMasterKey,
   signBackupManifest, unwrapBackupDataKey, verifyBackupManifest,
   wrapBackupDataKey
-} from "../backend/src/d1-backup-crypto.js";
+} from "../src/d1-backup-crypto.js";
 
 const backupId="0123456789abcdef0123456789abcdef";
 const masterHex="a".repeat(64);
