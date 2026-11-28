@@ -242,4 +242,4 @@ assert.match(cardMotion,/new IntersectionObserver/,"shared card motion should re
 assert.match(cardMotion,/new MutationObserver/,"shared card motion should catch cards added dynamically after API responses");
 assert.match(cardMotion,/prefers-reduced-motion: reduce/,"shared card motion should respect reduced-motion preferences");
 assert.match(css,/\.card-reveal-pending\{[\s\S]*?opacity:0[\s\S]*?translate:0 20px[\s\S]*?blur\(2px\)/,"all cards should use the same gentle fade-and-rise entrance");
-assert.match(css,/\.card-reveal-visible\{opacity:1[\s\S]*?translate:0 0/,"revealed cards should settle into their original position");
+assert.match(css,/\.card-reveal-visible\{\s*opacity:1;[\s\S]*?translate:0 0;/,"revealed cards should settle into their original position");
