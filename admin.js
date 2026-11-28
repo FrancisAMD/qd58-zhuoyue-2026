@@ -335,8 +335,8 @@ async function handleBackupAction(action,backupId){
     }
     if(action==="delete"){
       if(!window.confirm("确定删除这份 R2 加密备份及其清单吗？此操作不可撤销。系统会保护最后一份成功备份。"))return;
-      await req("/admin/backups/"+backupId,null,"DELETE");
-      $("backupAdminMsg").textContent="备份已删除。";
+      const result=await req("/admin/backups/"+backupId,null,"DELETE");
+      $("backupAdminMsg").textContent="备份已删除。"+(result.auditRecorded===false?"（注意：审计记录写入失败，请查看 Worker 日志。）":"");
       await loadBackups();
     }
   }catch(error){showError("backupAdminMsg",error);}
