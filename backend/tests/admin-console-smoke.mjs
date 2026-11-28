@@ -41,13 +41,13 @@ assert.match(html,/id="adminSectionNav"/,"authenticated dashboard must provide a
 assert.match(html,/class="admin-workspace"/,"dashboard panels must be arranged beside the sidebar");
 const navPermissions = [
   ["overviewPanel","overview"],
+  ["peoplePanel","people:read"],
   ["teamsPanel","overview"],
   ["universityReviewPanel","universities:review"],
   ["groupChatQrPanel","group-chat:manage"],
-  ["peoplePanel","people:read"],
   ["donationManagementPanel","donations:manage"],
-  ["auditPanel","audit:read"],
   ["backupPanel","backups:manage"],
+  ["auditPanel","audit:read"],
   ["managePanel","admins:manage"]
 ];
 for(const [target,permission] of navPermissions){
@@ -58,7 +58,16 @@ for(const [target,permission] of navPermissions){
 assert.match(js,/function syncAdminNavigation\(\)/,"sidebar access must be derived from current administrator permissions");
 assert.match(js,/const allowed=has\(button\.dataset\.navPermission\)/,"sidebar entries must be filtered using current permission set");
 assert.match(js,/\$\("adminSectionNav"\)\.addEventListener\("click"/,"sidebar links must navigate to their target panels");
-assert.match(js,/target\.scrollIntoView\(\{behavior:"smooth",block:"start"\}\)/,"sidebar navigation must smoothly jump to sections");
+assert.match(js,/\$\(button\.dataset\.navTarget\)\.scrollIntoView\(\{behavior:"smooth",block:"start"\}\)/,"sidebar navigation must smoothly jump to the selected view");
+assert.match(js,/function showAdminView\(targetId,\{pushHistory=false,replaceHistory=false\}=\{\}\)/,"navigation should switch the active view rather than scroll across a continuous page");
+assert.match(js,/panel\.hidden=panel!==target\|\|!has\(panel\.dataset\.viewPermission\)/,"switching views must hide every other panel and deny unauthorized panels");
+assert.match(js,/window\.addEventListener\("popstate"/,"browser back/forward should restore the selected admin view");
+for(const [target] of navPermissions){
+  assert.match(html,new RegExp('<section id="'+target+'"[^>]*data-admin-view="'+target+'"[^>]*hidden>'),
+    "each dashboard module must start hidden and be rendered only when selected");
+}
+const sectionOrder=navPermissions.map(([target])=>html.indexOf('<section id="'+target+'"'));
+assert.deepEqual(sectionOrder,[...sectionOrder].sort((a,b)=>a-b),"dashboard section DOM order must match the sidebar order");
 assert.match(js,/\$\("overviewPanel"\)\.hidden=!has\("overview"\)/,"overview section must follow overview permission");
 assert.match(css,/\.admin-workspace\{[\s\S]*?grid-template-columns:minmax\(190px,230px\) minmax\(0,1fr\)/,"desktop dashboard must use a left sidebar and main content");
 assert.match(css,/\.admin-sidebar\{[\s\S]*?position:sticky/,"desktop sidebar should remain visible while scrolling");
@@ -119,8 +128,7 @@ assert.match(js,/groupChatStatusMarkup\(item\)/);
 assert.match(js,/profileDetailField\("入群确认状态",item\.groupChatStatusLabel\)/);
 assert.doesNotMatch(html,/group-chat-confirmation-block/,"confirmation status must not be a separate admin section");
 assert.doesNotMatch(html,/groupChatConfirmationRows|groupChatConfirmationRegion/);
-assert.ok(html.indexOf('id="universityReviewPanel"')<html.indexOf('id="peoplePanel"'),"overseas review must be near the top of the dashboard");
-assert.ok(html.indexOf('id="groupChatQrPanel"')<html.indexOf('id="peoplePanel"'),"regional QR management must be near the top of the dashboard");
+assert.ok(html.indexOf('id="peoplePanel"')<html.indexOf('id="teamsPanel"')&&html.indexOf('id="teamsPanel"')<html.indexOf('id="universityReviewPanel"'),"roster and teams must precede operational modules in the agreed order");
 assert.doesNotMatch(html,/value="viewer"/,"new administrator creation must not offer a read-only role");
 assert.match(html,/普通管理员仅可查看统计概览、审核海外高校、管理地区群聊二维码/);
 assert.match(js,/teamsPanel"\)\.hidden=!has\("overview"\)/,"ordinary admins retain team-level overview without roster access");
