@@ -76,12 +76,12 @@ Remove-Variable rateLimitSecret
 
 ### 自动备份配置
 
-- Worker 通过 `D1_BACKUP_WORKFLOW` 每天 18:00 UTC（日本时间次日 03:00）执行 D1 Export API；现有每 15 分钟 Cron 仍只负责过期转让、Session、OTP 与限流数据清理。
+- Worker 通过 `D1_BACKUP_WORKFLOW` 每天 18:05 UTC（日本时间次日 03:05）执行 D1 Export API；现有每 15 分钟 Cron 仍只负责过期转让、Session、OTP 与限流数据清理。
 - 备份目标是独立私有 R2 Bucket `qd58-d1-backups`，绑定名 `D1_BACKUPS`。不要为该 Bucket 启用公开访问域名。
 - 新增 Worker Secrets：`CLOUDFLARE_ACCOUNT_ID`、具备该账户 D1 Edit 权限的 `CLOUDFLARE_API_TOKEN`、以及 32 字节随机主密钥 `BACKUP_MASTER_KEY_V1`（64 位十六进制或 Base64）。D1 ID、Bucket 名称、当前主密钥版本和保留天数为配置变量。
 - `BACKUP_MASTER_KEY_V1` 必须单独离线备份，并由至少两名恢复负责人按组织流程保管。丢失密钥将使对应版本备份无法解密。轮换密钥时必须保留旧版本 Secret，直到所有旧备份到期。
 - 当前保留期默认 30 天（可配置为 7–365 天）。这是技术默认值，不替代组织方对个人信息保留期限的正式决定。
-- D1 Export API 会在导出进行期间暂时阻止该数据库处理查询；Workflow 每 10 秒轮询，最长等待约 30 分钟。每日 03:00（日本时间）为低访问量时段，但仍需监控真实导出时长。若数据库规模增长，应重新评估备份窗口及 Workflows/Workers 套餐 CPU 配额。
+- D1 Export API 会在导出进行期间暂时阻止该数据库处理查询；Workflow 每 10 秒轮询，最长等待约 30 分钟。每日 03:05（日本时间）为低访问量时段，但仍需监控真实导出时长。若数据库规模增长，应重新评估备份窗口及 Workflows/Workers 套餐 CPU 配额。
 
 首次配置需由账户管理员执行：
 
