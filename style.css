@@ -2153,3 +2153,33 @@ body select option{
 #registrationDetailsPanel #admissionFields>label{margin:5px 0!important;}
 #registrationDetailsPanel #admissionFields select{margin-top:5px;}
 @media(max-width:760px){#registrationDetailsPanel #admissionFields{max-width:100%;}}
+
+/* Tighter spacing for both the first-page authentication forms and the profile form. */
+.auth-form .form-heading{margin:4px 0 16px;}
+.auth-form label:not(.check){margin:9px 0!important;}
+.auth-form label:not(.check)>input,
+.auth-form label:not(.check) .password-box input{height:43px;margin-top:5px;}
+.auth-form label:not(.check) .password-box{margin-top:5px;}
+#registrationDetailsPanel>.cols{gap:0 12px;}
+#registrationDetailsPanel>.cols>label,
+#registrationDetailsPanel>label:not(.check){margin:5px 0!important;}
+#registrationDetailsPanel input,
+#registrationDetailsPanel select,
+#registrationDetailsPanel textarea{margin-top:5px;}
+#registrationDetailsPanel>.profile-field-pair{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  column-gap:12px;
+}
+#registrationDetailsPanel #admissionFields{
+  display:block;
+  width:auto!important;
+  max-width:none!important;
+  min-width:0;
+  margin:5px 0!important;
+  padding:0!important;
+}
+#registrationDetailsPanel #admissionFields[hidden]{display:none!important;}
+#registrationDetailsPanel>.profile-major-admission-row:has(#admissionFields[hidden])>label:first-child{
+  grid-column:1/-1;
+}
