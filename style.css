@@ -1524,7 +1524,7 @@ body :where(input,select,textarea){
 .boot-status{
   margin:0;
   color:var(--muted);
-  font:600 15px/1.8 system-ui,"Noto Sans SC","Microsoft YaHei",sans-serif;
+  font:600 15px/1.8 system-ui,"Noto Sans SC","Microsoft YaHei",sans-serif!important;
   letter-spacing:.18em;
 }
 .boot-welcome{
@@ -1535,19 +1535,19 @@ body :where(input,select,textarea){
 .boot-welcome[hidden]{display:none!important}
 .boot-welcome strong{
   color:var(--ink);
-  font:600 clamp(23px,3vw,29px)/1.55 "Noto Serif SC","Songti SC","STSong",serif;
+  font:600 clamp(23px,3vw,29px)/1.55 "Noto Serif SC","Songti SC","STSong",serif!important;
   letter-spacing:.08em;
 }
 .boot-welcome span{
   color:var(--green);
-  font:500 16px/1.6 Georgia,"Times New Roman",serif;
+  font:500 16px/1.6 Georgia,"Times New Roman",serif!important;
   letter-spacing:.13em;
 }
 .boot-error{
   max-width:440px;
   margin:0;
   color:#b86c5f;
-  font:500 13px/1.8 system-ui,"Noto Sans SC","Microsoft YaHei",sans-serif;
+  font:500 13px/1.8 system-ui,"Noto Sans SC","Microsoft YaHei",sans-serif!important;
 }
 .boot-retry{
   margin-top:16px;
@@ -1574,9 +1574,9 @@ body :where(input,select,textarea){
     margin-bottom:22px;
   }
   .boot-copy{min-height:82px;gap:10px}
-  .boot-status{font-size:14px;letter-spacing:.14em}
-  .boot-welcome strong{font-size:23px;letter-spacing:.05em}
-  .boot-welcome span{font-size:15px;letter-spacing:.1em}
+  .boot-status{font-size:14px!important;letter-spacing:.14em}
+  .boot-welcome strong{font-size:23px!important;letter-spacing:.05em}
+  .boot-welcome span{font-size:15px!important;letter-spacing:.1em}
   .boot-error{font-size:12px}
 }
 @media(prefers-reduced-motion:reduce){
