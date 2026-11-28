@@ -1,5 +1,6 @@
 const API="https://api.58er.eon21.space/api", $=id=>document.getElementById(id);
 let current=null,page=1,pageSize=10,totalPages=1,filters={},overviewRefreshTimer=null;
+let teamPage=1,teamPageSize=20,teamTotalPages=1,teamFilters={},teamRegionOptions=[];
 
 async function req(path,data,methodOverride){
   let response;
@@ -510,82 +511,6 @@ async function deleteDonationRow(button){
     await loadDonations();
   }catch(error){showError("donationAdminMsg",error);button.disabled=false;}
 }
-/* The built-in demo uses fictional in-memory records only. It never calls the API. */
-const DEMO_DATA={
-  people:[
-    {name:"林知远",highSchool:"青岛五十八中",university:"山东大学",grade:"大一",province:"山东省",consent:true,created:"2026-11-18"},
-    {name:"陈予安",highSchool:"青岛五十八中",university:"中国海洋大学",grade:"大一",province:"山东省",consent:true,created:"2026-11-19"},
-    {name:"周星禾",highSchool:"青岛五十八中",university:"复旦大学",grade:"大一",province:"上海市",consent:true,created:"2026-11-20"},
-    {name:"许闻溪",highSchool:"青岛五十八中",university:"香港大学",grade:"大一",province:"香港",consent:false,created:"2026-11-21"},
-    {name:"沈嘉树",highSchool:"青岛五十八中",university:"University of Tokyo",grade:"大一",province:"日本",consent:true,created:"2026-11-22"}
-  ],
-  teams:[
-    {university:"山东大学",members:18,leader:"林知远",region:"山东省",status:"队伍正常"},
-    {university:"中国海洋大学",members:12,leader:"陈予安",region:"山东省",status:"队伍正常"},
-    {university:"复旦大学",members:9,leader:"周星禾",region:"上海市",status:"待补充信息"},
-    {university:"香港大学",members:6,leader:"许闻溪",region:"香港",status:"队伍正常"}
-  ],
-  transfers:[
-    {from:"林知远",to:"陈予安",university:"山东大学",status:"pending",date:"2026-11-24"},
-    {from:"周星禾",to:"沈嘉树",university:"复旦大学",status:"accepted",date:"2026-11-22"},
-    {from:"许闻溪",to:"林知远",university:"香港大学",status:"rejected",date:"2026-11-20"},
-    {from:"陈予安",to:"周星禾",university:"中国海洋大学",status:"expired",date:"2026-11-15"}
-  ],
-  audit:[
-    {time:"2026-11-25 14:20",actor:"demo-owner",action:"admin.login.succeeded",target:"admin_user"},
-    {time:"2026-11-25 13:48",actor:"demo-admin",action:"admin.people.listed",target:"user_collection"},
-    {time:"2026-11-24 18:05",actor:"demo-owner",action:"team.transfer.accepted",target:"team"},
-    {time:"2026-11-23 09:30",actor:"system",action:"team.transfer.expired",target:"team"}
-  ]
-};
-let demoView="overview";
-function demoStatus(status){
-  return ({pending:"待确认",accepted:"已接受",rejected:"已拒绝",expired:"已过期"}[status]||status);
-}
-function renderDemo(){
-  const content=$("demoContent");
-  const query=($("demoSearch")?.value||"").trim().toLowerCase();
-  $("demoSearchWrap").hidden=!["people","teams"].includes(demoView);
-
-  if(demoView==="overview"){
-    content.innerHTML=
-      '<div class="admin-stats demo-stats">'+
-      '<div class="stat"><small>演示报名人数</small><b>50</b></div>'+
-      '<div class="stat"><small>已完成资料</small><b>45</b></div>'+
-      '<div class="stat"><small>演示高校队伍</small><b>12</b></div>'+
-      '<div class="stat"><small>待处理转让</small><b>1</b></div></div>'+
-      '<div class="demo-note-grid"><article><small>最近动态</small><b>高校队伍持续完善</b><p>展示报名进度、队伍数量与待处理事项。</p></article><article><small>权限提示</small><b>手机号默认隐藏</b><p>演示名单与导出样例均不包含手机号、密码或真实联系方式。</p></article></div>';
-  } else if(demoView==="people"){
-    const rows=DEMO_DATA.people.filter(item=>[item.name,item.highSchool,item.university,item.province].join(" ").toLowerCase().includes(query));
-    content.innerHTML='<p class="muted">以下为虚构报名数据，共 '+rows.length+' 条匹配结果。</p><div class="table-wrap"><table class="admin-table"><thead><tr><th>姓名</th><th>高中学校</th><th>大学</th><th>年级</th><th>地区</th><th>资料同意</th><th>登记时间</th></tr></thead><tbody>'+
-      (rows.map(item=>'<tr><td>'+safe(item.name)+'</td><td>'+safe(item.highSchool)+'</td><td>'+safe(item.university)+'</td><td>'+safe(item.grade)+'</td><td>'+safe(item.province)+'</td><td>'+(item.consent?"已同意":"未同意")+'</td><td>'+safe(item.created)+'</td></tr>').join("")||'<tr><td colspan="7">没有匹配的演示记录</td></tr>')+
-      '</tbody></table></div>';
-  } else if(demoView==="teams"){
-    const rows=DEMO_DATA.teams.filter(item=>[item.university,item.leader,item.region].join(" ").toLowerCase().includes(query));
-    content.innerHTML='<p class="muted">虚构高校分组示例。此页面不代表真实队伍。</p><div class="demo-team-grid">'+rows.map(item=>
-      '<article><small>'+safe(item.region)+'</small><h4>'+safe(item.university)+'</h4><p>组长：'+safe(item.leader)+'</p><b>'+item.members+' <small>位成员</small></b><span>'+safe(item.status)+'</span></article>'
-    ).join("")+'</div>';
-  } else if(demoView==="transfers"){
-    content.innerHTML='<p class="muted">演示组长转让状态流转；本页只展示样例，不会接受或拒绝任何真实转让。</p><div class="table-wrap"><table class="admin-table"><thead><tr><th>原组长</th><th>接任人</th><th>大学</th><th>状态</th><th>日期</th></tr></thead><tbody>'+
-      DEMO_DATA.transfers.map(item=>'<tr><td>'+safe(item.from)+'</td><td>'+safe(item.to)+'</td><td>'+safe(item.university)+'</td><td><span class="demo-status '+safe(item.status)+'">'+demoStatus(item.status)+'</span></td><td>'+safe(item.date)+'</td></tr>').join("")+
-      '</tbody></table></div>';
-  } else {
-    content.innerHTML='<p class="muted">虚构审计事件，展示操作者、操作类型与对象类别，不包含任何个人敏感信息。</p><div class="table-wrap"><table class="admin-table"><thead><tr><th>时间</th><th>操作者</th><th>操作</th><th>对象类别</th></tr></thead><tbody>'+
-      DEMO_DATA.audit.map(item=>'<tr><td>'+safe(item.time)+'</td><td>'+safe(item.actor)+'</td><td>'+safe(item.action)+'</td><td>'+safe(item.target)+'</td></tr>').join("")+
-      '</tbody></table></div>';
-  }
-  document.querySelectorAll("[data-demo-tab]").forEach(button=>{
-    const active=button.dataset.demoTab===demoView;
-    button.classList.toggle("active",active);
-    button.setAttribute("aria-pressed",String(active));
-  });
-}
-function openDemo(){
-  $("demoPanel").hidden=false;
-  renderDemo();
-  $("demoPanel").scrollIntoView({behavior:"smooth",block:"start"});
-}
-function closeDemo(){$("demoPanel").hidden=true;}
 $("adminSectionNav").addEventListener("click",event=>{
   const button=event.target.closest("[data-admin-nav]");
   if(!button||button.hidden)return;
@@ -595,16 +520,9 @@ $("adminSectionNav").addEventListener("click",event=>{
 window.addEventListener("popstate",()=>{
   if(current&&$("dashboard")&&!$("dashboard").hidden)syncAdminNavigation();
 });
-$("openDemo").addEventListener("click",openDemo);
-$("dashboardDemo").addEventListener("click",openDemo);
-$("closeDemo").addEventListener("click",closeDemo);
-$("demoTabs").addEventListener("click",event=>{
-  const button=event.target.closest("[data-demo-tab]");
-  if(!button)return;
-  demoView=button.dataset.demoTab;
-  renderDemo();
-});
-$("demoSearch").addEventListener("input",renderDemo);
+
+
+
 
 $("donationCreateForm").onsubmit=async event=>{
   event.preventDefault();
