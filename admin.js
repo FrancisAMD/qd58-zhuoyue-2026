@@ -172,7 +172,7 @@ async function enter(options={}){
   if(!overviewRefreshTimer){
     overviewRefreshTimer=setInterval(()=>{
       if(current&&$("dashboard")&&!$("dashboard").hidden&&has("overview")){
-        loadOverview().catch(error=>console.warn("Automatic team refresh failed",error?.message||"unknown"));
+        Promise.all([loadOverview(),loadTeams()]).catch(error=>console.warn("Automatic team refresh failed",error?.message||"unknown"));
       }
     },30000);
   }
@@ -181,6 +181,7 @@ async function enter(options={}){
   // send a valid administrator back to the login screen.
   const jobs=[
     ["overview",loadOverview,()=>setPanelFailure("summary","统计暂时无法加载。")],
+    ["teams",loadTeams,()=>setPanelFailure("teamsMeta","高校团队加载失败，请检查高校目录元数据和报名统计接口。")],
     ["people",()=>has("people:read")?loadPeople():Promise.resolve(),()=>setPanelFailure("peopleMeta","名单加载失败，请检查 people:read 权限及接口响应。")],
     ["audit",()=>has("audit:read")?loadAudit():Promise.resolve(),()=>setPanelFailure("auditRows","审计记录加载失败，请稍后刷新。")],
     ["admins",()=>has("admins:manage")?loadAdmins():Promise.resolve(),()=>setPanelFailure("createAdminMsg","管理员账户列表加载失败。")],
@@ -193,7 +194,7 @@ async function enter(options={}){
   results.forEach((result,index)=>{
     if(result.status==="rejected"){
       jobs[index][2]();
-      const panelName={overview:"统计",people:"名单",audit:"审计",admins:"管理员列表",universityReviews:"海外高校审核",groupChatQr:"群聊二维码",donations:"赞助名单"}[jobs[index][0]];
+      const panelName={overview:"统计",teams:"高校团队",people:"名单",audit:"审计",admins:"管理员列表",universityReviews:"海外高校审核",groupChatQr:"群聊二维码",donations:"赞助名单"}[jobs[index][0]];
       console.error("Admin panel load failed:",jobs[index][0],result.reason?.message||"unknown");
       const status=$("adminPanelStatus");
       if(status) status.textContent="已登录；部分面板加载失败："+panelName+"。这不影响当前登录会话。";
