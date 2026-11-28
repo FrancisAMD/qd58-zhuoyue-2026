@@ -6,6 +6,7 @@ const html = readFileSync(new URL("admin.html",root),"utf8");
 const js = readFileSync(new URL("admin.js",root),"utf8");
 const css = readFileSync(new URL("style.css",root),"utf8");
 const backupCss = readFileSync(new URL("backup-admin.css",root),"utf8");
+const typography = readFileSync(new URL("typography.css",root),"utf8");
 
 for(const id of ["adminLogin","adminMsg","dashboard","adminPanelStatus","universityReviewPanel","universityReviewRows","refreshUniversityReviews","teamsPanel","teamsGrid","teamFilters","teamRegion","teamLevel","teamMinMembers","teamMaxMembers","teamPageLabel","adminFooter"]) {
   assert.match(html,new RegExp('id="'+id+'"'),"admin.html must contain #"+id);
@@ -22,6 +23,11 @@ assert.match(js,/已登录；部分面板加载失败/);
 assert.doesNotMatch(js,/DEMO_DATA|renderDemo|openDemo|dashboardDemo/,"admin JavaScript must not contain fictional demo datasets or renderers");
 assert.doesNotMatch(css,/\.admin-demo|\.demo-warning|\.demo-tabs/,"admin stylesheet must not retain the demo UI");
 assert.match(html,/style\.css\?v=20261128-inner-surface-1a241e-v1/,"admin must load the shared surface stylesheet");
+assert.match(html,/typography\.css\?v=20261128-hierarchy-v1/,"admin must load the shared typography system after its component stylesheets");
+assert.match(typography,/--type-body:15px/,"admin body copy should share the fifteen-pixel body tier");
+assert.match(typography,/--type-secondary:13\.5px/,"admin secondary text should share the readable secondary tier");
+assert.match(typography,/body h3\{font-size:var\(--type-subsection\)!important/,"admin section headings should follow the shared hierarchy");
+assert.doesNotMatch(typography,/body :where\([^)]*(?:span|strong|b)[^)]*\)\s*\{[^}]*font-size/,"inline emphasis must not be independently enlarged");
 assert.match(css,/--field-bg:#edf0ed/,"admin light mode must share the neutral field surface");
 assert.match(css,/--field-bg:#1A241E/,"admin dark mode must share the neutral field surface");
 assert.match(css,/\.admin-team-card,[\s\S]*?\.admin-profile-field,[\s\S]*?background:var\(--field-bg\)!important/,"admin team and profile tiles must use the neutral inner surface");
