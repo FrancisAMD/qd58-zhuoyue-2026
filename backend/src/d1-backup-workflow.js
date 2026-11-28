@@ -1,4 +1,5 @@
 import { WorkflowEntrypoint } from "cloudflare:workers";
+import { normalizeD1ExportResponse } from "./d1-backup-export.js";
 import {
   backupManifestKey, backupObjectKey, decryptBackupPart, encryptBackupPart,
   getBackupMasterKey, signBackupManifest, unwrapBackupDataKey,
@@ -23,16 +24,7 @@ function concatBytes(parts, size) {
   for (const part of parts) { result.set(part, offset); offset += part.byteLength; }
   return result;
 }
-function normalizeExportResult(payload) {
-  const nested = payload?.result || {};
-  return {
-    status: payload?.status || "pending",
-    bookmark: payload?.at_bookmark || "",
-    error: payload?.error || "",
-    signedUrl: nested.signed_url || "",
-    filename: nested.filename || payload?.filename || ""
-  };
-}
+
 async function cloudflareExport(env, body) {
   const url = API_ROOT + "/accounts/" + encodeURIComponent(env.CLOUDFLARE_ACCOUNT_ID) +
     "/d1/database/" + encodeURIComponent(env.D1_DATABASE_ID) + "/export";
@@ -49,7 +41,7 @@ async function cloudflareExport(env, body) {
   if (!response.ok || payload?.success !== true) {
     throw new Error("backup_d1_export_api_failed");
   }
-  return normalizeExportResult(payload);
+  return normalizeD1ExportResponse(payload);
 }
 async function writeManifest(env, manifest) {
   const master = await getBackupMasterKey(env, manifest.keyVersion);
