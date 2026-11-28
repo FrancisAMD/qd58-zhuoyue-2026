@@ -8,7 +8,7 @@
   <link rel="shortcut icon" href="/favicon.svg?v=20261127-v1">
   <script src="theme.js?v=20261128-donation-theme-qr-v1"></script>
   <title>返校宣讲 · 管理后台</title>
-  <link rel="stylesheet" href="style.css?v=20261128-roster-cards-v2">
+  <link rel="stylesheet" href="style.css?v=20261128-collapsible-sidebar-v1">
   <link rel="stylesheet" href="donations.css?v=20261127-auto-theme-v1">
   <link rel="stylesheet" href="backup-admin.css?v=20261128-d1-backups-v2">
 <link rel="stylesheet" href="typography.css?v=20261128-hierarchy-v2">
@@ -31,13 +31,17 @@
 
   <section id="dashboard" hidden>
     <div class="admin-toolbar panel">
-      <div><b id="adminIdentity">已登录</b><small id="adminRole"></small></div>
+      <div class="admin-toolbar-identity"><b id="adminIdentity">已登录</b></div>
       <div class="admin-toolbar-actions">
         <button id="adminLogout" class="ghost" type="button">退出后台</button>
       </div>
     </div>
-    <div class="admin-workspace">
-      <aside class="admin-sidebar" aria-label="后台功能导航">
+    <div class="admin-workspace" id="adminWorkspace">
+      <button id="adminSidebarToggle" class="admin-sidebar-toggle" type="button" aria-controls="adminSidebar" aria-expanded="true" aria-label="收起功能导航">
+        <span class="admin-sidebar-toggle-icon" aria-hidden="true">☰</span>
+        <span id="adminSidebarToggleLabel">收起导航</span>
+      </button>
+      <aside class="admin-sidebar" id="adminSidebar" aria-label="后台功能导航">
         <div class="admin-sidebar-heading">功能导航</div>
         <nav id="adminSectionNav" class="admin-section-nav">
   <button type="button" data-admin-nav data-nav-target="overviewPanel" data-nav-permission="overview">数据总览</button>
@@ -50,6 +54,10 @@
   <button type="button" data-admin-nav data-nav-target="auditPanel" data-nav-permission="audit:read">管理员操作审计</button>
   <button type="button" data-admin-nav data-nav-target="managePanel" data-nav-permission="admins:manage">管理员账号与角色</button>
 </nav>
+        <div class="admin-sidebar-role-card" aria-label="当前管理员角色">
+          <small>当前角色</small>
+          <strong id="adminRole">所有者</strong>
+        </div>
       </aside>
       <div class="admin-main-content">
 <section id="overviewPanel" class="admin-overview-panel admin-view-panel" data-admin-view="overviewPanel" data-view-permission="overview" hidden>
@@ -195,6 +203,6 @@
     <a class="site-footer-button site-footer-admin" href="index.html">返回首页 <span aria-hidden="true">↗</span></a>
   </div>
 </footer>
-<script src="admin.js?v=20261128-roster-cards-v2" defer></script>
+<script src="admin.js?v=20261128-collapsible-sidebar-v1" defer></script>
 </body>
 </html>
