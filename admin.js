@@ -170,7 +170,7 @@ async function enter(options={}){
   $("dashboard").hidden=false;
   $("adminMsg").textContent="";
   $("adminIdentity").textContent=current.username;
-  $("adminRole").textContent="角色："+({owner:"所有者",admin:"普通管理员"}[current.role]||current.role);
+  $("adminRole").textContent=({owner:"所有者",admin:"普通管理员"}[current.role]||current.role);
   syncAdminNavigation();
   if(!overviewRefreshTimer){
     overviewRefreshTimer=setInterval(()=>{
@@ -607,6 +607,29 @@ async function deleteDonationRow(button){
     await loadDonations();
   }catch(error){showError("donationAdminMsg",error);button.disabled=false;}
 }
+
+const adminSidebarMedia=window.matchMedia("(max-width:760px)");
+function setAdminSidebarCollapsed(collapsed){
+  const workspace=$("adminWorkspace");
+  const toggle=$("adminSidebarToggle");
+  if(!workspace||!toggle)return;
+  workspace.classList.toggle("is-sidebar-collapsed",collapsed);
+  toggle.setAttribute("aria-expanded",String(!collapsed));
+  toggle.setAttribute("aria-label",collapsed?"展开功能导航":"收起功能导航");
+  $("adminSidebarToggleLabel").textContent=collapsed?"展开导航":"收起导航";
+}
+setAdminSidebarCollapsed(adminSidebarMedia.matches);
+$("adminSidebarToggle").addEventListener("click",()=>{
+  const collapsed=$("adminWorkspace").classList.contains("is-sidebar-collapsed");
+  setAdminSidebarCollapsed(!collapsed);
+});
+const handleAdminSidebarViewportChange=event=>setAdminSidebarCollapsed(event.matches);
+if(typeof adminSidebarMedia.addEventListener==="function"){
+  adminSidebarMedia.addEventListener("change",handleAdminSidebarViewportChange);
+}else if(typeof adminSidebarMedia.addListener==="function"){
+  adminSidebarMedia.addListener(handleAdminSidebarViewportChange);
+}
+
 $("adminSectionNav").addEventListener("click",event=>{
   const button=event.target.closest("[data-admin-nav]");
   if(!button||button.hidden)return;
