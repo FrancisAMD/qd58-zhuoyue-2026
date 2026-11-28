@@ -1960,7 +1960,7 @@ if(path==="/api/teams/transfer" && method==="POST") {
       try {
         const instance = await env.D1_BACKUP_WORKFLOW.create({
           id: backupId,
-          params: { backupId, source: "manual", requestedBy: admin.id }
+          params: { backupId, source: "manual", requestedBy: admin.id, requestedAt: new Date().toISOString() }
         });
         let auditRecorded = true;
         try { await writeAudit(env.DB,"admin",admin.id,"admin.backup.started","d1_backup",backupId,{source:"manual"}); }
