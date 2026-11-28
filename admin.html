@@ -8,15 +8,12 @@
   <link rel="shortcut icon" href="/favicon.svg?v=20261127-v1">
   <script src="theme.js?v=20261127-auto-theme-v1"></script>
   <title>返校宣讲 · 管理后台</title>
-  <link rel="stylesheet" href="style.css?v=20261128-admin-sidebar-v1">
+  <link rel="stylesheet" href="style.css?v=20261128-admin-console-refine-v1">
   <link rel="stylesheet" href="donations.css?v=20261127-auto-theme-v1">
   <link rel="stylesheet" href="backup-admin.css?v=20261128-d1-backups-v2">
 </head>
 <body>
-<header>
-  <a class="brand" href="index.html"><b>58</b><span>青岛五十八中2026-2027校友组队平台<small>组织管理后台</small></span></a>
-  <a href="index.html">返回首页 ↗</a>
-</header>
+
 <main class="section admin-shell">
   <p class="eyebrow">ADMIN CONSOLE · PRIVATE ACCESS</p>
   <h2>组织管理后台</h2>
@@ -27,32 +24,14 @@
     <label>管理员密码<input id="password" type="password" required autocomplete="current-password" maxlength="128"></label>
     <button class="btn" type="submit">安全登录</button>
     <p id="adminMsg" class="msg" role="status" aria-live="polite"></p>
-    <button id="openDemo" class="ghost demo-open" type="button">预览内置 Demo（虚构数据） ↗</button>
   </form>
 
-  <section id="demoPanel" class="panel admin-demo" hidden aria-label="内置演示后台">
-    <div class="admin-heading">
-      <div><p class="eyebrow">SANDBOX · FICTIONAL DATA</p><h3>内置 Demo 后台预览</h3></div>
-      <button id="closeDemo" class="ghost" type="button">收起演示</button>
-    </div>
-    <div class="demo-warning"><strong>演示模式</strong><span>以下姓名、学校、记录和统计均为虚构样例。仅在浏览器内筛选与展示，不读取、不写入 D1，不会触发真实报名、转让或导出。</span></div>
-    <div id="demoTabs" class="demo-tabs" role="tablist" aria-label="演示模块">
-      <button type="button" data-demo-tab="overview" class="active" aria-pressed="true">总览</button>
-      <button type="button" data-demo-tab="people" aria-pressed="false">报名名单</button>
-      <button type="button" data-demo-tab="teams" aria-pressed="false">高校分组</button>
-      <button type="button" data-demo-tab="transfers" aria-pressed="false">组长转让</button>
-      <button type="button" data-demo-tab="audit" aria-pressed="false">审计记录</button>
-    </div>
-    <div id="demoSearchWrap" class="demo-search" hidden><input id="demoSearch" type="search" placeholder="在演示数据中搜索姓名、大学或地区" aria-label="搜索演示数据"></div>
-    <div id="demoContent" class="demo-content"></div>
-    <p class="demo-footnote">此演示区不具备真实管理员权限，不连接 API，不会影响任何真实账号或数据。</p>
-  </section>
+
 
   <section id="dashboard" hidden>
     <div class="admin-toolbar panel">
       <div><b id="adminIdentity">已登录</b><small id="adminRole"></small></div>
       <div class="admin-toolbar-actions">
-        <button id="dashboardDemo" class="ghost" type="button">内置 Demo</button>
         <button id="adminLogout" class="ghost" type="button">退出后台</button>
       </div>
     </div>
@@ -100,8 +79,34 @@
 
 <section id="teamsPanel" class="panel admin-view-panel" data-admin-view="teamsPanel" data-view-permission="overview" hidden>
       <div class="admin-heading"><div><p class="eyebrow">ACTIVE UNIVERSITY TEAMS</p><h3>当前高校团队</h3></div><button id="refreshAdminData" class="ghost" type="button">刷新名单与团队</button></div>
-      <p id="teamsMeta" class="muted">仅展示当前有成员的高校团队；空团队不会显示，但历史转让记录仍然保留。团队列表每 30 秒自动刷新，也可以手动刷新。</p>
+      <p id="teamsMeta" class="muted">地区和高校层级来自高校目录 JSON；报名人数按当前有效成员实时统计。空团队不显示。</p>
+      <form id="teamFilters" class="admin-filters team-filters">
+        <label>高校 / 组长<input id="teamQuery" type="search" maxlength="100" placeholder="搜索高校名称或组长"></label>
+        <label>地区<select id="teamRegion"><option value="">全部地区</option></select></label>
+        <label>高校层级
+          <select id="teamLevel">
+            <option value="">全部层级</option>
+            <option value="985">985 工程</option>
+            <option value="211">211 工程</option>
+            <option value="double_first_class">双一流建设</option>
+            <option value="other">其他 / 未标注</option>
+          </select>
+        </label>
+        <label>最少报名人数<input id="teamMinMembers" type="number" min="1" max="100000" step="1" placeholder="不限"></label>
+        <label>最多报名人数<input id="teamMaxMembers" type="number" min="1" max="100000" step="1" placeholder="不限"></label>
+        <div class="filter-actions">
+          <button class="btn" type="submit">筛选团队</button>
+          <button id="clearTeamFilters" class="ghost" type="button">清空</button>
+        </div>
+      </form>
       <div id="teamsGrid" class="admin-team-grid"></div>
+      <div class="pagination team-pagination">
+        <button id="teamFirstPage" class="ghost" type="button">首页</button>
+        <button id="teamPrevPage" class="ghost" type="button">上一页</button>
+        <span id="teamPageLabel" aria-live="polite"></span>
+        <button id="teamNextPage" class="ghost" type="button">下一页</button>
+        <button id="teamLastPage" class="ghost" type="button">末页</button>
+      </div>
     </section>
 
 <section id="universityReviewPanel" class="panel admin-view-panel" data-admin-view="universityReviewPanel" data-view-permission="universities:review" hidden>
@@ -180,6 +185,15 @@
     </div>
   </section>
 </main>
-<script src="admin.js?v=20261128-admin-single-view-v2" defer></script>
+<footer id="adminFooter" class="site-footer">
+  <div class="site-footer-brand">
+    <strong class="site-footer-title">返校宣讲 · 青岛五十八中2026-2027校友组队平台</strong>
+    <span class="site-footer-tagline">去远方求证，回原点作答。</span>
+  </div>
+  <div class="site-footer-actions">
+    <a class="site-footer-button site-footer-admin" href="index.html">返回首页 <span aria-hidden="true">↗</span></a>
+  </div>
+</footer>
+<script src="admin.js?v=20261128-admin-console-refine-v1" defer></script>
 </body>
 </html>
