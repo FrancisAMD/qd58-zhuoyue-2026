@@ -65,7 +65,7 @@ if html_text.find('id="accountBottom"') < html_text.find('id="groups"'):
     parser.errors.append("Account actions and account deletion must be placed after the directory page.")
 if ".home-faq-answer{" not in style_text or "background:var(--paper)" not in style_text:
     parser.errors.append("Homepage FAQ answers must use the paper card surface.")
-if ".art-logo{" not in style_text or ".dialog .mark.auth-brand{" not in style_text:
+if ".art-logo{" not in style_text or ".dialog .auth-brand{" not in style_text:
     parser.errors.append("Homepage logo and login brand styles are missing.")
 if parser.errors:
     raise SystemExit("\\n".join(parser.errors))
