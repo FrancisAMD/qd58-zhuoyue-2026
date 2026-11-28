@@ -120,7 +120,7 @@ assert.ok(css.includes("width:clamp(176px,22vw,244px)"),"boot logo should be lar
 assert.ok(css.includes('"Noto Serif SC","Songti SC","STSong",serif!important'),"Chinese welcome copy should use an elegant serif face");
 assert.ok(css.includes("Georgia,\"Times New Roman\",serif!important"),"English welcome copy should use a refined serif face");
 assert.match(html,/id="journeySteps"/,"homepage must retain the three-step navigation");
-assert.match(html,/style\.css\?v=20261128-homepage-faq-brand-logo-v1/,"homepage must load the latest shared stylesheet");
+assert.match(html,/style\.css\?v=20261128-homepage-faq-brand-logo-v2/,"homepage must load the latest shared stylesheet");
 assert.match(html,/class="art-logo"[\s\S]*?data-light-src="assets\/58-logo-light\.png"[\s\S]*?data-dark-src="assets\/58-logo-dark\.png"/,"hero illustration must use the light/dark school logos");
 assert.match(html,/class="mark auth-brand"[\s\S]*?2026 · 冬日返校计划/,"login modal must display the school logo and new campaign identity");
 assert.ok(css.includes("#appStage>.journey-steps,")&&css.includes("#appStage>#accountBottom{")&&css.includes("width:min(100%,1156px);")&&css.includes("padding-left:28px;"),"desktop journey sections and account removal notice must share the same outer width and inner gutters");
