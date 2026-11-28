@@ -5,6 +5,7 @@ const root = new URL("../../",import.meta.url);
 const html = readFileSync(new URL("admin.html",root),"utf8");
 const js = readFileSync(new URL("admin.js",root),"utf8");
 const css = readFileSync(new URL("style.css",root),"utf8");
+const backupCss = readFileSync(new URL("backup-admin.css",root),"utf8");
 
 for(const id of ["adminLogin","adminMsg","demoPanel","demoTabs","demoContent","demoSearch","dashboard","adminPanelStatus","universityReviewPanel","universityReviewRows","refreshUniversityReviews","teamsPanel","teamsGrid"]) {
   assert.match(html,new RegExp('id="'+id+'"'),"admin.html must contain #"+id);
@@ -53,6 +54,16 @@ assert.match(html,/资料概览 \/ 完整资料/);
 assert.match(html,/仅显示最近 10 条记录/);
 assert.match(js,/function renderProfilePreview\(item\)/);
 assert.match(js,/pageSize=10/);
+assert.match(js,/let current=null,page=1,pageSize=10/,"roster should default to ten rows per page");
+assert.match(html,/id="firstPage"/,"roster pagination should provide a first-page control");
+assert.match(html,/id="lastPage"/,"roster pagination should provide a last-page control");
+assert.match(js,/\$\("firstPage"\)\.onclick/,"first-page control must be wired");
+assert.match(js,/\$\("lastPage"\)\.onclick/,"last-page control must be wired");
+assert.match(js,/本页 "\+items\.length\+" 条 · 共 "/,"pagination label should show current-page and total row counts");
+assert.match(css,/\.admin-shell\{width:min\(100%,1680px\);max-width:1680px\}/,"admin console should use a wider desktop layout");
+assert.match(backupCss,/background:var\(--paper\)/,"backup cards should use the active light/dark theme surface");
+assert.doesNotMatch(backupCss,/var\(--panel,\s*rgba\(255,255,255,\.5\)\)/,"backup cards must not fall back to a translucent white wash");
+assert.match(backupCss,/:root\[data-theme="dark"\] body \.backup-card\{background:#27372f/,"backup card must remain opaque in dark mode");
 assert.match(js,/slice\(0,10\)/);
 assert.match(js,/30_000|30000/);
 assert.match(css,/\.admin-profile-preview/);
