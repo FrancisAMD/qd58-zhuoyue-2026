@@ -304,14 +304,14 @@ async function downloadBackupArtifact(backupId,kind){
   try{
     const link=document.createElement("a");link.href=url;link.download=filename;
     document.body.appendChild(link);link.click();link.remove();
-  }finally{URL.revokeObjectURL(url);}
+  }finally{setTimeout(()=>URL.revokeObjectURL(url),1000);}
 }
 async function startManualBackup(){
   $("createBackup").disabled=true;
   $("backupAdminMsg").textContent="正在提交备份任务……";
   try{
     const result=await req("/admin/backups",{});
-    $("backupAdminMsg").textContent="备份任务已创建："+result.backupId+"。完成后刷新列表即可查看。";
+    $("backupAdminMsg").textContent="备份任务已创建："+result.backupId+"。完成后刷新列表即可查看。"+(result.auditRecorded===false?"（注意：审计记录写入失败，请查看 Worker 日志。）":"");
     await loadBackups();
   }catch(error){showError("backupAdminMsg",error);}
   finally{$("createBackup").disabled=false;}
@@ -324,8 +324,8 @@ async function handleBackupAction(action,backupId){
     }
     if(action==="verify"){
       if(!window.confirm("将读取并解密这份备份的每个分块，检查 AES-GCM 认证标签和 SHA-256 摘要。不会修改 D1。继续吗？"))return;
-      await req("/admin/backups/"+backupId+"/verify",{});
-      $("backupAdminMsg").textContent="完整性验证任务已启动，请稍后刷新。";
+      const result=await req("/admin/backups/"+backupId+"/verify",{});
+      $("backupAdminMsg").textContent="完整性验证任务已启动，请稍后刷新。"+(result.auditRecorded===false?"（注意：审计记录写入失败，请查看 Worker 日志。）":"");
       return;
     }
     if(action==="delete"){
