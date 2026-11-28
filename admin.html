@@ -8,7 +8,7 @@
   <link rel="shortcut icon" href="/favicon.svg?v=20261127-v1">
   <script src="theme.js?v=20261128-donation-theme-qr-v1"></script>
   <title>返校宣讲 · 管理后台</title>
-  <link rel="stylesheet" href="style.css?v=20261128-name-top-school-grade-row-v3">
+  <link rel="stylesheet" href="style.css?v=20261128-admin-account-in-sidebar-v1">
   <link rel="stylesheet" href="donations.css?v=20261127-auto-theme-v1">
   <link rel="stylesheet" href="backup-admin.css?v=20261128-d1-backups-v2">
 <link rel="stylesheet" href="typography.css?v=20261128-hierarchy-v2">
@@ -30,12 +30,6 @@
 
 
   <section id="dashboard" hidden>
-    <div class="admin-toolbar panel">
-      <div class="admin-toolbar-identity"><b id="adminIdentity">已登录</b></div>
-      <div class="admin-toolbar-actions">
-        <button id="adminLogout" class="ghost" type="button">退出后台</button>
-      </div>
-    </div>
     <div class="admin-workspace" id="adminWorkspace">
       <button id="adminSidebarToggle" class="admin-sidebar-toggle" type="button" aria-controls="adminSidebar" aria-expanded="true" aria-label="收起功能导航">
         <span class="admin-sidebar-toggle-icon" aria-hidden="true">☰</span>
@@ -54,9 +48,16 @@
   <button type="button" data-admin-nav data-nav-target="auditPanel" data-nav-permission="audit:read">管理员操作审计</button>
   <button type="button" data-admin-nav data-nav-target="managePanel" data-nav-permission="admins:manage">管理员账号与角色</button>
 </nav>
-        <div class="admin-sidebar-role-card" aria-label="当前管理员角色">
-          <small>当前角色</small>
-          <strong id="adminRole">所有者</strong>
+        <div class="admin-sidebar-role-card" aria-label="当前管理员信息">
+          <div class="admin-sidebar-role-main">
+            <small>当前角色</small>
+            <strong id="adminRole">所有者</strong>
+          </div>
+          <div class="admin-sidebar-account">
+            <small>登录账号</small>
+            <b id="adminIdentity">已登录</b>
+          </div>
+          <button id="adminLogout" class="admin-sidebar-logout ghost" type="button">退出后台</button>
         </div>
       </aside>
       <div class="admin-main-content">
@@ -203,6 +204,6 @@
     <a class="site-footer-button site-footer-admin" href="index.html">返回首页 <span aria-hidden="true">↗</span></a>
   </div>
 </footer>
-<script src="admin.js?v=20261128-name-top-school-grade-row-v3" defer></script>
+<script src="admin.js?v=20261128-admin-account-in-sidebar-v1" defer></script>
 </body>
 </html>
