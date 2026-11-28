@@ -234,6 +234,7 @@ function parseTeamJsonArray(value){
 function teamLevelLabels(team){
   const tags=new Set([
     ...parseTeamJsonArray(team.projectTagsJson),
+    ...parseTeamJsonArray(team.profileCatalogTagsJson),
     ...parseTeamJsonArray(team.catalogProjectTagsJson)
   ].map(tag=>tag.toLowerCase()));
   const hasAny=(...codes)=>codes.some(code=>tags.has(code));
