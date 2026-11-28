@@ -2178,6 +2178,20 @@ if(path==="/api/teams/transfer" && method==="POST") {
 
   return response({error:"not_found"},404,origin,env);
 }
+async function scheduledBackupExportActive(env) {
+  if (!env.D1_BACKUPS || typeof env.D1_BACKUPS.get !== "function") return false;
+  try {
+    const object = await env.D1_BACKUPS.get("d1-backups/v1/locks/export.json");
+    if (!object) return false;
+    const lease = await object.json();
+    return !!lease?.ownerId && Number(lease.leaseExpiresAt) > Date.now();
+  } catch (error) {
+    // Fail closed: if the lease cannot be inspected, do not issue D1 work
+    // while a long-running export may be making the database unavailable.
+    console.error("Scheduled maintenance skipped because backup lease could not be checked",error?.message||"unknown");
+    return true;
+  }
+}
 export default {
   fetch(request,env) {
     return route(request,env).catch(e=>{
@@ -2186,13 +2200,19 @@ export default {
     });
   },
   scheduled(_controller,env,ctx) {
-    ctx.waitUntil(Promise.all([
-      expirePendingTransfers(env.DB).catch(error=>{
-        console.error("Scheduled transfer expiry failed",error?.message||"unknown");
-      }),
-      cleanupExpiredSecurityData(env.DB).catch(error=>{
-        console.error("Scheduled security-data cleanup failed",error?.message||"unknown");
-      })
-    ]));
+    ctx.waitUntil((async()=>{
+      if (await scheduledBackupExportActive(env)) {
+        console.info("Scheduled D1 maintenance skipped during database export");
+        return;
+      }
+      await Promise.all([
+        expirePendingTransfers(env.DB).catch(error=>{
+          console.error("Scheduled transfer expiry failed",error?.message||"unknown");
+        }),
+        cleanupExpiredSecurityData(env.DB).catch(error=>{
+          console.error("Scheduled security-data cleanup failed",error?.message||"unknown");
+        })
+      ]);
+    })());
   }
 };
