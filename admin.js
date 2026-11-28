@@ -374,9 +374,7 @@ async function loadPeople(){
     const name=item.name||"未填写";
     const consent=item.consentGiven?"已同意资料使用":"未同意资料使用";
     return '<article class="admin-person-card" data-person-card="'+safe(item.id)+'">'+
-      '<header class="admin-person-card-heading">'+
-        '<h4>'+safe(name)+'</h4>'+
-      '</header>'+
+      '<h4 class="admin-person-name">'+safe(name)+'</h4>'+
       '<div class="admin-person-info-row">'+
         '<div class="admin-person-high-school admin-person-info-box"><small>高中</small><strong>'+safe(item.highSchool||"高中学校未填写")+'</strong></div>'+
         '<div class="admin-person-grade admin-person-info-box"><small>当前年级</small><strong>'+safe(grade)+'</strong></div>'+
