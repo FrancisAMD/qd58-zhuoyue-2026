@@ -462,7 +462,7 @@ header>div:last-child{display:flex;align-items:center;gap:8px}
 .admin-stats{gap:16px}
 .admin-review-list,.admin-account-list{gap:14px}
 .admin-review-card,.admin-account{margin:0}
-.cards,.demo-note-grid,.demo-team-grid{gap:16px}
+.cards{gap:16px}
 .classmate-card{margin:0}
 .journey-steps button{text-align:center;justify-content:center;align-items:center}
 .journey-steps button>span{display:grid;place-items:center;text-align:center;line-height:1;justify-self:center;margin-inline:auto;flex:0 0 25px}
@@ -928,7 +928,7 @@ header>div:last-child{display:flex;align-items:center;gap:8px}
   border-color:transparent;
 }
 .admin-team-card>p{overflow-wrap:anywhere}
-.adminFooter{margin-top:30px}
+#adminFooter{margin-top:30px}
 .admin-shell~.site-footer{margin-top:28px}
 .site-footer-brand{width:100%}
 .site-footer-title{
