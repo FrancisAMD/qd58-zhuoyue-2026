@@ -4,7 +4,8 @@
 
 主要模块：
 
-- `src/worker.js`：登录注册、Turnstile/阿里云 PNVS、资料、高校组队、组长转让、同校目录、管理员 API。
+- `src/worker.js`：登录注册、Turnstile/阿里云 PNVS、资料、高校组队、组长转让、同校目录、管理员 API 与 owner 专属备份管理 API。
+- `src/d1-backup-workflow.js`、`src/d1-backup-crypto.js`：每天定时执行 D1 SQL 导出，使用信封加密和 AES-256-GCM 分块加密后写入私有 R2，并支持分块完整性验证。
 - `src/xlsx.js`：原生 XLSX 导出。
 - `src/university-catalog-import.js`：高校目录分阶段导入。
 - `src/account-deletion-ledger.js`：账号删除意图 R2 台账。
@@ -165,3 +166,15 @@ npx wrangler deploy --config backend/wrangler.toml
 - 验证尝试通过条件 UPDATE + RETURNING 原子占用，严格限制最大次数；PNVS 返回 PASS 后还会再次检查挑战未过期、未覆盖且未消费，防止外部核验期间状态变化。
 - 注册、密码重置和账号删除使用各自独立的 `purpose`，不能跨用途使用挑战。
 - `npm run test:worker` 包含 OTP 生命周期专项模拟测试。模拟测试不替代真实 PNVS/Cloudflare D1 联调。
+
+
+## D1 加密备份
+
+- `D1_BACKUP_WORKFLOW` 每天 18:00 UTC（日本时间次日 03:00）启动，使用 D1 Export API 导出 D1-compatible SQL，并轮询导出状态。
+- 导出明文只在 Workflow 内存中按 8 MiB 分块处理；每块使用独立随机 nonce 和 AES-256-GCM，关联数据绑定备份 ID、分块序号和明文长度。每块另存 SHA-256；清单由 HKDF 派生的 HMAC 密钥签名。
+- 每份备份使用随机数据密钥；数据密钥由版本化 Worker Secret（例如 `BACKUP_MASTER_KEY_V1`）派生的 AES-GCM 包装密钥加密。主密钥不写入 D1、R2 或 GitHub。
+- 专用 Bucket：`qd58-d1-backups`（`D1_BACKUPS`），必须保持私有且不绑定公开域名。保留期默认 30 天，仅在新备份成功后清理过期备份。
+- 仅 owner 拥有 `backups:manage` 权限，可查看清单、手动触发、验证、下载加密对象与清理记录；普通 admin 无权访问。
+- 本地解密工具：`node scripts/decrypt-d1-backup.mjs --manifest <manifest.json> --input <backup.qd58enc> --output <restore.sql>`。主密钥通过本机环境变量提供，脚本先验证清单 HMAC、每块 AES-GCM 标签和 SHA-256，再输出 SQL。
+- D1 Export API 运行期间数据库可能暂时无法处理查询；计划在低访问量时段执行。生产恢复不提供一键按钮，必须先在独立测试 D1 演练，并处理快照之后的账号删除意图。
+- 本地 mock 测试不代表真实 Cloudflare D1 Export、Workflow、R2、Secret 与生产恢复联调。首次部署后必须完成一次真实备份、下载、解密、校验与测试库导入。
