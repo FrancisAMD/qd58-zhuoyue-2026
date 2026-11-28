@@ -1,0 +1,146 @@
+/* QD58 unified typography system.
+   Load after every page stylesheet. No broad span/strong rules: inline content
+   inherits from its semantic parent and cannot be enlarged recursively. */
+:root{
+  --type-display:clamp(36px,4.2vw,52px);
+  --type-section:clamp(26px,3vw,31px);
+  --type-subsection:21px;
+  --type-card-title:18px;
+  --type-body:15px;
+  --type-control:15px;
+  --type-label:14px;
+  --type-secondary:13.5px;
+  --type-chip:13px;
+}
+html{font-size:100%;text-size-adjust:100%;-webkit-text-size-adjust:100%}
+body{
+  font-family:system-ui,"Noto Sans SC","Microsoft YaHei",sans-serif!important;
+  font-size:var(--type-body)!important;
+  line-height:1.72;
+  font-weight:400;
+  text-rendering:optimizeLegibility;
+  -webkit-font-smoothing:antialiased;
+}
+body :is(h1,h2,h3,h4,h5,h6){
+  font-family:"Noto Serif SC","Songti SC","STSong",serif!important;
+  font-weight:600;
+  line-height:1.42;
+  letter-spacing:normal;
+}
+body h1{font-size:var(--type-display)!important;line-height:1.3}
+body h2{font-size:var(--type-section)!important;line-height:1.42}
+body h3{font-size:var(--type-subsection)!important;line-height:1.45}
+body h4{font-size:var(--type-card-title)!important;line-height:1.5}
+body h5{font-size:16px!important;line-height:1.5}
+body h6{font-size:15px!important;line-height:1.5}
+
+/* Main copy: one consistent reading size across pages and components. */
+body :is(p,li,dd,dt,td,th,figcaption,blockquote,.lead,.home-faq-answer p){
+  font-size:var(--type-body)!important;
+  line-height:1.78;
+}
+body :is(.hero .lead,.profile-intro,.donation-copy>p){
+  font-size:var(--type-body)!important;
+  line-height:1.85;
+}
+
+/* Supporting copy: readable, but clearly subordinate to the main copy. */
+body :is(small,.muted,.field-help,.step-hint,.note,.msg,.auth-note,
+  .captcha-help,.admin-panel-status,.site-footer-tagline,.boot-error,
+  .donation-list-summary,.donation-list-empty,.donation-qr-note,
+  .donation-footnote,.donation-copy .muted,.directory-count,
+  .contact-private,.classmate-top small,.admin-toolbar small,
+  .admin-account small,.admin-stats .stat small,
+  .admin-review-summary small,.admin-review-card>small,
+  .admin-profile-field small,.admin-profile-preview small,
+  .transfer-record>div small,.transfer-record time,
+  .group-qr-asset-card>small,.group-qr-ready,.group-qr-missing,
+  .group-chat-status,.group-chat-roster-cell small,
+  .group-chat-roster-status,.backup-card-heading small,
+  .backup-card-verification,.boot-status){
+  font-size:var(--type-secondary)!important;
+  line-height:1.65;
+}
+
+/* Labels and controls share a stable size; controls stay comfortably tappable. */
+body :is(label,.admin-filters label,.auth-form label,.section label,.dialog label){
+  font-size:var(--type-label)!important;
+  line-height:1.6;
+}
+body :is(input,select,textarea){
+  font-family:system-ui,"Noto Sans SC","Microsoft YaHei",sans-serif!important;
+  font-size:var(--type-control)!important;
+  line-height:1.5;
+}
+body :is(button,.btn,.ghost,.text,.site-footer-button,.admin-section-nav button){
+  font-family:system-ui,"Noto Sans SC","Microsoft YaHei",sans-serif!important;
+  font-size:14px!important;
+  line-height:1.45;
+  font-weight:600;
+}
+body :is(nav,.pagination,.roster-pagination,.team-pagination,.admin-table){
+  font-size:14px!important;
+  line-height:1.55;
+}
+body :is(code,kbd,time,.type-number,.profile-step-indicator,
+  .journey-steps,.journey-steps button,.university-category-chip,
+  .university-tag-chip,.home-faq-number,.classmate-meta span,
+  .admin-team-card-tags span,.admin-profile-preview span,
+  .donation-list-rank,.donation-list-row>strong,.donation-list-amount,
+  .donation-admin-fields label,.donation-qr-placeholder span){
+  font-size:var(--type-chip)!important;
+  line-height:1.55;
+}
+
+/* Eyebrows and category labels are deliberately compact, never micro-sized. */
+body :is(.eyebrow,.auth-kicker,.home-faq-number){
+  font-size:13px!important;
+  line-height:1.5;
+  letter-spacing:.12em;
+}
+body :is(.university-type-card strong,.selected-university-type strong,
+  .admin-team-card-heading>b,.admin-review-summary b){
+  font-size:17px!important;
+  line-height:1.55;
+}
+body :is(.home-faq-question,.home-faq-question strong){
+  font-size:16px!important;
+  line-height:1.6;
+}
+body .boot-welcome strong{font-size:clamp(23px,3vw,29px)!important}
+body .boot-welcome span{font-size:15px!important}
+
+/* Dialog and form microcopy uses the same secondary tier, without tiny footnotes. */
+body :is(.auth-form .form-heading p,.auth-form .text,.auth-form .auth-note,
+  .verify button,.register-phone-actions button,.password-toggle,
+  .university-result strong,.university-result small,
+  .selected-university-panel>span,.selected-university-panel>p,
+  .selected-university-panel>div>span,.selected-university-panel>div>p,
+  .university-search-empty,.deletion-warning,#deletePreflightMsg,
+  #deleteCaptchaHint,.group-chat-placeholder,.group-chat-qr-note){
+  font-size:var(--type-secondary)!important;
+  line-height:1.7;
+}
+body .auth-form .wide{font-size:15px!important}
+body .admin-detail-toggle{font-size:14px!important}
+
+/* Avoid browser text autosizing from changing one component independently. */
+@media(max-width:760px){
+  :root{
+    --type-display:clamp(32px,9vw,42px);
+    --type-section:26px;
+    --type-subsection:20px;
+    --type-card-title:18px;
+    --type-body:15px;
+    --type-control:16px;
+    --type-label:14px;
+    --type-secondary:13.5px;
+    --type-chip:13px;
+  }
+  body :is(button,.btn,.ghost,.text,.site-footer-button,.admin-section-nav button){
+    min-height:38px;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  body{scroll-behavior:auto}
+}
