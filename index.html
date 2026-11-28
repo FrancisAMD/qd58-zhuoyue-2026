@@ -1,6 +1,6 @@
 <!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f3f6f2">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=20261127-v1">
-  <link rel="shortcut icon" href="/favicon.svg?v=20261127-v1"><script src="theme.js?v=20261128-donation-qr-fix-v2"></script><title>返校宣讲 · 青岛五十八中2026-2027校友组队平台</title><link rel="stylesheet" href="style.css?v=20261128-boot-assets-before-session-v1"><link rel="stylesheet" href="donations.css?v=20261128-local-fonts-v1"><link rel="stylesheet" href="ui-sections.css?v=20261128-local-fonts-v1"><script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" defer></script><link rel="stylesheet" href="typography.css?v=20261128-local-fonts-v1">
+  <link rel="shortcut icon" href="/favicon.svg?v=20261127-v1"><script src="theme.js?v=20261128-donation-qr-fix-v2"></script><title>返校宣讲 · 青岛五十八中2026-2027校友组队平台</title><link rel="stylesheet" href="style.css?v=20261128-account-privacy-footer-v1"><link rel="stylesheet" href="donations.css?v=20261128-local-fonts-v1"><link rel="stylesheet" href="ui-sections.css?v=20261128-local-fonts-v1"><script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" defer></script><link rel="stylesheet" href="typography.css?v=20261128-local-fonts-v1">
 </head><body class="session-checking">
 <div id="bootScreen" class="boot-screen" role="status" aria-live="polite" hidden>
   <div class="boot-content">
@@ -223,8 +223,16 @@
 <div class="step-actions directory-actions"><button type="button" id="backToProfile" class="ghost">← 返回高校资料</button></div>
 </section>
 <section id="accountBottom" class="account-bottom" hidden>
-<div class="account-actions"><button type="button" id="changePassword" class="ghost" hidden>修改密码</button><button type="button" id="logout" class="ghost" hidden>退出登录</button></div>
-<div id="accountDangerZone" class="account-danger-zone"><p>如果不再参加本次活动，可以永久移除账号和个人资料。此操作不可撤销。</p><button type="button" id="deleteAccountOpen" class="danger-link">删除我的账号与资料</button></div>
+<div id="accountDangerZone" class="account-danger-zone">
+  <div class="account-danger-heading">
+    <div><span class="account-kicker">ACCOUNT & SECURITY</span><strong>账号与安全</strong><p>管理当前账号的登录状态与个人资料。</p></div>
+  </div>
+  <div class="account-actions"><button type="button" id="changePassword" class="ghost" hidden>修改密码</button><button type="button" id="logout" class="ghost" hidden>退出登录</button></div>
+  <div class="account-delete-row">
+    <div class="account-delete-copy"><strong>删除账号与个人资料</strong><p>如果不再参加本次活动，可以永久移除账号和个人资料。此操作不可撤销。</p></div>
+    <button type="button" id="deleteAccountOpen" class="danger-link">删除我的账号与资料</button>
+  </div>
+</div>
 </section></section></main><footer id="pageFooter" class="site-footer" hidden>
   <div class="site-footer-brand">
     <strong id="siteFooterTitle" class="site-footer-title">返校宣讲 · 青岛五十八中2026-2027校友组队平台</strong>
@@ -266,4 +274,4 @@
 <label>当前登录密码<div class="password-box"><input id="deletePassword" type="password" autocomplete="current-password" required><button type="button" class="password-toggle" data-toggle-password="deletePassword">显示</button></div></label>
 <label>输入 DELETE 确认<input id="deleteConfirm" autocomplete="off" required></label>
 <button class="btn wide danger-button">永久删除账号</button><button type="button" class="text" id="cancelDeleteAccount">取消</button><p id="deleteMsg" class="msg" aria-live="polite"></p>
-</form></section></div><script src="app.js?v=20261128-boot-assets-before-session-v1" defer></script><script src="account-deletion-ui.js?v=20261127-delete-preflight-v1" defer></script></body></html>
+</form></section></div><script src="app.js?v=20261128-account-privacy-footer-v1" defer></script><script src="account-deletion-ui.js?v=20261127-delete-preflight-v1" defer></script></body></html>
