@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&display=swap');:root{--bg:#f3f6f2;--paper:#ffffffc9;--ink:#24352f;--muted:#77877e;--line:#dce5dd;--green:#416d58;--mint:#dce9df}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px system-ui,"Noto Serif SC",sans-serif}a{color:inherit;text-decoration:none}header{height:76px;padding:0 6vw;display:flex;align-items:center;justify-content:space-between;gap:18px;position:sticky;top:0;background:#f8faf7e8;backdrop-filter:blur(16px);border-bottom:1px solid var(--line);z-index:5}.brand{display:flex;align-items:center;gap:12px}.brand>b,.mark{background:var(--green);color:white;padding:12px;border-radius:12px;font:22px Georgia}.brand small{display:block;color:var(--muted);font-size:10px;margin-top:4px}nav{display:flex;gap:22px;font-size:12px;color:var(--muted)}button{cursor:pointer}.btn{border:0;border-radius:7px;padding:13px 18px;background:var(--green);color:white;font-weight:650}.ghost{background:var(--mint);color:var(--green);border:0;border-radius:7px;padding:11px 15px}.hero{max-width:1200px;margin:auto;padding:85px 5vw;display:grid;grid-template-columns:1fr 1fr;gap:7vw;align-items:center;min-height:540px}.eyebrow{color:var(--green);letter-spacing:2px;font-size:10px;font-weight:700}.hero h1{font:600 clamp(38px,5vw,62px)/1.4 "Noto Serif SC";letter-spacing:-2px}.hero em{color:var(--green);font-style:normal}.lead{color:var(--muted);line-height:2;font-size:13px}.note{margin-top:55px;color:#9aa69e;font-size:10px}.art{height:340px;background:linear-gradient(145deg,#e4eee4,#c9ddce,#eee9d7);position:relative;overflow:hidden;box-shadow:0 18px 55px #294a3418}.sun{position:absolute;width:170px;height:170px;border-radius:50%;background:#f5e8c9;left:36%;top:20%;box-shadow:0 0 65px #fff8d5}.float{position:absolute;background:#ffffffa8;backdrop-filter:blur(12px);padding:14px 18px;font-size:9px;color:#708477}.float b{display:block;font:16px "Noto Serif SC";margin-top:8px}.a{left:7%;top:16%}.b{right:7%;bottom:20%}.art>strong{position:absolute;left:44%;top:42%;font:48px Georgia;color:#54725e}.art>small{position:absolute;bottom:16px;left:20px;font-size:9px;letter-spacing:2px;color:#647c6c}.section{max-width:1100px;margin:auto;padding:65px 28px}.section h2{font:600 34px "Noto Serif SC";margin:12px 0}.panel{background:var(--paper);border:1px solid white;border-radius:12px;padding:26px;box-shadow:0 15px 45px #294a340d}.section form{max-width:760px;margin-top:20px}.section label,.dialog label{display:block;font-size:11px;color:var(--muted);margin:13px 0}.section input,.section select,.section textarea,.dialog input{display:block;width:100%;margin-top:7px;padding:12px;border:1px solid var(--line);border-radius:6px;background:#ffffffb8;color:var(--ink)}.cols{display:grid;grid-template-columns:1fr 1fr;gap:14px}.check{display:flex!important;align-items:center;gap:8px}.check input{width:auto;margin:0}.tabs{display:flex;gap:10px;align-items:center;margin:20px 0}.tabs button{border:0;background:var(--mint);color:var(--green);padding:10px 14px;border-radius:6px}.tabs button.active{background:var(--green);color:white}.tabs input{margin-left:auto;padding:10px;border:1px solid var(--line);border-radius:6px}.cards{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}.cards article p,.cards article small{color:var(--muted)}footer{border-top:1px solid var(--line);padding:25px 6vw;display:flex;justify-content:space-between;color:var(--muted);font-size:11px}.modal{display:none;position:fixed;inset:0;z-index:20;align-items:center;justify-content:center;padding:16px}.modal.show{display:flex}.shade{position:absolute;inset:0;background:#14251b99;backdrop-filter:blur(6px)}.dialog{position:relative;width:min(100%,440px);max-height:92vh;overflow:auto;background:var(--bg);padding:28px;border-radius:16px;box-shadow:0 25px 90px #0004}.x{position:absolute;right:16px;top:12px;border:0;background:none;font-size:25px;color:var(--muted)}.mark{display:inline-block}.mark small{font:11px system-ui;margin-left:8px}.dialog h2{font:600 25px "Noto Serif SC";margin:20px 0 5px}.dialog form>p{font-size:11px;color:var(--muted)}.wide{width:100%;margin-top:12px}.text{display:block;margin:4px 0 12px auto;border:0;background:none;color:var(--green)}.verify{display:flex;gap:8px;align-items:end}.verify label{flex:1}.verify button{margin-bottom:13px;white-space:nowrap;flex:0 0 132px;min-width:132px;padding:11px 8px;font-size:12px;line-height:1.25}.msg{min-height:18px;color:var(--green);font-size:11px}.msg.bad{color:#b45f52}[hidden]{display:none!important}:root[data-theme="dark"] body{--bg:#18241f;--paper:#27372fe8;--ink:#e5eee7;--muted:#a5b4aa;--line:#405248}:root[data-theme="dark"] body header{background:#19261fe8}:root[data-theme="dark"] body input,:root[data-theme="dark"] body select,:root[data-theme="dark"] body textarea{background:#1d3026;color:var(--ink)}@media(max-width:760px){header{height:auto;padding:12px 16px;flex-wrap:wrap}nav{order:3;width:100%;justify-content:space-between;gap:8px;font-size:10px}.hero{grid-template-columns:1fr;padding:48px 20px}.art{height:260px}.section{padding:50px 18px}.cols,.cards{grid-template-columns:1fr}.tabs{flex-wrap:wrap}.tabs input{width:100%;margin:0}footer{gap:12px;flex-wrap:wrap}.dialog{padding:22px 18px}}
+:root{--bg:#f3f6f2;--paper:#ffffffc9;--ink:#24352f;--muted:#77877e;--line:#dce5dd;--green:#416d58;--mint:#dce9df}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px "Source Han Sans CN","LXGW WenKai Lite",sans-serif}a{color:inherit;text-decoration:none}header{height:76px;padding:0 6vw;display:flex;align-items:center;justify-content:space-between;gap:18px;position:sticky;top:0;background:#f8faf7e8;backdrop-filter:blur(16px);border-bottom:1px solid var(--line);z-index:5}.brand{display:flex;align-items:center;gap:12px}.brand>b,.mark{background:var(--green);color:white;padding:12px;border-radius:12px;font:22px Georgia}.brand small{display:block;color:var(--muted);font-size:10px;margin-top:4px}nav{display:flex;gap:22px;font-size:12px;color:var(--muted)}button{cursor:pointer}.btn{border:0;border-radius:7px;padding:13px 18px;background:var(--green);color:white;font-weight:650}.ghost{background:var(--mint);color:var(--green);border:0;border-radius:7px;padding:11px 15px}.hero{max-width:1200px;margin:auto;padding:85px 5vw;display:grid;grid-template-columns:1fr 1fr;gap:7vw;align-items:center;min-height:540px}.eyebrow{color:var(--green);letter-spacing:2px;font-size:10px;font-weight:700}.hero h1{font:600 clamp(38px,5vw,62px)/1.4 "LXGW WenKai Lite";letter-spacing:-2px}.hero em{color:var(--green);font-style:normal}.lead{color:var(--muted);line-height:2;font-size:13px}.note{margin-top:55px;color:#9aa69e;font-size:10px}.art{height:340px;background:linear-gradient(145deg,#e4eee4,#c9ddce,#eee9d7);position:relative;overflow:hidden;box-shadow:0 18px 55px #294a3418}.sun{position:absolute;width:170px;height:170px;border-radius:50%;background:#f5e8c9;left:36%;top:20%;box-shadow:0 0 65px #fff8d5}.float{position:absolute;background:#ffffffa8;backdrop-filter:blur(12px);padding:14px 18px;font-size:9px;color:#708477}.float b{display:block;font:16px "LXGW WenKai Lite";margin-top:8px}.a{left:7%;top:16%}.b{right:7%;bottom:20%}.art>strong{position:absolute;left:44%;top:42%;font:48px Georgia;color:#54725e}.art>small{position:absolute;bottom:16px;left:20px;font-size:9px;letter-spacing:2px;color:#647c6c}.section{max-width:1100px;margin:auto;padding:65px 28px}.section h2{font:600 34px "LXGW WenKai Lite";margin:12px 0}.panel{background:var(--paper);border:1px solid white;border-radius:12px;padding:26px;box-shadow:0 15px 45px #294a340d}.section form{max-width:760px;margin-top:20px}.section label,.dialog label{display:block;font-size:11px;color:var(--muted);margin:13px 0}.section input,.section select,.section textarea,.dialog input{display:block;width:100%;margin-top:7px;padding:12px;border:1px solid var(--line);border-radius:6px;background:#ffffffb8;color:var(--ink)}.cols{display:grid;grid-template-columns:1fr 1fr;gap:14px}.check{display:flex!important;align-items:center;gap:8px}.check input{width:auto;margin:0}.tabs{display:flex;gap:10px;align-items:center;margin:20px 0}.tabs button{border:0;background:var(--mint);color:var(--green);padding:10px 14px;border-radius:6px}.tabs button.active{background:var(--green);color:white}.tabs input{margin-left:auto;padding:10px;border:1px solid var(--line);border-radius:6px}.cards{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}.cards article p,.cards article small{color:var(--muted)}footer{border-top:1px solid var(--line);padding:25px 6vw;display:flex;justify-content:space-between;color:var(--muted);font-size:11px}.modal{display:none;position:fixed;inset:0;z-index:20;align-items:center;justify-content:center;padding:16px}.modal.show{display:flex}.shade{position:absolute;inset:0;background:#14251b99;backdrop-filter:blur(6px)}.dialog{position:relative;width:min(100%,440px);max-height:92vh;overflow:auto;background:var(--bg);padding:28px;border-radius:16px;box-shadow:0 25px 90px #0004}.x{position:absolute;right:16px;top:12px;border:0;background:none;font-size:25px;color:var(--muted)}.mark{display:inline-block}.mark small{font:11px "Source Han Sans CN";margin-left:8px}.dialog h2{font:600 25px "LXGW WenKai Lite";margin:20px 0 5px}.dialog form>p{font-size:11px;color:var(--muted)}.wide{width:100%;margin-top:12px}.text{display:block;margin:4px 0 12px auto;border:0;background:none;color:var(--green)}.verify{display:flex;gap:8px;align-items:end}.verify label{flex:1}.verify button{margin-bottom:13px;white-space:nowrap;flex:0 0 132px;min-width:132px;padding:11px 8px;font-size:12px;line-height:1.25}.msg{min-height:18px;color:var(--green);font-size:11px}.msg.bad{color:#b45f52}[hidden]{display:none!important}:root[data-theme="dark"] body{--bg:#18241f;--paper:#27372fe8;--ink:#e5eee7;--muted:#a5b4aa;--line:#405248}:root[data-theme="dark"] body header{background:#19261fe8}:root[data-theme="dark"] body input,:root[data-theme="dark"] body select,:root[data-theme="dark"] body textarea{background:#1d3026;color:var(--ink)}@media(max-width:760px){header{height:auto;padding:12px 16px;flex-wrap:wrap}nav{order:3;width:100%;justify-content:space-between;gap:8px;font-size:10px}.hero{grid-template-columns:1fr;padding:48px 20px}.art{height:260px}.section{padding:50px 18px}.cols,.cards{grid-template-columns:1fr}.tabs{flex-wrap:wrap}.tabs input{width:100%;margin:0}footer{gap:12px;flex-wrap:wrap}.dialog{padding:22px 18px}}
 /* Authentication and account-security polish */
 header>div:last-child{display:flex;align-items:center;gap:8px}
 .dialog{width:min(100%,470px);padding:30px}
@@ -6,11 +6,11 @@ header>div:last-child{display:flex;align-items:center;gap:8px}
 .dialog .auth-tabs button{flex:1;background:transparent;padding:11px 14px}
 .dialog .auth-tabs button.active{background:var(--green);box-shadow:0 4px 12px #294a3420}
 .auth-form .form-heading{margin:4px 0 22px}
-.form-kicker{display:block;color:var(--green);font:700 9px system-ui,sans-serif;letter-spacing:2px}
+.form-kicker{display:block;color:var(--green);font:700 9px "Source Han Sans CN",sans-serif;letter-spacing:2px}
 .auth-form .form-heading h2{font-size:28px;letter-spacing:-.5px;margin:9px 0 7px}
 .auth-form .form-heading p{margin:0;color:var(--muted);font-size:12px;line-height:1.8}
 .auth-form label{font-size:12px!important;margin:15px 0!important;color:var(--ink)!important}
-.auth-form label>input,.auth-form .password-box input{height:46px;padding:0 13px;margin-top:8px;background:#fff;border-color:var(--line);font:13px system-ui,sans-serif;transition:border-color .18s,box-shadow .18s}
+.auth-form label>input,.auth-form .password-box input{height:46px;padding:0 13px;margin-top:8px;background:#fff;border-color:var(--line);font:13px "Source Han Sans CN",sans-serif;transition:border-color .18s,box-shadow .18s}
 .auth-form input:focus{outline:none;border-color:#70947c;box-shadow:0 0 0 3px #416d581a}
 .auth-form input::placeholder{color:#a6b2aa}
 .password-box{position:relative;margin-top:8px}
@@ -56,9 +56,9 @@ header>div:last-child{display:flex;align-items:center;gap:8px}
 .university-type-card{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:10px;min-height:170px;padding:17px 15px;text-align:left;border:1px solid var(--line);border-radius:11px;background:linear-gradient(150deg,#ffffffd9,#edf3ee);color:var(--ink);transition:transform .18s,border-color .18s,box-shadow .18s,background .18s}
 .university-type-card:hover{transform:translateY(-3px);border-color:#91b49c;box-shadow:0 12px 24px #294a3410}
 .university-type-card.selected{border:2px solid var(--green);padding:16px 14px;background:linear-gradient(150deg,#f8fcf8,#e1eee4);box-shadow:0 8px 22px #416d581c}
-.university-type-card strong{font:600 16px "Noto Serif SC",serif;line-height:1.45}
+.university-type-card strong{font:600 16px "LXGW WenKai Lite",serif;line-height:1.45}
 .university-type-card small{color:var(--muted);font-size:10px;line-height:1.7}
-.type-number{color:var(--green);font:700 9px system-ui,sans-serif;letter-spacing:1.1px}
+.type-number{color:var(--green);font:700 9px "Source Han Sans CN",sans-serif;letter-spacing:1.1px}
 .type-arrow{margin-top:auto;align-self:flex-end;color:var(--green);font-size:19px}
 .step-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:22px}
 .step-actions .btn{min-width:180px}
@@ -94,7 +94,7 @@ header>div:last-child{display:flex;align-items:center;gap:8px}
 .auth-actions{display:flex;align-items:center;gap:11px;margin-top:22px;flex-wrap:wrap}
 .auth-actions .btn,.auth-actions .ghost{min-width:132px;padding:13px 19px}
 /* Three-stage member journey and classmates directory */
-.journey-steps{max-width:1100px;margin:28px auto 0;padding:0 28px;display:flex;align-items:center;gap:14px;color:var(--muted);font:700 10px system-ui,sans-serif;letter-spacing:.7px}
+.journey-steps{max-width:1100px;margin:28px auto 0;padding:0 28px;display:flex;align-items:center;gap:14px;color:var(--muted);font:700 10px "Source Han Sans CN",sans-serif;letter-spacing:.7px}
 .journey-steps span{padding:9px 13px;border:1px solid var(--line);border-radius:99px;background:#ffffff80}
 .journey-steps span.active{background:var(--green);border-color:var(--green);color:#fff}
 .journey-steps i{font-style:normal;color:var(--muted)}
@@ -104,27 +104,27 @@ header>div:last-child{display:flex;align-items:center;gap:8px}
 .directory-school{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:25px 0 16px;padding:17px 20px}
 .directory-school>div{display:grid;gap:5px}
 .directory-school>div>span{font-size:10px;color:var(--muted)}
-.directory-school strong{font:600 18px "Noto Serif SC",serif;color:var(--green)}
+.directory-school strong{font:600 18px "LXGW WenKai Lite",serif;color:var(--green)}
 .directory-count{font-size:11px;color:var(--muted);white-space:nowrap}
 .directory-panel{padding:22px;background:var(--paper);border:1px solid white;border-radius:12px;box-shadow:0 15px 45px #294a340d}
 .directory-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px}
 .directory-toolbar>div{display:grid;gap:4px}
-.directory-toolbar>div strong{font:600 18px "Noto Serif SC",serif}
-.directory-toolbar>div span{font:700 8px system-ui,sans-serif;letter-spacing:1.7px;color:var(--muted)}
+.directory-toolbar>div strong{font:600 18px "LXGW WenKai Lite",serif}
+.directory-toolbar>div span{font:700 8px "Source Han Sans CN",sans-serif;letter-spacing:1.7px;color:var(--muted)}
 .directory-toolbar input{width:min(100%,340px);padding:11px 13px;border:1px solid var(--line);border-radius:7px;background:#ffffffb8;color:var(--ink)}
 .classmate-card{padding:19px;min-width:0}
 .classmate-top{display:flex;align-items:center;gap:12px}
-.classmate-avatar{flex:0 0 42px;width:42px;height:42px;display:grid;place-items:center;border-radius:13px;background:var(--mint);color:var(--green);font:600 17px "Noto Serif SC",serif}
+.classmate-avatar{flex:0 0 42px;width:42px;height:42px;display:grid;place-items:center;border-radius:13px;background:var(--mint);color:var(--green);font:600 17px "LXGW WenKai Lite",serif}
 .classmate-top>div{display:grid;gap:5px;min-width:0}
-.classmate-top strong{font:600 16px "Noto Serif SC",serif;overflow-wrap:anywhere}
+.classmate-top strong{font:600 16px "LXGW WenKai Lite",serif;overflow-wrap:anywhere}
 .classmate-top small{font-size:10px;color:var(--muted)}
 .classmate-meta{display:flex;gap:9px;flex-wrap:wrap;margin:15px 0 12px}
 .classmate-meta span{padding:5px 9px;border-radius:20px;background:var(--mint);color:var(--green);font-size:10px}
 .classmate-contact{border-top:1px solid var(--line);padding-top:12px;min-height:34px;display:flex;align-items:center}
-.contact-link{display:inline-flex;align-items:center;gap:6px;color:var(--green);font:650 12px system-ui,sans-serif;text-decoration:none}
+.contact-link{display:inline-flex;align-items:center;gap:6px;color:var(--green);font:650 12px "Source Han Sans CN",sans-serif;text-decoration:none}
 .contact-private{font-size:10px;color:var(--muted)}
 .directory-empty{grid-column:1/-1;padding:48px 18px;text-align:center;border:1px dashed var(--line);border-radius:9px;color:var(--muted)}
-.directory-empty strong{color:var(--ink);font:600 16px "Noto Serif SC",serif}
+.directory-empty strong{color:var(--ink);font:600 16px "LXGW WenKai Lite",serif}
 .directory-empty p{margin:8px 0 0;font-size:11px}
 .directory-actions{justify-content:flex-start;margin-top:22px}
 :root[data-theme="dark"] body .journey-steps span{background:#26372e}
@@ -155,7 +155,7 @@ header>div:last-child{display:flex;align-items:center;gap:8px}
 .admin-stats .stat small{display:block;color:var(--muted);font-size:11px}
 .admin-stats .stat b{display:block;font:600 27px Georgia;margin-top:7px}
 .admin-shell>section{margin:18px 0}
-.admin-heading h3,.admin-shell h3{margin:5px 0 12px;font:600 22px "Noto Serif SC",serif}
+.admin-heading h3,.admin-shell h3{margin:5px 0 12px;font:600 22px "LXGW WenKai Lite",serif}
 .admin-filters{display:grid;grid-template-columns:repeat(3,minmax(140px,1fr));gap:8px 14px;align-items:end;margin:18px 0}
 .admin-filters label{margin:0}
 .admin-filters input,.admin-filters select{width:100%;padding:10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);margin-top:6px}
@@ -195,7 +195,7 @@ header>div:last-child{display:flex;align-items:center;gap:8px}
 .university-search-empty{padding:14px;border:1px dashed var(--line);border-radius:8px;color:var(--muted);font-size:11px;line-height:1.8}
 .selected-university-panel{display:grid;gap:6px;margin:12px 0 20px;padding:14px 16px;border:1px solid var(--line);border-radius:9px;background:var(--paper)}
 .selected-university-panel>span{color:var(--muted);font-size:10px}
-.selected-university-panel>strong{color:var(--green);font:600 16px "Noto Serif SC",serif;overflow-wrap:anywhere}
+.selected-university-panel>strong{color:var(--green);font:600 16px "LXGW WenKai Lite",serif;overflow-wrap:anywhere}
 .selected-university-panel>p{margin:0;color:var(--muted);font-size:10px;line-height:1.7}
 :root[data-theme="dark"] body .university-result{background:#203128;color:var(--ink);border-color:var(--line)}
 :root[data-theme="dark"] body .university-result-action,:root[data-theme="dark"] body .selected-university-panel>strong{color:#b7d4c0}
@@ -341,7 +341,7 @@ header>div:last-child{display:flex;align-items:center;gap:8px}
   border-radius:999px;
   background:var(--paper);
   color:var(--muted);
-  font:600 12px system-ui,sans-serif;
+  font:600 12px "Source Han Sans CN",sans-serif;
   cursor:pointer;
   transition:background .16s,border-color .16s,color .16s;
 }
@@ -354,7 +354,7 @@ header>div:last-child{display:flex;align-items:center;gap:8px}
   border-radius:50%;
   background:var(--mint);
   color:var(--green);
-  font:700 11px system-ui,sans-serif;
+  font:700 11px "Source Han Sans CN",sans-serif;
 }
 .journey-steps button.active{
   background:var(--green);
@@ -374,7 +374,7 @@ header>div:last-child{display:flex;align-items:center;gap:8px}
 }
 .selected-university-panel>div{display:grid;gap:6px;min-width:0}
 .selected-university-panel>div>span{color:var(--muted);font-size:10px}
-.selected-university-panel>div>strong{color:var(--green);font:600 16px "Noto Serif SC",serif;overflow-wrap:anywhere}
+.selected-university-panel>div>strong{color:var(--green);font:600 16px "LXGW WenKai Lite",serif;overflow-wrap:anywhere}
 .selected-university-panel>div>p{margin:0;color:var(--muted);font-size:10px;line-height:1.7}
 .danger-outline{
   flex:0 0 auto;
@@ -401,7 +401,7 @@ header>div:last-child{display:flex;align-items:center;gap:8px}
   color:#a64d43;
   text-decoration:none;
   cursor:pointer;
-  font:650 12px system-ui,sans-serif;
+  font:650 12px "Source Han Sans CN",sans-serif;
 }
 .danger-link:hover{background:#fbe5e1}
 .profile-next{display:none}
@@ -430,10 +430,10 @@ header>div:last-child{display:flex;align-items:center;gap:8px}
 .admin-team-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:16px}
 .admin-team-card{min-width:0;padding:17px;border:1px solid var(--line);border-radius:10px;background:var(--paper);display:grid;gap:10px}
 .admin-team-card>div{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
-.admin-team-card>div b{font:600 15px "Noto Serif SC",serif;overflow-wrap:anywhere}
+.admin-team-card>div b{font:600 15px "LXGW WenKai Lite",serif;overflow-wrap:anywhere}
 .admin-team-card>div span{font-size:10px;color:var(--muted);white-space:nowrap}
 .admin-team-card>strong{font:600 25px Georgia;color:var(--green)}
-.admin-team-card>strong small{font:400 11px system-ui,sans-serif}
+.admin-team-card>strong small{font:400 11px "Source Han Sans CN",sans-serif}
 .admin-team-card>p{margin:0;padding-top:9px;border-top:1px solid var(--line);color:var(--muted);font-size:11px}
 .admin-profile-detail-row>td{padding:12px!important;background:var(--bg);white-space:normal}
 .admin-profile-details{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}
@@ -543,7 +543,7 @@ header>div:last-child{display:flex;align-items:center;gap:8px}
 #peoplePanel .table-wrap{margin-top:14px}
 #peoplePanel .pagination{margin-top:20px}
 .admin-row-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:88px}
-.admin-delete-button{border:1px solid #d7aaa2;border-radius:7px;background:#fff6f4;color:#a3483f;padding:8px 10px;font:650 11px system-ui,sans-serif;white-space:nowrap;cursor:pointer}
+.admin-delete-button{border:1px solid #d7aaa2;border-radius:7px;background:#fff6f4;color:#a3483f;padding:8px 10px;font:650 11px "Source Han Sans CN",sans-serif;white-space:nowrap;cursor:pointer}
 .admin-delete-button:hover{background:#f9e8e5}
 .admin-delete-button:disabled{opacity:.55;cursor:wait}
 :root[data-theme="dark"] body .admin-delete-button{background:#382a28;border-color:#79504b;color:#e2b8b1}
@@ -691,7 +691,7 @@ header>div:last-child{display:flex;align-items:center;gap:8px}
 
 /* Registration phone precheck: keep SMS/password controls locked until verified. */
 .register-fields{display:block;width:100%;min-width:0;margin:0;padding:0;border:0}
-.register-phone-status{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin:13px 0 8px;padding:11px 13px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--muted);font:11px/1.7 system-ui,sans-serif}
+.register-phone-status{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin:13px 0 8px;padding:11px 13px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--muted);font:11px/1.7 "Source Han Sans CN",sans-serif}
 .register-phone-status.is-checking{border-color:#b6c8ba;color:var(--muted)}
 .register-phone-status.is-success{border-color:#b6d1bd;background:#edf5ef;color:#315f43}
 .register-phone-status.is-error{border-color:#dfc3bd;background:#fff7f5;color:#94564d}
@@ -747,7 +747,7 @@ header>div:last-child{display:flex;align-items:center;gap:8px}
 }
 .site-footer-title{
   color:var(--ink);
-  font:650 12px/1.55 system-ui,"Noto Serif SC",sans-serif;
+  font:650 12px/1.55 "Source Han Sans CN","LXGW WenKai Lite",sans-serif;
   letter-spacing:.15px;
 }
 .site-footer-tagline{
@@ -771,7 +771,7 @@ header>div:last-child{display:flex;align-items:center;gap:8px}
   padding:9px 14px;
   border:1px solid var(--line);
   border-radius:8px;
-  font:650 11px/1.2 system-ui,sans-serif;
+  font:650 11px/1.2 "Source Han Sans CN",sans-serif;
   text-decoration:none;
   white-space:nowrap;
   transition:background .16s ease,border-color .16s ease,transform .16s ease;
@@ -876,7 +876,7 @@ header>div:last-child{display:flex;align-items:center;gap:8px}
 }
 .admin-team-card-heading>b{
   min-width:0;
-  font:600 15px "Noto Serif SC",serif;
+  font:600 15px "LXGW WenKai Lite",serif;
   overflow-wrap:anywhere;
 }
 .admin-team-card-heading>span{
@@ -1123,7 +1123,7 @@ body select option{
 .home-faq-heading .eyebrow{margin:0}
 .home-faq-heading h2{
   margin:0;
-  font:600 clamp(25px,3vw,34px)/1.45 "Noto Serif SC",serif;
+  font:600 clamp(25px,3vw,34px)/1.45 "LXGW WenKai Lite",serif;
   color:var(--ink);
 }
 .home-faq-list{display:grid;gap:19px}
@@ -1154,7 +1154,7 @@ body select option{
   border-radius:7px;
   background:var(--mint);
   color:var(--green);
-  font:700 10px/1.3 system-ui,sans-serif;
+  font:700 10px/1.3 "Source Han Sans CN",sans-serif;
   letter-spacing:.7px;
 }
 .home-faq-answer{
@@ -1212,7 +1212,7 @@ body select option{
   border-radius:0;
   background:transparent;
   color:var(--ink);
-  font:600 18px/1.45 "Noto Serif SC","Songti SC","STSong",serif;
+  font:600 18px/1.45 "LXGW WenKai Lite",serif;
   letter-spacing:.02em;
 }
 .dialog .auth-brand img{
@@ -1226,7 +1226,7 @@ body select option{
   display:block;
   min-width:0;
   color:var(--ink);
-  font:600 18px/1.45 "Noto Serif SC","Songti SC","STSong",serif;
+  font:600 18px/1.45 "LXGW WenKai Lite",serif;
   overflow-wrap:anywhere;
 }
 @media(max-width:760px){
@@ -1268,7 +1268,7 @@ body select option{
   margin:0 0 16px;
   padding:0;
   color:var(--ink);
-  font:600 22px/1.45 "Noto Serif SC",serif;
+  font:600 22px/1.45 "LXGW WenKai Lite",serif;
 }
 #profile.profile-form-shell>.profile-stage-panel{
   margin:0;
@@ -1370,14 +1370,14 @@ body select option{
   gap:12px;
   min-width:0;
   color:var(--ink);
-  font-family:system-ui,"Noto Sans SC","Microsoft YaHei",sans-serif;
+  font-family:"Source Han Sans CN",sans-serif;
   font-size:16px;
   font-weight:700;
   line-height:1.65;
 }
 .home-faq-question strong{
   min-width:0;
-  font:700 16px/1.65 system-ui,"Noto Sans SC","Microsoft YaHei",sans-serif;
+  font:700 16px/1.65 "Source Han Sans CN",sans-serif;
   overflow-wrap:anywhere;
 }
 .home-faq-number{
@@ -1388,7 +1388,7 @@ body select option{
   background:var(--mint);
   color:var(--green);
   text-align:center;
-  font:700 12px/1.6 system-ui,"Noto Sans SC","Microsoft YaHei",sans-serif;
+  font:700 12px/1.6 "Source Han Sans CN",sans-serif;
   letter-spacing:.4px;
 }
 .home-faq-answer{
@@ -1403,7 +1403,7 @@ body select option{
 .home-faq-answer p{
   margin:0;
   color:var(--ink);
-  font:400 15px/1.9 system-ui,"Noto Sans SC","Microsoft YaHei",sans-serif;
+  font:400 15px/1.9 "Source Han Sans CN",sans-serif;
   overflow-wrap:anywhere;
 }
 .home-faq-answer b{font-weight:750}
@@ -1523,7 +1523,7 @@ body select option{
 .boot-status{
   margin:0;
   color:var(--muted);
-  font:600 15px/1.8 system-ui,"Noto Sans SC","Microsoft YaHei",sans-serif!important;
+  font:600 15px/1.8 "Source Han Sans CN",sans-serif!important;
   letter-spacing:.18em;
 }
 .boot-welcome{
@@ -1534,7 +1534,7 @@ body select option{
 .boot-welcome[hidden]{display:none!important}
 .boot-welcome strong{
   color:var(--ink);
-  font:600 clamp(23px,3vw,29px)/1.55 "Noto Serif SC","Songti SC","STSong",serif!important;
+  font:600 clamp(23px,3vw,29px)/1.55 "LXGW WenKai Lite",serif!important;
   letter-spacing:.08em;
 }
 .boot-welcome span{
@@ -1546,7 +1546,7 @@ body select option{
   max-width:440px;
   margin:0;
   color:#b86c5f;
-  font:500 13px/1.8 system-ui,"Noto Sans SC","Microsoft YaHei",sans-serif!important;
+  font:500 13px/1.8 "Source Han Sans CN",sans-serif!important;
 }
 .boot-retry{
   margin-top:16px;
@@ -1754,7 +1754,7 @@ body select option{
   border-radius:9px;
   background:var(--paper);
   color:var(--ink);
-  font:650 13px/1.3 system-ui,"Noto Sans SC",sans-serif;
+  font:650 13px/1.3 "Source Han Sans CN",sans-serif;
   cursor:pointer;
   transition:background .16s ease,border-color .16s ease,transform .16s ease;
 }
@@ -1922,7 +1922,7 @@ body select option{
   background:transparent;
   box-shadow:none;
   color:var(--ink);
-  font-family:"Noto Serif SC","Songti SC","STSong",serif!important;
+  font-family:"LXGW WenKai Lite",serif!important;
   font-size:22px!important;
   font-weight:650!important;
   line-height:1.4!important;
