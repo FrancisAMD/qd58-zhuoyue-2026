@@ -230,7 +230,9 @@ const GITHUB_BACKUP_REPOSITORY = "FrancisAMD/qd58-zhuoyue-2026";
 const GITHUB_BACKUP_WORKFLOW = "d1-backup.yml";
 async function dispatchGithubBackup(env, {action, backupId, requestedBy, requestedAt}) {
   const token = env.GITHUB_BACKUP_DISPATCH_TOKEN;
-  if (typeof token !== "string" || token.length < 20) return false;
+  if (typeof token !== "string" || token.length < 20) {
+    return {ok:false,error:"backup_dispatch_not_configured"};
+  }
   try {
     const result = await fetch(
       "https://api.github.com/repos/" + GITHUB_BACKUP_REPOSITORY +
@@ -241,6 +243,7 @@ async function dispatchGithubBackup(env, {action, backupId, requestedBy, request
           authorization: "Bearer " + token,
           accept: "application/vnd.github+json",
           "content-type": "application/json",
+          "user-agent": "zhuoyue-2026-backup-dispatch",
           "x-github-api-version": "2022-11-28"
         },
         body: JSON.stringify({
@@ -255,14 +258,25 @@ async function dispatchGithubBackup(env, {action, backupId, requestedBy, request
         signal: AbortSignal.timeout(10000)
       }
     );
-    if (result.status !== 204) {
-      console.error("GitHub backup workflow dispatch rejected", {status:result.status});
-      return false;
-    }
-    return true;
+    if (result.status === 204) return {ok:true};
+    const remaining = result.headers.get("x-ratelimit-remaining");
+    let error = "backup_dispatch_failed";
+    if (result.status === 401) error = "github_token_invalid";
+    else if (result.status === 403 && remaining === "0") error = "github_rate_limited";
+    else if (result.status === 403) error = "github_actions_permission_denied";
+    else if (result.status === 404) error = "github_repository_or_workflow_not_found";
+    else if (result.status === 422) error = "github_workflow_dispatch_rejected";
+    else if (result.status === 429) error = "github_rate_limited";
+    else if (result.status >= 500) error = "github_api_unavailable";
+    console.error("GitHub backup workflow dispatch rejected", {
+      status:result.status,
+      remaining:remaining || "unknown",
+      error
+    });
+    return {ok:false,error,status:result.status};
   } catch (error) {
-    console.error("GitHub backup workflow dispatch failed", error?.message || "unknown");
-    return false;
+    console.error("GitHub backup workflow dispatch failed", error?.name || "unknown");
+    return {ok:false,error:"github_api_network_error"};
   }
 }
 const GROUP_CHAT_REGIONS = [{"key":"beijing","label":"北京市","kind":"mainland"},{"key":"tianjin","label":"天津市","kind":"mainland"},{"key":"hebei","label":"河北省","kind":"mainland"},{"key":"shanxi","label":"山西省","kind":"mainland"},{"key":"inner-mongolia","label":"内蒙古自治区","kind":"mainland"},{"key":"liaoning","label":"辽宁省","kind":"mainland"},{"key":"jilin","label":"吉林省","kind":"mainland"},{"key":"heilongjiang","label":"黑龙江省","kind":"mainland"},{"key":"shanghai","label":"上海市","kind":"mainland"},{"key":"jiangsu","label":"江苏省","kind":"mainland"},{"key":"zhejiang","label":"浙江省","kind":"mainland"},{"key":"anhui","label":"安徽省","kind":"mainland"},{"key":"fujian","label":"福建省","kind":"mainland"},{"key":"jiangxi","label":"江西省","kind":"mainland"},{"key":"shandong","label":"山东省","kind":"mainland"},{"key":"henan","label":"河南省","kind":"mainland"},{"key":"hubei","label":"湖北省","kind":"mainland"},{"key":"hunan","label":"湖南省","kind":"mainland"},{"key":"guangdong","label":"广东省","kind":"mainland"},{"key":"guangxi","label":"广西壮族自治区","kind":"mainland"},{"key":"hainan","label":"海南省","kind":"mainland"},{"key":"chongqing","label":"重庆市","kind":"mainland"},{"key":"sichuan","label":"四川省","kind":"mainland"},{"key":"guizhou","label":"贵州省","kind":"mainland"},{"key":"yunnan","label":"云南省","kind":"mainland"},{"key":"tibet","label":"西藏自治区","kind":"mainland"},{"key":"shaanxi","label":"陕西省","kind":"mainland"},{"key":"gansu","label":"甘肃省","kind":"mainland"},{"key":"qinghai","label":"青海省","kind":"mainland"},{"key":"ningxia","label":"宁夏回族自治区","kind":"mainland"},{"key":"xinjiang","label":"新疆维吾尔自治区","kind":"mainland"},{"key":"hmt","label":"港澳台","kind":"hmt"},{"key":"overseas","label":"海外","kind":"overseas"}];
@@ -1997,7 +2011,10 @@ if(path==="/api/teams/transfer" && method==="POST") {
       const dispatched = await dispatchGithubBackup(env,{
         action:"backup",backupId,requestedBy:admin.id,requestedAt
       });
-      if (!dispatched) return response({error:"backup_dispatch_failed"},503,origin,env);
+      if (!dispatched.ok) return response({
+        error:dispatched.error,
+        ...(dispatched.status?{upstreamStatus:dispatched.status}:{})
+      },503,origin,env);
       let auditRecorded = true;
       try { await writeAudit(env.DB,"admin",admin.id,"admin.backup.started","d1_backup",backupId,{source:"manual",runner:"github-actions"}); }
       catch (error) {
@@ -2102,7 +2119,10 @@ if(path==="/api/teams/transfer" && method==="POST") {
         const dispatched = await dispatchGithubBackup(env,{
           action:"verify",backupId,requestedBy:admin.id,requestedAt:new Date().toISOString()
         });
-        if (!dispatched) return response({error:"backup_dispatch_failed"},503,origin,env);
+        if (!dispatched.ok) return response({
+          error:dispatched.error,
+          ...(dispatched.status?{upstreamStatus:dispatched.status}:{})
+        },503,origin,env);
         let auditRecorded = true;
         try { await writeAudit(env.DB,"admin",admin.id,"admin.backup.verification_started","d1_backup",backupId,{runner:"github-actions"}); }
         catch (error) {
