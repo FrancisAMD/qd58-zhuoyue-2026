@@ -64,18 +64,6 @@ Remove-Variable rateLimitSecret
 
 以上只用于故障定位；执行远程查询、Secret 配置或 D1 写入前，必须确认当前 Wrangler 登录身份、目标账户、目标数据库及生产变更授权。不要在诊断时清空或重建 `admin_users`。
 
-## 备份建议（尚未执行）
-
-- 正式收集数据后，建议每天导出一次 D1，并启用 Cloudflare D1 Time Travel（按当前账户套餐和数据库设置确认可用性）。
-- 导出文件包含个人信息，应加密保存到受限访问的独立存储，不得放入 Git 仓库、公开 R2 bucket 或普通聊天附件。
-- 建议先确定保留周期（例如最近 30 天日备份），并每月在独立测试数据库演练恢复；具体周期需要活动组织方确认后写入正式隐私说明。
-- Wrangler 命令格式以当前安装版本为准，执行前先运行 npx wrangler d1 export --help。典型导出命令为：
-
-    New-Item -ItemType Directory -Force .private-backups
-    npx wrangler d1 export qd58-zhuoyue-db --remote --output .private-backups/qd58-backup.sql --config backend/wrangler.toml
-
-- 不要在生产库上试验恢复。恢复演练必须使用独立 D1 数据库，并核对行数、迁移版本和关键关系。
-
 ## 用户删除与匿名化
 
 已实现用户自助删除 API，要求登录态、当前密码、绑定手机号短信验证码和明确输入 `DELETE`。短信请求必须先通过 Turnstile；验证码有效期沿用 PNVS 5 分钟配置、服务端限制 60 秒冷却和手机号/IP 配额。删除请求只从当前 Session 取得手机号，不接受客户端传入其他号码。
@@ -84,15 +72,69 @@ Remove-Variable rateLimitSecret
 
 为保留历史转让和审计外键完整性，不物理删除 users 行，而是写入不可逆 tombstone（随机用户 ID、`deleted:` 占位号码、删除时间）。删除账户不能重新激活；同一手机号可重新注册新账号。删除后的账号从登录、目录、管理员名单和统计中排除。历史转让/审计仅保留随机 ID；备份中的历史快照仍须按备份保留规则到期清除。
 
-## 备份与恢复（操作方案，尚未执行）
+## 加密 D1 备份与恢复操作
 
-- 生产报名开始前，必须确定数据保留期限、备份保留周期、备份负责人和删除申请联系渠道。当前建议每日 D1 导出、加密保存、滚动保留 30 天；每月在独立测试 D1 做一次恢复演练。此周期是待组织方确认的建议，不是已生效的承诺。
-- 导出文件包含个人信息，必须在本地受限目录生成后立即使用组织方认可的加密方式加密，并存入受限、启用访问审计的存储。禁止提交 Git、放入公开 R2 bucket 或通过普通聊天传输。
-- 导出前检查当前 Wrangler 版本支持的参数：`npx wrangler d1 export --help`。示例：`npx wrangler d1 export qd58-zhuoyue-db --remote --output .private-backups/qd58-backup.sql --config backend/wrangler.toml`。导出、加密、上传、清理必须由受权运维人员执行。
-- 恢复演练必须使用独立 D1 数据库，不覆盖生产库；验证迁移版本、用户/大学/队伍/转让数量、外键完整性、删除 tombstone 和管理员 owner 数量。演练完成后安全销毁临时副本。
-- 在线删除不会即时改写既有备份；备份到期删除前，受限备份中可能仍包含删除前快照。隐私说明应明确这一点。
+### 自动备份配置
 
-正式开放真实报名前，仍须确定负责人/申请邮箱、资料保留期限与备份周期，并完成远程迁移、owner 初始化、恢复演练和端到端安全测试。
+- Worker 通过 `D1_BACKUP_WORKFLOW` 每天 18:00 UTC（日本时间次日 03:00）执行 D1 Export API；现有每 15 分钟 Cron 仍只负责过期转让、Session、OTP 与限流数据清理。
+- 备份目标是独立私有 R2 Bucket `qd58-d1-backups`，绑定名 `D1_BACKUPS`。不要为该 Bucket 启用公开访问域名。
+- 新增 Worker Secrets：`CLOUDFLARE_ACCOUNT_ID`、具备该账户 D1 Edit 权限的 `CLOUDFLARE_API_TOKEN`、以及 32 字节随机主密钥 `BACKUP_MASTER_KEY_V1`（64 位十六进制或 Base64）。D1 ID、Bucket 名称、当前主密钥版本和保留天数为配置变量。
+- `BACKUP_MASTER_KEY_V1` 必须单独离线备份，并由至少两名恢复负责人按组织流程保管。丢失密钥将使对应版本备份无法解密。轮换密钥时必须保留旧版本 Secret，直到所有旧备份到期。
+- 当前保留期默认 30 天（可配置为 7–365 天）。这是技术默认值，不替代组织方对个人信息保留期限的正式决定。
+- D1 Export API 会在导出进行期间暂时阻止该数据库处理查询；Workflow 每 10 秒轮询，最长等待约 30 分钟。每日 03:00（日本时间）为低访问量时段，但仍需监控真实导出时长。若数据库规模增长，应重新评估备份窗口及 Workflows/Workers 套餐 CPU 配额。
+
+首次配置需由账户管理员执行：
+
+```powershell
+npx wrangler r2 bucket create qd58-d1-backups
+# 创建后在 Cloudflare Workers Dashboard / Worker Secrets 或 Wrangler 设置以下 Secret：
+npx wrangler secret put CLOUDFLARE_ACCOUNT_ID --config backend/wrangler.toml
+npx wrangler secret put CLOUDFLARE_API_TOKEN --config backend/wrangler.toml
+npx wrangler secret put BACKUP_MASTER_KEY_V1 --config backend/wrangler.toml
+```
+
+主密钥在本机生成示例（只在本机生成和保存，不要粘贴到聊天或提交 Git）：
+
+```powershell
+node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+```
+
+API Token 只需覆盖目标 Cloudflare 账户的 D1 Edit；不需要把 Cloudflare Global API Key 放入 Worker。R2 访问使用 Worker Bucket Binding，不需要额外 S3 Access Key。
+
+### 后台操作
+
+- 后台“数据库备份管理”仅 owner 可见和访问。可查看成功/失败、时间、加密大小、验证状态；支持立即备份、启动完整性验证、下载加密对象、下载签名清单和删除备份。
+- 服务端再次检查 `backups:manage`，普通 admin 无权访问。删除成功备份时，最后一份成功备份受到保护。所有手动启动、验证和删除操作均写入管理员审计。
+- “立即备份”会触发 D1 原生导出，可能短暂影响线上查询；应只在确有需要时使用。
+- UI 下载的是 `.qd58enc` 密文和 JSON 清单，不会向浏览器输出明文 SQL 或备份主密钥。
+
+### 本地解密与恢复演练
+
+从后台分别下载加密文件和签名清单，保存到仓库外的受限目录（仓库已忽略 `.private-backups/`）。PowerShell 示例：
+
+```powershell
+New-Item -ItemType Directory -Force .private-backups
+$env:BACKUP_MASTER_KEY_V1 = Read-Host "输入离线保管的 BACKUP_MASTER_KEY_V1"
+node scripts/decrypt-d1-backup.mjs --manifest .private-backups/backup.manifest.json --input .private-backups/backup.qd58enc --output .private-backups/restore.sql
+Remove-Item Env:BACKUP_MASTER_KEY_V1
+python scripts/verify-d1-export.py .private-backups/restore.sql --expected-migration 0019_donation_records.sql
+```
+
+然后只恢复到专用测试 D1（例如 `qd58-backup-restore-test`），绝不把演练命令指向生产数据库：
+
+```powershell
+npx wrangler d1 create qd58-backup-restore-test
+npx wrangler d1 execute qd58-backup-restore-test --remote --file .private-backups/restore.sql --config backend/wrangler.toml
+```
+
+恢复后核对 `PRAGMA integrity_check`、`PRAGMA foreign_key_check`、迁移版本和用户/高校/队伍/转让数量，再使用合成测试账号检查登录、同校目录和管理员权限。演练结束后按数据处理规范删除临时数据库与明文 SQL。
+
+### 生产恢复安全边界
+
+- 当前后台不提供生产数据库一键恢复。生产恢复必须由受权运维人员另行执行，并先建立变更窗口、再次验证备份、明确目标数据库 ID 与回滚方案。
+- **账号删除重放仍是生产恢复的阻断项。** 现有 `DELETE_LEDGER` R2 绑定尚未配置，且删除意图自动重放尚未实现。把较早快照导回生产可能恢复快照之后已删除的个人信息；在删除台账完成独立存储、签名校验、重放和演练之前，不得把备份恢复到生产环境。
+- R2 与 D1 目前仍在同一 Cloudflare 账户内；该副本不能完全应对整个 Cloudflare 账户被接管或删除。重要数据后续可增加独立账户/异地的密文副本。
+
 
 ## 当前边界
 
