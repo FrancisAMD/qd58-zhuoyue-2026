@@ -474,13 +474,14 @@ async function sendCode(phone, purpose, token, request, env) {
       reservations.push(reservation);
     }
 
-    // Public registration/reset endpoints deliberately return the same result
-    // for eligible and ineligible numbers. The quota reservation is retained
-    // so callers cannot use this branch as an unlimited phone-enumeration probe.
-    const exists = await env.DB.prepare("SELECT id FROM users WHERE phone=? AND deleted_at=''").bind(phone).first();
-    if (purpose === "register" && exists) return { ok: true };
-    if (purpose === "password_reset" && !exists) return { ok: true };
-    if (purpose === "account_delete" && !exists) throw err("phone_not_registered", 404);
+    // Registration sends the same ownership-verification SMS regardless of
+    // account state. The account lookup happens only after the user proves
+    // control of this phone in register().
+    if (purpose !== "register") {
+      const exists = await env.DB.prepare("SELECT id FROM users WHERE phone=? AND deleted_at=''").bind(phone).first();
+      if (purpose === "password_reset" && !exists) return { ok: true };
+      if (purpose === "account_delete" && !exists) throw err("phone_not_registered", 404);
+    }
 
     const outId = randomHex(16);
     challengeId = randomHex(16);
@@ -574,13 +575,12 @@ async function register(data, env) {
   if (!validPhone(phone)) throw err("invalid_phone");
   if (data.accountConsent !== true) throw err("consent_required");
   if (password.length < 10 || password.length > 128) throw err("weak_password");
-  // Recheck at the authoritative write boundary; the public precheck is only UX.
-  const existing=await env.DB.prepare("SELECT id FROM users WHERE phone=? AND deleted_at='' LIMIT 1").bind(phone).first();
-  if(existing) throw err("phone_already_registered",409);
   const salt=crypto.getRandomValues(new Uint8Array(16));
   const derived=await derivePassword(password,salt);
-  // Derive the password hash before consuming the one-time code.
+  // Prove phone ownership before revealing whether an account already exists.
   await verifyCode(phone,data.code,"register",env);
+  const existing=await env.DB.prepare("SELECT id FROM users WHERE phone=? AND deleted_at='' LIMIT 1").bind(phone).first();
+  if(existing) throw err("phone_already_registered",409);
   const hash="pbkdf2-sha256$"+PBKDF2_ITERATIONS+"$"+b64(salt)+"$"+b64(derived);
   const id=randomHex(16);
   try { await env.DB.prepare("INSERT INTO users(id,phone,password_hash,consent_at,consent_given,consent_version,account_consent_at,account_consent_version) VALUES(?,?,?,'',0,'',?,?)").bind(id,phone,hash,new Date().toISOString(),PRIVACY_NOTICE_VERSION).run(); }
@@ -626,7 +626,7 @@ async function route(request, env) {
   if(!isTrustedAppOrigin(origin,env) && !originlessPublicRead)
     return response({error:"origin_forbidden"},403,origin,env);
   if(path==="/api/health" && method==="GET") return response({
-    ok:true,service:"zhuoyue-2026-api",build:"register-phone-check-20261127",
+    ok:true,service:"zhuoyue-2026-api",build:"registration-otp-ownership-20261128",
     passwordKdf:"pbkdf2-sha256-100000",
     readiness:{
       rateLimitConfigured:typeof env.RATE_LIMIT_HMAC_SECRET==="string"&&env.RATE_LIMIT_HMAC_SECRET.length>=32,
@@ -635,30 +635,6 @@ async function route(request, env) {
       smsTemplateConfigured:!!env.ALIBABA_SIGN_NAME&&!!env.ALIBABA_TEMPLATE_CODE
     }
   },200,origin,env);
-  if(path==="/api/auth/register/check-phone" && method==="POST") {
-    try {
-      const d=await limitedJsonBody(request,1024);
-      if(d.accountConsent!==true) return response({error:"consent_required"},400,origin,env);
-      const phone=String(d.phone||"").trim();
-      if(!validPhone(phone)) return response({error:"invalid_phone"},400,origin,env);
-      // Consent plus per-IP and per-phone throttles limit use as an account-enumeration oracle.
-      const ip=request.headers.get("CF-Connecting-IP")||"unknown";
-      const ipKey=await rateLimitKey(env,"register:phone-check:ip",ip);
-      const phoneKey=await rateLimitKey(env,"register:phone-check:phone",phone);
-      if(!(await rateLimit(env.DB,ipKey,30,3600))) {
-        return response({error:"rate_limited",limitScope:"phone_check_ip",retryAfter:3600},429,origin,env);
-      }
-      if(!(await rateLimit(env.DB,phoneKey,5,3600))) {
-        return response({error:"rate_limited",limitScope:"phone_check_phone",retryAfter:3600},429,origin,env);
-      }
-      const existing=await env.DB.prepare("SELECT id FROM users WHERE phone=? AND deleted_at='' LIMIT 1").bind(phone).first();
-      return response({registered:!!existing},200,origin,env);
-    } catch(error) {
-      if(error?.error) return response({error:error.error},error.status||503,origin,env);
-      console.error("Registration phone precheck failed",error?.message||"unknown");
-      return response({error:"registration_phone_check_unavailable"},503,origin,env);
-    }
-  }
   if(path==="/api/donations" && method==="GET") {
     try {
       const rows=await env.DB.prepare("SELECT id,nickname,amount_cents AS amountCents,display_order AS displayOrder FROM donation_records ORDER BY display_order ASC,created_at ASC,id ASC LIMIT 300").all();

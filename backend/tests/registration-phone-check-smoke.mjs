@@ -1,53 +1,115 @@
 import assert from "node:assert/strict";
 import worker from "../src/worker.js";
-const ORIGIN="https://58er.eon21.space",API="https://api.58er.eon21.space";
-const PHONE="13812345678",RATE_SECRET="registration-phone-check-test-secret-0123456789";
-function makeDb({registeredPhone=null,blocked=false}={}){
-  const buckets=new Map();let userLookups=0,otpLookups=0;
-  const DB={prepare(sql){return {args:[],bind(...args){this.args=args;return this;},
-    async first(){
-      if(sql.startsWith("SELECT id FROM users WHERE phone=? AND deleted_at=''")){
-        userLookups++;return registeredPhone===this.args[0]?{id:"known-user"}:null;
-      }
-      if(sql.startsWith("SELECT id FROM otp_challenges"))otpLookups++;
-      return null;
-    },
-    async run(){
-      if(sql.startsWith("INSERT INTO rate_limits")){
-        if(blocked)return {meta:{changes:0}};
-        const [key,t,resetAt,,,limit]=this.args,current=buckets.get(key);
-        if(!current||current.window_started_at<=resetAt){buckets.set(key,{window_started_at:t,hit_count:1});return {meta:{changes:1}};}
-        if(current.hit_count<limit){current.hit_count++;return {meta:{changes:1}};}
-        return {meta:{changes:0}};
-      }
-      return {meta:{changes:1}};
+
+const ORIGIN = "https://58er.eon21.space";
+const API = "https://api.58er.eon21.space";
+const PHONE = "13812345678";
+const SECRET = "registration-ownership-test-secret-0123456789abcdef";
+
+function makeDb({ exists = true, hasChallenge = true } = {}) {
+  const state = {
+    exists, hasChallenge, challengeConsumed: false,
+    userLookups: 0, userLookupAfterChallengeConsume: false
+  };
+  const DB = {
+    prepare(sql) {
+      return {
+        args: [],
+        bind(...args) { this.args = args; return this; },
+        async first() {
+          if (sql.startsWith("SELECT id FROM otp_challenges")) {
+            return state.hasChallenge ? { id: "challenge-1" } : null;
+          }
+          if (sql.startsWith("UPDATE otp_challenges") && sql.includes("RETURNING out_id,expires_at")) {
+            return state.hasChallenge
+              ? { out_id: "provider-out-1", expires_at: Math.floor(Date.now() / 1000) + 300 }
+              : null;
+          }
+          if (sql.startsWith("SELECT id FROM users WHERE phone=? AND deleted_at=''")) {
+            state.userLookups += 1;
+            state.userLookupAfterChallengeConsume = state.challengeConsumed;
+            return state.exists ? { id: "existing-user" } : null;
+          }
+          return null;
+        },
+        async run() {
+          if (sql.startsWith("UPDATE otp_challenges SET consumed_at=")) {
+            state.challengeConsumed = true;
+            return { meta: { changes: 1 } };
+          }
+          return { meta: { changes: 1 } };
+        }
+      };
     }
-  };}};
-  return {DB,buckets,get userLookups(){return userLookups;},get otpLookups(){return otpLookups;}};
+  };
+  return { DB, state };
 }
-function request(path,data){return new Request(API+path,{method:"POST",headers:{"content-type":"application/json",origin:ORIGIN,"CF-Connecting-IP":"203.0.113.77"},body:JSON.stringify(data)});}
-const env=DB=>({APP_ORIGIN:ORIGIN,DB,RATE_LIMIT_HMAC_SECRET:RATE_SECRET});
-const registeredDb=makeDb({registeredPhone:PHONE});
-const known=await worker.fetch(request("/api/auth/register/check-phone",{phone:PHONE,accountConsent:true}),env(registeredDb.DB));
-assert.equal(known.status,200);assert.deepEqual(await known.json(),{registered:true});assert.equal(registeredDb.userLookups,1);
-const availableDb=makeDb({registeredPhone:PHONE+"1"});
-const available=await worker.fetch(request("/api/auth/register/check-phone",{phone:PHONE,accountConsent:true}),env(availableDb.DB));
-assert.equal(available.status,200);assert.deepEqual(await available.json(),{registered:false});
-const noConsentDb=makeDb({registeredPhone:PHONE});
-const noConsent=await worker.fetch(request("/api/auth/register/check-phone",{phone:PHONE,accountConsent:false}),env(noConsentDb.DB));
-assert.equal(noConsent.status,400);assert.deepEqual(await noConsent.json(),{error:"consent_required"});assert.equal(noConsentDb.userLookups,0);
-const invalidPhoneDb=makeDb();
-const invalidPhone=await worker.fetch(request("/api/auth/register/check-phone",{phone:"12345",accountConsent:true}),env(invalidPhoneDb.DB));
-assert.equal(invalidPhone.status,400);assert.equal(invalidPhoneDb.userLookups,0);
-const limitedDb=makeDb({blocked:true});
-const limited=await worker.fetch(request("/api/auth/register/check-phone",{phone:PHONE,accountConsent:true}),env(limitedDb.DB));
-assert.equal(limited.status,429);assert.equal((await limited.json()).error,"rate_limited");assert.equal(limitedDb.userLookups,0);
-const missingSecretDb=makeDb();
-const missingSecret=await worker.fetch(request("/api/auth/register/check-phone",{phone:PHONE,accountConsent:true}),{APP_ORIGIN:ORIGIN,DB:missingSecretDb.DB});
-assert.equal(missingSecret.status,503);assert.equal((await missingSecret.json()).error,"rate_limit_secret_not_configured");assert.equal(missingSecretDb.userLookups,0);
-const duplicateDb=makeDb({registeredPhone:PHONE});
-const duplicate=await worker.fetch(request("/api/auth/register",{phone:PHONE,password:"Valid-Password-2026!",code:"123456",accountConsent:true}),env(duplicateDb.DB));
-assert.equal(duplicate.status,409);assert.equal((await duplicate.json()).error,"phone_already_registered");
-assert.equal(duplicateDb.userLookups,1);assert.equal(duplicateDb.otpLookups,0);
-assert.ok([...registeredDb.buckets.keys()].every(key=>!key.includes(PHONE)&&!key.includes("203.0.113.77")));
-console.log("Registration phone precheck tests: PASS (consent, phone validation, rate limits, lookup privacy, duplicate guard).");
+
+function request(path, data) {
+  return new Request(API + path, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: ORIGIN },
+    body: JSON.stringify(data)
+  });
+}
+
+function env(DB) {
+  return {
+    APP_ORIGIN: ORIGIN,
+    DB,
+    RATE_LIMIT_HMAC_SECRET: SECRET,
+    ALIBABA_ACCESS_KEY_ID: "test-access-key-id",
+    ALIBABA_ACCESS_KEY_SECRET: "test-access-key-secret"
+  };
+}
+
+const originalFetch = globalThis.fetch;
+globalThis.fetch = async (input, init = {}) => {
+  const url = new URL(typeof input === "string" ? input : input.url);
+  if (url.hostname === "dypnsapi.aliyuncs.com") {
+    const action = init.headers?.["x-acs-action"];
+    assert.equal(action, "CheckSmsVerifyCode", "registration must verify the SMS code before looking up the account");
+    return new Response(JSON.stringify({
+      Success: true, Code: "OK", Model: { VerifyResult: "PASS" }
+    }), { status: 200, headers: { "content-type": "application/json" } });
+  }
+  throw new Error("Unexpected outbound request: " + url.hostname);
+};
+
+try {
+  const precheckDb = makeDb({ exists: true });
+  const precheck = await worker.fetch(
+    request("/api/auth/register/check-phone", { phone: PHONE, accountConsent: true }),
+    env(precheckDb.DB)
+  );
+  assert.equal(precheck.status, 404, "the public registration phone-precheck endpoint must be removed");
+  assert.equal(precheckDb.state.userLookups, 0, "removed precheck must never read account state");
+
+  const noCodeDb = makeDb({ exists: true, hasChallenge: false });
+  const noCode = await worker.fetch(
+    request("/api/auth/register", {
+      phone: PHONE, password: "Valid-Password-2026!", code: "123456", accountConsent: true
+    }),
+    env(noCodeDb.DB)
+  );
+  assert.equal(noCode.status, 400);
+  assert.equal((await noCode.json()).error, "invalid_code");
+  assert.equal(noCodeDb.state.userLookups, 0, "an unverified visitor must not learn whether the phone is registered");
+
+  const verifiedDb = makeDb({ exists: true, hasChallenge: true });
+  const duplicate = await worker.fetch(
+    request("/api/auth/register", {
+      phone: PHONE, password: "Valid-Password-2026!", code: "123456", accountConsent: true
+    }),
+    env(verifiedDb.DB)
+  );
+  assert.equal(duplicate.status, 409);
+  assert.equal((await duplicate.json()).error, "phone_already_registered");
+  assert.equal(verifiedDb.state.challengeConsumed, true, "the SMS code must be consumed before account-state disclosure");
+  assert.equal(verifiedDb.state.userLookups, 1);
+  assert.equal(verifiedDb.state.userLookupAfterChallengeConsume, true, "account lookup must occur only after successful SMS verification");
+
+  console.log("Registration ownership verification tests: PASS (no public precheck; account state disclosed only after SMS ownership proof).");
+} finally {
+  globalThis.fetch = originalFetch;
+}

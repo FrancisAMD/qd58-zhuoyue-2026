@@ -6,7 +6,7 @@ const API = "https://api.58er.eon21.space";
 const SECRET = "auth-enumeration-test-secret-0123456789abcdef";
 
 function makeDb({ exists }) {
-  const state = { exists, rateLimits: new Map(), challenges: [] };
+  const state = { exists, rateLimits: new Map(), challenges: [], accountLookups: 0 };
   const db = {
     prepare(sql) {
       return {
@@ -36,6 +36,7 @@ function makeDb({ exists }) {
             return row ? { window_started_at: row.window_started_at } : null;
           }
           if (sql.startsWith("SELECT id FROM users WHERE phone=? AND deleted_at=''")) {
+            state.accountLookups += 1;
             return state.exists ? { id: "existing-user" } : null;
           }
           return null;
@@ -149,16 +150,18 @@ try {
     assert([...state.rateLimits.keys()].every(key => !key.includes("13800138000") && !key.includes("203.0.113.88")));
   }
 
-  assert.equal(outcomes[0].state.challenges.length, 0, "existing account must not receive a registration challenge");
-  assert.equal(outcomes[1].state.challenges.length, 1, "eligible registration must create one challenge");
+  assert.equal(outcomes[0].state.challenges.length, 1, "registered accounts must receive an ownership-verification challenge during registration");
+  assert.equal(outcomes[1].state.challenges.length, 1, "unregistered accounts must receive the same registration challenge");
+  assert.equal(outcomes[0].state.accountLookups, 0, "registration-code requests must not query account state");
+  assert.equal(outcomes[1].state.accountLookups, 0, "registration-code requests must not query account state");
   assert.equal(outcomes[2].state.challenges.length, 1, "eligible password reset must create one challenge");
   assert.equal(outcomes[3].state.challenges.length, 0, "unknown account must not receive a reset challenge");
 
   const sendCalls = providerCalls.filter(call => call.action === "SendSmsVerifyCode");
-  assert.equal(sendCalls.length, 2, "PNVS must only be called for eligible registration/reset requests");
+  assert.equal(sendCalls.length, 3, "both registration requests and the eligible password reset must send an SMS");
   assert(sendCalls.every(call => call.phone === "13800138000"));
 
-  console.log("OTP account-enumeration tests: PASS (uniform response, no provider RequestId leakage, eligible-only SMS sends).");
+  console.log("OTP account-enumeration tests: PASS (registration sends before account lookup; reset responses stay uniform).");
 } finally {
   globalThis.fetch = originalFetch;
 }
