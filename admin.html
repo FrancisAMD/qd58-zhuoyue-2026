@@ -8,7 +8,7 @@
   <link rel="shortcut icon" href="/favicon.svg?v=20261127-v1">
   <script src="theme.js?v=20261128-donation-theme-qr-v1"></script>
   <title>返校宣讲 · 管理后台</title>
-  <link rel="stylesheet" href="style.css?v=20261128-inner-surface-1a241e-v1">
+  <link rel="stylesheet" href="style.css?v=20261128-roster-cards-v1">
   <link rel="stylesheet" href="donations.css?v=20261127-auto-theme-v1">
   <link rel="stylesheet" href="backup-admin.css?v=20261128-d1-backups-v2">
 <link rel="stylesheet" href="typography.css?v=20261128-hierarchy-v2">
@@ -74,7 +74,7 @@
         <div class="filter-actions"><button class="btn" type="submit">筛选</button><button type="reset" id="clearFilters" class="ghost">清空</button></div>
       </form>
       <p id="peopleMeta" class="muted"></p>
-      <div class="table-wrap"><table class="admin-table"><thead><tr><th>姓名</th><th>高中学校</th><th>大学</th><th>年级</th><th>省份</th><th>入群确认</th><th>资料同意</th><th>登记时间</th><th>资料概览 / 完整资料</th><th>操作</th></tr></thead><tbody id="peopleRows"></tbody></table></div>
+      <div id="peopleRows" class="admin-roster-grid" aria-live="polite" aria-label="报名同学卡片列表"></div>
       <div class="pagination roster-pagination"><button id="firstPage" class="ghost" type="button">首页</button><button id="prevPage" class="ghost" type="button">上一页</button><span id="pageLabel" aria-live="polite"></span><button id="nextPage" class="ghost" type="button">下一页</button><button id="lastPage" class="ghost" type="button">末页</button></div>
     </section>
 
@@ -195,6 +195,6 @@
     <a class="site-footer-button site-footer-admin" href="index.html">返回首页 <span aria-hidden="true">↗</span></a>
   </div>
 </footer>
-<script src="admin.js?v=20261128-roster-export-fetch-v1" defer></script>
+<script src="admin.js?v=20261128-roster-cards-v1" defer></script>
 </body>
 </html>
