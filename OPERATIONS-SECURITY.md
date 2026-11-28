@@ -72,45 +72,64 @@ Remove-Variable rateLimitSecret
 
 为保留历史转让和审计外键完整性，不物理删除 users 行，而是写入不可逆 tombstone（随机用户 ID、`deleted:` 占位号码、删除时间）。删除账户不能重新激活；同一手机号可重新注册新账号。删除后的账号从登录、目录、管理员名单和统计中排除。历史转让/审计仅保留随机 ID；备份中的历史快照仍须按备份保留规则到期清除。
 
-## 加密 D1 备份与恢复操作
+## GitHub Actions 加密 D1 备份与恢复操作
 
-### 自动备份配置
+### 自动备份架构
 
-- Worker 通过 `D1_BACKUP_WORKFLOW` 每天 18:05 UTC（日本时间次日 03:05）执行 D1 Export API；现有每 15 分钟 Cron 仍只负责过期转让、Session、OTP 与限流数据清理。
-- 备份目标是独立私有 R2 Bucket `qd58-d1-backups`，绑定名 `D1_BACKUPS`。不要为该 Bucket 启用公开访问域名。
-- 新增 Worker Secrets：`CLOUDFLARE_ACCOUNT_ID`、具备该账户 D1 Edit 权限的 `CLOUDFLARE_API_TOKEN`、以及 32 字节随机主密钥 `BACKUP_MASTER_KEY_V1`（64 位十六进制或 Base64）。D1 ID、Bucket 名称、当前主密钥版本和保留天数为配置变量。
-- `BACKUP_MASTER_KEY_V1` 必须单独离线备份，并由至少两名恢复负责人按组织流程保管。丢失密钥将使对应版本备份无法解密。轮换密钥时必须保留旧版本 Secret，直到所有旧备份到期。
-- 当前保留期默认 30 天（可配置为 7–365 天）。这是技术默认值，不替代组织方对个人信息保留期限的正式决定。
-- D1 Export API 会在导出进行期间暂时阻止该数据库处理查询；Workflow 每 10 秒轮询，最长等待约 30 分钟。每日 03:05（日本时间）为低访问量时段，但仍需监控真实导出时长。若数据库规模增长，应重新评估备份窗口及 Workflows/Workers 套餐 CPU 配额。
+- GitHub Actions Workflow：`.github/workflows/d1-backup.yml`，每天 18:05 UTC（日本时间次日 03:05）计划执行；使用标准 `ubuntu-latest` Runner，不消耗 Cloudflare Worker CPU。
+- Runner 调用 Cloudflare D1 Export API，持续轮询至导出完成，在临时目录将 SQL 按 8 MiB 分块使用 AES-256-GCM 加密，再通过 R2 S3-compatible API 上传到私有 Bucket `qd58-d1-backups`。
+- 上传后 Runner 从 R2 回读密文、解密并验证每个分块的认证标签与 SHA-256；只有验证通过才写入 `completed` 签名清单。
+- Worker 的 `D1_BACKUPS` binding 仅负责 owner-only 后台列举、下载、验证任务分发和删除；Worker 不执行 D1 导出、加密或上传。
+- D1 原生导出期间数据库可能暂时无法处理查询。GitHub schedule 可能延迟，不能保证精确 03:05 开始；查看 Actions 运行历史，失败后可以手动重试。
 
-首次配置需由账户管理员执行：
+### GitHub Repository Secrets
 
-```powershell
-npx wrangler r2 bucket create qd58-d1-backups
-# 创建后在 Cloudflare Workers Dashboard / Worker Secrets 或 Wrangler 设置以下 Secret：
-npx wrangler secret put CLOUDFLARE_ACCOUNT_ID --config backend/wrangler.toml
-npx wrangler secret put CLOUDFLARE_API_TOKEN --config backend/wrangler.toml
-npx wrangler secret put BACKUP_MASTER_KEY_V1 --config backend/wrangler.toml
-```
+在 GitHub 仓库 `Settings → Secrets and variables → Actions` 中创建：
 
-主密钥在本机生成示例（只在本机生成和保存，不要粘贴到聊天或提交 Git）：
+| Secret | 内容 |
+|---|---|
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare Account ID |
+| `CLOUDFLARE_API_TOKEN` | 仅具备目标 D1 Edit 权限的 Token |
+| `BACKUP_MASTER_KEY_V1` | 与 Worker Secret 完全相同的 32-byte 随机主密钥 |
+| `R2_ACCESS_KEY_ID` | 仅应用于备份 Bucket 的 R2 Access Key ID |
+| `R2_SECRET_ACCESS_KEY` | 对应 R2 Secret Access Key |
+
+R2 API Token 必须限定为 Bucket `qd58-d1-backups` 的 Object Read & Write。D1 Export API Token 与 R2 S3 凭据是两套独立凭据。不要使用 Cloudflare Global API Key。
+
+主密钥仅在本机生成并离线保管：
 
 ```powershell
 node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 ```
 
-API Token 只需覆盖目标 Cloudflare 账户的 D1 Edit；不需要把 Cloudflare Global API Key 放入 Worker。R2 访问使用 Worker Bucket Binding，不需要额外 S3 Access Key。
+将同一值设置为 GitHub Repository Secret 与 Worker Secret `BACKUP_MASTER_KEY_V1`。丢失密钥会使对应版本备份无法解密；轮换时保留旧版本密钥，直到相关备份全部过期。
 
-### 后台操作
+### Worker 后台手动触发（可选）
 
-- 后台“数据库备份管理”仅 owner 可见和访问。可查看成功/失败、时间、加密大小、验证状态；支持立即备份、启动完整性验证、下载加密对象、下载签名清单和删除备份。
-- 服务端再次检查 `backups:manage`，普通 admin 无权访问。删除成功备份时，最后一份成功备份受到保护。所有手动启动、验证和删除操作均写入管理员审计。
-- “立即备份”会触发 D1 原生导出，可能短暂影响线上查询；应只在确有需要时使用。
-- UI 下载的是 `.qd58enc` 密文和 JSON 清单，不会向浏览器输出明文 SQL 或备份主密钥。
+要让后台“立即备份”和“验证完整性”按钮分发 GitHub Actions，需要创建 Fine-grained personal access token：
+
+- Repository access 只选择 `FrancisAMD/qd58-zhuoyue-2026`。
+- Repository permissions 只授予 `Actions: Read and write`。
+- 作为 Worker Secret 设置，不要写进 GitHub 仓库文件：
+
+```powershell
+npx wrangler secret put GITHUB_BACKUP_DISPATCH_TOKEN --config backend/wrangler.toml
+```
+
+该 Secret 是可选的，不在 `secrets.required` 中。未设置时，每日 schedule 不受影响；owner 可直接进入 GitHub Actions 页面手动运行 `d1-encrypted-backup` Workflow。
+
+之前 Cloudflare Workflow 方案中的 Worker Secrets `CLOUDFLARE_ACCOUNT_ID`、`CLOUDFLARE_API_TOKEN` 现在不再需要。当前 Worker 只需要 `BACKUP_MASTER_KEY_V1` 进行清单校验。
+
+### 后台操作与保留
+
+- 后台“数据库备份管理”仅 owner 可访问。可查看备份状态、大小、验证结果；支持立即备份、验证、下载密文/清单和删除。
+- 手动触发与验证由 Worker 调 GitHub workflow_dispatch API；该动作需要可选的 `GITHUB_BACKUP_DISPATCH_TOKEN`。所有手动触发、验证和删除均写入管理员审计。
+- Actions 默认保留 30 天；新备份通过 R2 回读验证后才清理过期对象；保留至少一份最新成功备份。
+- 下载文件只有 `.qd58enc` 密文和 JSON 清单。不会向浏览器返回明文 SQL 或主密钥。
 
 ### 本地解密与恢复演练
 
-从后台分别下载加密文件和签名清单，保存到仓库外的受限目录（仓库已忽略 `.private-backups/`）。PowerShell 示例：
+从后台分别下载密文和签名清单，放在仓库外的受限临时目录：
 
 ```powershell
 New-Item -ItemType Directory -Force .private-backups
@@ -120,20 +139,13 @@ Remove-Item Env:BACKUP_MASTER_KEY_V1
 python scripts/verify-d1-export.py .private-backups/restore.sql --expected-migration 0019_donation_records.sql
 ```
 
-然后只恢复到专用测试 D1（例如 `qd58-backup-restore-test`），绝不把演练命令指向生产数据库：
+之后只导入专用测试 D1（绝不能指向生产库），检查 `PRAGMA integrity_check`、外键、迁移版本和关键表数量，再用合成账号测试登录、同校目录和后台权限。演练后销毁测试库与明文 SQL。
 
-```powershell
-npx wrangler d1 create qd58-backup-restore-test
-npx wrangler d1 execute qd58-backup-restore-test --remote --file .private-backups/restore.sql --config backend/wrangler.toml
-```
+### 生产恢复安全阻断项
 
-恢复后核对 `PRAGMA integrity_check`、`PRAGMA foreign_key_check`、迁移版本和用户/高校/队伍/转让数量，再使用合成测试账号检查登录、同校目录和管理员权限。演练结束后按数据处理规范删除临时数据库与明文 SQL。
+**当前后台不提供生产数据库一键恢复。**
 
-### 生产恢复安全边界
-
-- 当前后台不提供生产数据库一键恢复。生产恢复必须由受权运维人员另行执行，并先建立变更窗口、再次验证备份、明确目标数据库 ID 与回滚方案。
-- **账号删除重放仍是生产恢复的阻断项。** 现有 `DELETE_LEDGER` R2 绑定尚未配置，且删除意图自动重放尚未实现。把较早快照导回生产可能恢复快照之后已删除的个人信息；在删除台账完成独立存储、签名校验、重放和演练之前，不得把备份恢复到生产环境。
-- R2 与 D1 目前仍在同一 Cloudflare 账户内；该副本不能完全应对整个 Cloudflare 账户被接管或删除。重要数据后续可增加独立账户/异地的密文副本。
+账号删除可能发生在备份时间点之后；恢复较早的快照会重新带回删除前的手机号、姓名和个人资料。当前 `DELETE_LEDGER` Bucket 仍未绑定，删除意图自动重放与对账也未完成。该阻断项解决并演练之前，不得将较早快照恢复到生产。
 
 
 ## 当前边界
