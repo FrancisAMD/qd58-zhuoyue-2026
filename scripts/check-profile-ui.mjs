@@ -69,30 +69,40 @@ assert.match(typography,/body :is\(\.float,\.art>small,\.admin-profile-preview s
 assert.match(typography,/body :is\(\.admin-profile-field b,\.donation-list-row>strong/,"profile values and donor names must use the normal data-value tier");
 assert.match(typography,/body :is\(\.backup-state-success,\.backup-state-failed,\.backup-state-running\)/,"backup state badges must not retain tiny type");
 assert.doesNotMatch(typography,/font-size:\s*(?:[89]|1[01]|12)px(?:\s|!|;|\/)/,"the shared typography file must not define micro-sized text");
-assert.match(html,/id="donationQrImage"[^>]*data-light-src="assets\/donation-qr-15-light\.png"[^>]*data-dark-src="assets\/donation-qr-15-dark\.png"/,"donation QR must declare separate light and dark assets");
+assert.match(html,/id="donationQrImage"[^>]*data-light-src="assets\/donation-qr-15-light\.png"[^>]*data-dark-src="assets\/donation-qr-15-dark\.png"/,"donation QR must declare the default light and dark assets");
 assert.ok(html.includes('data-donation-amount="5" aria-pressed="false">￥5'),"donation selector must offer the five-yuan amount");
+assert.ok(html.includes('data-donation-amount="10" aria-pressed="false">￥10'),"donation selector must offer the ten-yuan amount");
 assert.ok(html.includes('data-donation-amount="15" class="active" aria-pressed="true">￥15'),"donation selector must default to fifteen yuan");
-assert.ok(html.includes('data-amount-5-light-src="assets/donation-qr-5-light.png"'),"five-yuan selector must provide a light-mode QR asset");
-assert.ok(html.includes('data-amount-5-dark-src="assets/donation-qr-5-dark.png"'),"five-yuan selector must provide a dark-mode QR asset");
-assert.ok(html.includes('data-amount-15-light-src="assets/donation-qr-15-light.png"'),"fifteen-yuan selector must provide a light-mode QR asset");
-assert.ok(html.includes('data-amount-15-dark-src="assets/donation-qr-15-dark.png"'),"fifteen-yuan selector must provide a dark-mode QR asset");
-assert.ok(js.includes("function selectDonationAmount(amount)"),"donation amount buttons must update the QR image");
-assert.ok(js.includes("image.dataset.lightSrc=light")&&js.includes("image.dataset.darkSrc=dark"),"amount selection must update both theme-aware QR sources");
-assert.ok(js.includes('const target=theme==="dark"?dark:light'),"amount selection must respect the current color theme");
-assert.ok(js.includes("image.onerror=()=>{")&&js.includes("image.dataset.activeThemeSrc!==target"),"selected QR image should retain a safe fallback without stale image handlers");
-assert.ok(uiSections.includes(".donation-amount-options button.active"),"selected donation amount must be visually highlighted");
-assert.ok(html.includes("ui-sections.css?v=20261128-donation-amount-member-card-v1"),"donation selector update must bust the component stylesheet cache");
-assert.ok(html.includes("app.js?v=20261128-donation-amounts-v1"),"donation amount logic must bust the frontend script cache");
-assert.ok(html.includes("style.css?v=20261128-donation-amount-member-card-v1"),"homepage must load the updated shared stylesheet");
-for(const asset of ["assets/donation-qr-5-dark.png","assets/donation-qr-5-light.png","assets/donation-qr-15-dark.png","assets/donation-qr-15-light.png"]){assert.ok(readFileSync(new URL(asset,root)).length>0,"donation QR asset must exist: "+asset);}
+for(const amount of [5,10,15]){
+  assert.ok(html.includes(`data-amount-${amount}-light-src="assets/donation-qr-${amount}-light.png"`),amount+"-yuan selector must declare a light-mode QR path");
+  assert.ok(html.includes(`data-amount-${amount}-dark-src="assets/donation-qr-${amount}-dark.png"`),amount+"-yuan selector must declare a dark-mode QR path");
+}
+assert.ok(html.includes('id="donationQrPending" class="donation-qr-pending" hidden'),"missing QR assets must use an explicit pending state instead of another amount's code");
+assert.ok(html.includes('id="donationQrPendingText"'),"pending QR state must explain that the correct amount image is not available yet");
+assert.ok(js.includes("const DONATION_AMOUNTS=[5,10,15]"),"donation selection must accept exactly the three offered amounts");
+assert.ok(js.includes('image.getAttribute("data-amount-"+amount+"-light-src")')&&js.includes('image.getAttribute("data-amount-"+amount+"-dark-src")'),"amount-specific QR paths must be read by their literal HTML attribute names");
+assert.ok(!js.includes('image.dataset["amount"+amount+"LightSrc"]'),"donation selection must not use the broken numeric dataset camel-case mapping");
+assert.ok(js.includes('button.setAttribute("aria-pressed",String(selected))'),"donation button state must update independently of whether an image exists");
+assert.ok(js.includes('image.hidden=true')&&js.includes('pending.hidden=false'),"missing QR files must hide the image and show the pending state");
+assert.ok(js.includes('amount===10'),"the ten-yuan placeholder must explain that its image is awaiting upload");
+assert.ok(uiSections.includes(".donation-amount-options{\n  display:grid;\n  grid-template-columns:repeat(3,minmax(0,1fr))"),"three donation amounts must use three equal-width columns");
+assert.ok(uiSections.includes("aspect-ratio:1312 / 1787"),"donation image frame must match the supplied PNG aspect ratio");
+assert.ok(uiSections.includes("object-fit:cover;\n  background:transparent"),"donation image must fill its frame without white side gutters");
+assert.ok(uiSections.includes(".donation-qr-pending[hidden]{display:none!important}"),"pending placeholder must respect its hidden state");
+assert.ok(html.includes("ui-sections.css?v=20261128-donation-qr-layout-v2"),"donation QR layout must bust the component stylesheet cache");
+assert.ok(html.includes("app.js?v=20261128-donation-amounts-v2"),"donation amount logic must bust the frontend script cache");
+assert.ok(html.includes("theme.js?v=20261128-donation-qr-fix-v2"),"donation theme handling must bust the theme script cache");
 assert.match(theme,/root\.dataset\.theme === "dark" \? "dark" : "light"/,"donation QR mode must follow the active root theme");
-assert.match(theme,/image\.dataset\[theme \+ "Src"\]/,"theme script must select the matching QR asset");
-assert.match(theme,/DOMContentLoaded", updateThemeImages/,"initial themed-image selection must run after the head-loaded theme script can see the images");
-assert.match(theme,/new MutationObserver\(updateThemeImages\)/,"themed images must react if the data-theme attribute changes");
-assert.ok(html.includes('data-fallback-src="assets/donation-qr-15-light.png"'),"donation QR should fall back to its current amount light image");
-assert.match(css,/--field-bg:#1A241E/,"deep dark nested surface should match the supplied green-grey reference");
-assert.match(css,/--field-border:#354239/,"deep dark nested surface should use the muted green-grey border");
-assert.match(css,/:root\[data-theme="dark"\] body :is\([\s\S]*?#teamSummary>\.directory-team-grid>div,[\s\S]*?#results\.cards>\.classmate-card\.panel,[\s\S]*?\.admin-team-card,[\s\S]*?background:#1A241E!important/,"main nested info cards should use the same deep #1A241E surface");
+assert.match(theme,/image\.id === "donationQrImage"/,"theme changes must use the donation-specific load state");
+assert.ok(theme.includes('document.getElementById("donationQrPending")')&&theme.includes("image.hidden = true"),"failed theme-specific QR loads must show the pending state instead of a broken image");
+assert.ok(theme.includes('document.querySelectorAll("img[data-light-src][data-dark-src]")'),"theme script must synchronize all theme-specific image elements");
+for(const asset of ["assets/donation-qr-5-dark.png","assets/donation-qr-5-light.png","assets/donation-qr-15-dark.png","assets/donation-qr-15-light.png"]){
+  const png=readFileSync(new URL(asset,root));
+  assert.ok(png.length>0,"donation QR asset must exist: "+asset);
+  assert.equal(png.toString("hex",0,8),"89504e470d0a1a0a",asset+" must be a valid PNG");
+  assert.equal(png.readUInt32BE(16),1312,asset+" must use the verified 1312-pixel width");
+  assert.equal(png.readUInt32BE(20),1787,asset+" must use the verified 1787-pixel height");
+}
 assert.match(html,/id="bootLogo"[^>]*src="assets\/58-logo-light\.png"[^>]*data-light-src="assets\/58-logo-light\.png"[^>]*data-dark-src="assets\/58-logo-dark\.png"/,"boot logo must declare the correct light and dark assets");
 assert.match(html,/id="bootMessage" class="boot-status">正在确认登录状态/,"boot screen must initially show the session-check message");
 assert.match(html,/id="bootWelcome" class="boot-welcome" hidden>[\s\S]*?欢迎回到青岛五十八中[\s\S]*?Welcome Back to QD58ZX/,"boot welcome must show the requested Chinese and English lines");
