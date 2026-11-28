@@ -2147,3 +2147,9 @@ body select option{
   .check>input[type="checkbox"],
   .check>input[type="checkbox"]::after{transition:none}
 }
+
+/* Compact admission-category field on the profile page */
+#registrationDetailsPanel #admissionFields{max-width:calc(50% - 7px);margin:0!important;padding:0!important;}
+#registrationDetailsPanel #admissionFields>label{margin:5px 0!important;}
+#registrationDetailsPanel #admissionFields select{margin-top:5px;}
+@media(max-width:760px){#registrationDetailsPanel #admissionFields{max-width:100%;}}
