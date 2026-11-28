@@ -19,7 +19,7 @@
 | `data/university-catalog.*` | 高校目录导入的数据格式、Schema 和模板 |
 | `backend/src/worker-entry.js` | Worker 入口；先处理账号删除资格检查，再转交主 Worker |
 | `backend/src/worker.js` | API 主逻辑：认证、资料、组队、转让、目录、管理员与备份管理 API |
-| `backend/src/d1-backup-workflow.js`、`d1-backup-crypto.js` | 定时 D1 导出、分块 AES-256-GCM 加密、签名清单与完整性验证 |
+| `backend/src/d1-backup-workflow.js`、`d1-backup-crypto.js`、`d1-backup-lock.js` | 定时 D1 导出、R2 导出租约锁、分块 AES-256-GCM 加密、签名清单与完整性验证 |
 | `backend/src/xlsx.js` | 管理后台 Excel 导出 |
 | `backend/src/account-deletion-ledger.js` | 账号删除意图的 R2 台账逻辑 |
 | `backend/src/university-catalog-import.js` | 高校目录导入与校验逻辑 |
