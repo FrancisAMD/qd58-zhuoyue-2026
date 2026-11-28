@@ -95,7 +95,7 @@ assert.ok(uiSections.includes(".donation-amount-options{\n  display:grid;\n  gri
 assert.ok(uiSections.includes("aspect-ratio:1312 / 1787"),"donation image frame must match the supplied PNG aspect ratio");
 assert.ok(uiSections.includes("object-fit:cover;\n  background:transparent"),"donation image must fill its frame without white side gutters");
 assert.ok(uiSections.includes(".donation-qr-pending[hidden]{display:none!important}"),"pending placeholder must respect its hidden state");
-assert.ok(html.includes("ui-sections.css?v=20261128-donation-qr-layout-v2"),"donation QR layout must bust the component stylesheet cache");
+assert.ok(html.includes("ui-sections.css?v=20261128-local-fonts-v1"),"donation QR layout must bust the component stylesheet cache");
 assert.ok(html.includes("app.js?v=20261128-donation-amounts-v2"),"donation amount logic must bust the frontend script cache");
 assert.ok(html.includes("theme.js?v=20261128-donation-qr-fix-v2"),"donation theme handling must bust the theme script cache");
 assert.match(theme,/root\.dataset\.theme === "dark" \? "dark" : "light"/,"donation QR mode must follow the active root theme");
