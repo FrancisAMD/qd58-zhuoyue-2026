@@ -1157,35 +1157,6 @@ body select option{
   font:700 10px/1.3 "Source Han Sans CN",sans-serif;
   letter-spacing:.7px;
 }
-.home-faq-answer{
-  display:block;
-  min-width:0;
-  margin:0;
-  padding:18px 20px;
-  border:1px solid var(--line);
-  border-radius:13px;
-  background:var(--paper);
-  box-shadow:0 8px 22px rgba(25,47,32,.055);
-}
-.home-faq-answer p{
-  margin:0;
-  color:var(--ink);
-  font-size:15px;
-  line-height:1.9;
-  overflow-wrap:anywhere;
-}
-.home-faq-answer a{
-  color:var(--green);
-  font-weight:700;
-  text-decoration:underline;
-  text-underline-offset:3px;
-}
-:root[data-theme="dark"] body .home-faq-answer{
-  background:var(--paper);
-  border-color:var(--line);
-  box-shadow:0 8px 22px rgba(0,0,0,.12);
-}
-
 /* Homepage visual: use the school mark as the centerpiece in both themes. */
 .art-logo{
   position:absolute;
@@ -1356,13 +1327,17 @@ body select option{
   flex-direction:column;
   align-items:stretch;
   min-width:0;
-  height:100%;
+  height:auto;
   gap:17px;
-  padding:21px 19px;
-  border:1px solid var(--field-border);
-  border-radius:13px;
-  background:var(--field-bg);
-  box-shadow:0 10px 28px #294a3409;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+}
+.home-faq-card:not(:first-child){
+  padding-left:16px;
+  border-left:1px solid var(--line);
 }
 .home-faq-question{
   display:flex;
@@ -1413,13 +1388,9 @@ body select option{
   text-decoration:underline;
   text-underline-offset:3px;
 }
-:root[data-theme="dark"] body .home-faq-card{
-  background:var(--field-bg);
-  border-color:var(--field-border);
-}
 @media(max-width:900px) and (min-width:761px){
   .home-faq-list{gap:12px}
-  .home-faq-card{padding:18px 15px}
+  .home-faq-card:not(:first-child){padding-left:14px}
   .home-faq-question,.home-faq-question strong{font-size:15px}
   .home-faq-answer p{font-size:14px}
 }
@@ -1430,7 +1401,12 @@ body select option{
   }
   .home-faq-heading{margin-bottom:16px}
   .home-faq-list{grid-template-columns:minmax(0,1fr);gap:13px}
-  .home-faq-card{padding:18px 17px;gap:12px}
+  .home-faq-card{height:auto;gap:12px}
+  .home-faq-card:not(:first-child){
+    padding:13px 0 0;
+    border-left:0;
+    border-top:1px solid var(--line);
+  }
   .home-faq-question,.home-faq-question strong{font-size:16px;line-height:1.65}
   .home-faq-number{flex-basis:62px;font-size:12px}
   .home-faq-answer p{font-size:15px;line-height:1.95}
