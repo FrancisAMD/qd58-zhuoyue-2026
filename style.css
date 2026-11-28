@@ -1738,3 +1738,181 @@ body select option{
   .admin-person-card .admin-profile-details{grid-template-columns:minmax(0,1fr)}
   .admin-person-facts{grid-template-columns:minmax(0,1fr)}
 }
+
+
+/* Admin navigation: expandable desktop sidebar, collapsed mobile by default. */
+.admin-workspace{
+  grid-template-columns:minmax(205px,240px) minmax(0,1fr);
+  grid-template-rows:auto minmax(0,1fr);
+  align-items:start;
+  column-gap:20px;
+  row-gap:12px;
+}
+.admin-sidebar-toggle{
+  grid-column:1/-1;
+  grid-row:1;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  justify-self:start;
+  min-height:38px;
+  padding:8px 13px;
+  border:1px solid var(--line);
+  border-radius:9px;
+  background:var(--paper);
+  color:var(--ink);
+  font:650 13px/1.3 system-ui,"Noto Sans SC",sans-serif;
+  cursor:pointer;
+  transition:background .16s ease,border-color .16s ease,transform .16s ease;
+}
+.admin-sidebar-toggle:hover{
+  background:var(--mint);
+  border-color:var(--green);
+}
+.admin-sidebar-toggle:focus-visible{
+  outline:3px solid var(--green);
+  outline-offset:2px;
+}
+.admin-sidebar-toggle-icon{
+  font-size:17px;
+  line-height:1;
+}
+.admin-sidebar{
+  grid-column:1;
+  grid-row:2;
+  width:100%;
+  box-sizing:border-box;
+  top:20px;
+  max-height:calc(100vh - 42px);
+}
+.admin-main-content{
+  grid-column:2;
+  grid-row:2;
+}
+.admin-sidebar-role-card{
+  display:grid;
+  gap:4px;
+  margin-top:16px;
+  padding:12px 13px;
+  border:1px solid var(--field-border);
+  border-radius:10px;
+  background:var(--field-bg);
+}
+.admin-sidebar-role-card small{
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.4;
+}
+.admin-sidebar-role-card strong{
+  color:var(--ink);
+  font-size:14px;
+  font-weight:750;
+  line-height:1.5;
+}
+.admin-workspace.is-sidebar-collapsed{
+  grid-template-columns:minmax(0,1fr);
+}
+.admin-workspace.is-sidebar-collapsed .admin-sidebar{
+  display:none!important;
+}
+.admin-workspace.is-sidebar-collapsed .admin-main-content{
+  grid-column:1;
+}
+.admin-toolbar-identity{
+  display:flex;
+  align-items:center;
+  min-width:0;
+}
+.admin-toolbar-identity b{
+  font-size:14px;
+  overflow-wrap:anywhere;
+}
+@media(max-width:900px) and (min-width:761px){
+  .admin-workspace{grid-template-columns:190px minmax(0,1fr);column-gap:14px}
+}
+@media(max-width:760px){
+  .admin-workspace{
+    grid-template-columns:minmax(0,1fr);
+    grid-template-rows:auto auto minmax(0,1fr);
+    gap:11px;
+  }
+  .admin-sidebar-toggle{
+    grid-column:1;
+    grid-row:1;
+    justify-self:start;
+    min-height:40px;
+    padding:8px 13px;
+  }
+  .admin-sidebar{
+    grid-column:1;
+    grid-row:2;
+    position:static;
+    top:auto;
+    z-index:auto;
+    max-height:none;
+    padding:13px;
+    border-radius:12px;
+    overflow:visible;
+  }
+  .admin-sidebar-heading{
+    display:block;
+    padding:2px 5px 10px;
+    font-size:11px;
+  }
+  .admin-section-nav{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:6px;
+    overflow:visible;
+    padding:0;
+  }
+  .admin-section-nav button{
+    width:100%;
+    min-width:0;
+    padding:10px 9px;
+    white-space:normal;
+    text-align:left;
+    line-height:1.4;
+  }
+  .admin-sidebar-role-card{
+    margin-top:12px;
+    padding:10px 12px;
+  }
+  .admin-main-content{
+    grid-column:1;
+    grid-row:3;
+    min-height:0;
+  }
+  .admin-main-content>section{scroll-margin-top:24px}
+}
+
+/* Align the journey navigation, all three stages, and the account removal
+   notice to the exact same inner card width. */
+#appStage>.journey-steps,
+#appStage>.section#join,
+#appStage>.section#groups,
+#appStage>#accountBottom{
+  box-sizing:border-box;
+  width:min(100%,1156px);
+  max-width:1156px;
+  margin-left:auto;
+  margin-right:auto;
+  padding-left:28px;
+  padding-right:28px;
+}
+#appStage>#accountBottom{
+  padding-top:0;
+  padding-bottom:0;
+}
+@media(max-width:760px){
+  #appStage>.journey-steps,
+  #appStage>.section#join,
+  #appStage>.section#groups,
+  #appStage>#accountBottom{
+    width:100%;
+    max-width:1156px;
+    padding-left:16px;
+    padding-right:16px;
+  }
+}
