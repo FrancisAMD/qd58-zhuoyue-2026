@@ -1,13 +1,35 @@
-.backup-list{display:grid;gap:12px;margin-top:14px}
-.backup-card{border:1px solid var(--line,rgba(80,100,90,.2));border-radius:16px;padding:14px;background:var(--panel,rgba(255,255,255,.5));display:grid;gap:11px}
-.backup-card-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
-.backup-card-heading>div{display:grid;gap:4px;min-width:0}
-.backup-card-heading small,.backup-card-meta,.backup-card-verification{font-size:.86rem;color:var(--muted,#68756d)}
-.backup-state-success,.backup-state-failed,.backup-state-running{font-size:.78rem;font-weight:650;padding:5px 9px;border-radius:99px;white-space:nowrap}
-.backup-state-success{color:#176b49;background:rgba(34,160,103,.12)}
-.backup-state-failed{color:#a12e2e;background:rgba(220,70,70,.12)}
-.backup-state-running{color:#8c6411;background:rgba(214,160,45,.15)}
-.backup-card-meta{display:flex;flex-wrap:wrap;gap:7px 18px}
-.backup-card-actions{display:flex;flex-wrap:wrap;gap:8px}
-.backup-card-actions button{font-size:.86rem}
-@media(max-width:640px){.backup-card{padding:12px}.backup-card-heading{align-items:flex-start}.backup-card-actions button{flex:1 1 auto}}
+.backup-list{display:grid;gap:14px;margin-top:16px}
+.backup-card{
+  display:grid;
+  gap:12px;
+  padding:16px 18px;
+  color:var(--ink);
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:14px;
+  box-shadow:0 8px 24px rgba(24,44,32,.07);
+}
+.backup-card-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.backup-card-heading>div{display:grid;gap:5px;min-width:0}
+.backup-card-heading b{font-size:15px;line-height:1.5;color:var(--ink);overflow-wrap:anywhere}
+.backup-card-heading small{display:block;color:var(--muted);font-size:12px}
+.backup-card-meta{display:flex;flex-wrap:wrap;gap:7px 22px;color:var(--muted);font-size:13px}
+.backup-card-verification{color:var(--muted);font-size:12px;line-height:1.6}
+.backup-state-success,.backup-state-failed,.backup-state-running{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;padding:5px 10px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
+.backup-state-success{color:#176b49;background:#dff2e7}
+.backup-state-failed{color:#a12e2e;background:#fae5e3}
+.backup-state-running{color:#8c6411;background:#f8efcf}
+.backup-card-actions{display:flex;align-items:center;flex-wrap:wrap;gap:9px}
+.backup-card-actions button{min-height:40px;padding:10px 14px;font-size:13px}
+.backup-card-actions .ghost{background:var(--mint);color:var(--green)}
+.backup-card-actions .admin-delete-button{background:#f6e5e2;color:#984a42;border:1px solid #e9c9c3;border-radius:7px;padding:10px 14px}
+.backup-card-actions button:disabled{opacity:.55;cursor:not-allowed}
+:root[data-theme="dark"] body .backup-card{background:#27372f;border-color:#405248;box-shadow:0 8px 24px rgba(0,0,0,.12)}
+:root[data-theme="dark"] body .backup-card-actions .ghost{background:#dce9df;color:#31513f}
+:root[data-theme="dark"] body .backup-card-actions .admin-delete-button{background:#4a302e;color:#f2c8c2;border-color:#76514c}
+@media(max-width:640px){
+  .backup-card{padding:14px}
+  .backup-card-heading{align-items:flex-start}
+  .backup-card-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .backup-card-actions button{width:100%;padding:10px}
+}
