@@ -56,7 +56,7 @@ for font_name, font_path in font_files.items():
 for page_name, page_text in (("index.html", html_text), ("admin.html", admin_text), ("privacy.html", privacy_text)):
     if 'typography.css?v=20261128-local-fonts-v1' not in page_text:
         parser.errors.append(f"{page_name} must load the current local-font typography stylesheet.")
-    if 'style.css?v=20261128-hero-intro-alignment-v1' not in page_text:
+    if 'style.css?v=20261128-faq-neutral-surfaces-v1' not in page_text:
         parser.errors.append(f"{page_name} must load the current local-font base stylesheet.")
 if "fonts.googleapis.com" in style_text or "fonts.googleapis.com" in typography_text:
     parser.errors.append("Google Fonts must not be requested; all Chinese fonts must be self-hosted.")
@@ -89,8 +89,8 @@ if "<header" in html_text:
     parser.errors.append("The old global header must remain removed from the member UI.")
 if html_text.find('id="accountBottom"') < html_text.find('id="groups"'):
     parser.errors.append("Account actions and account deletion must be placed after the directory page.")
-if ".home-faq-answer{" not in style_text or "background:var(--paper)" not in style_text:
-    parser.errors.append("Homepage FAQ answers must use the paper card surface.")
+if ".home-faq-card{" not in style_text or "background:var(--field-bg)" not in style_text or "border:1px solid var(--field-border)" not in style_text:
+    parser.errors.append("Homepage FAQ cards must use the neutral module surface.")
 if ".art-logo{" not in style_text or ".dialog .auth-brand{" not in style_text:
     parser.errors.append("Homepage logo and login brand styles are missing.")
 if parser.errors:
