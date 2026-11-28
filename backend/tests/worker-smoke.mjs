@@ -19,7 +19,7 @@ const configuredHealth=await worker.fetch(new Request("https://api.58er.eon21.sp
   ALIBABA_ACCESS_KEY_SECRET:"fake-secret",
   ALIBABA_SIGN_NAME:"fake-sign",
   ALIBABA_TEMPLATE_CODE:"fake-template",
-  GITHUB_BACKUP_DISPATCH_TOKEN:"fake-github-token"
+  GITHUB_BACKUP_DISPATCH_TOKEN:"fake-github-dispatch-token"
 });
 const configuredReadiness=(await configuredHealth.json()).readiness;
 if(configuredReadiness.rateLimitConfigured!==true||configuredReadiness.turnstileConfigured!==true||configuredReadiness.smsCredentialsConfigured!==true||configuredReadiness.smsTemplateConfigured!==true||configuredReadiness.backupDispatchConfigured!==true) throw new Error("health readiness must recognize complete test configuration");
