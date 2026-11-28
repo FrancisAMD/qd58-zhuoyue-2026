@@ -111,6 +111,10 @@ try{
   assert.equal(manualPayload.inputs.requested_by,"owner-1");
 
   assert.equal(githubDispatchCalls.at(-1).options.headers["user-agent"],"zhuoyue-2026-backup-dispatch");
+  githubDispatchStatus=200;
+  const successWithDetails=await worker.fetch(request("/api/admin/backups","POST",{}),env);
+  assert.equal(successWithDetails.status,202,"HTTP 200 is a valid dispatch success response");
+  githubDispatchStatus=204;
   githubDispatchStatus=401;
   const invalidToken=await worker.fetch(request("/api/admin/backups","POST",{}),env);
   assert.equal(invalidToken.status,503);
