@@ -56,7 +56,7 @@ for font_name, font_path in font_files.items():
 for page_name, page_text in (("index.html", html_text), ("admin.html", admin_text), ("privacy.html", privacy_text)):
     if 'typography.css?v=20261128-local-fonts-v1' not in page_text:
         parser.errors.append(f"{page_name} must load the current local-font typography stylesheet.")
-    if 'style.css?v=20261128-faq-inline-content-v1' not in page_text:
+    if 'style.css?v=20261128-custom-consent-checkbox-v1' not in page_text:
         parser.errors.append(f"{page_name} must load the current local-font base stylesheet.")
 if "fonts.googleapis.com" in style_text or "fonts.googleapis.com" in typography_text:
     parser.errors.append("Google Fonts must not be requested; all Chinese fonts must be self-hosted.")
@@ -64,6 +64,13 @@ if 'lxgw-wenkai-lite-regular.woff2' not in typography_text:
     parser.errors.append("LXGW WenKai Lite must be declared as a local web font.")
 if 'source-han-sans-cn-variable.woff2' not in typography_text:
     parser.errors.append("Source Han Sans CN must be declared as a local web font.")
+
+checkbox_count = html_text.count('type="checkbox"')
+if checkbox_count != 2 or 'id="consent" required' not in html_text or 'id="accountConsent" required' not in html_text:
+    parser.errors.append("The profile and registration privacy consent checkboxes must remain present and required.")
+if '.check>input[type="checkbox"]{' not in style_text or 'appearance:none;' not in style_text or 'width:24px!important;' not in style_text or '.check>input[type="checkbox"]:checked{' not in style_text:
+    parser.errors.append("The larger theme-aware custom consent checkbox style is missing.")
+
 
 for marker in [
     'class="art-logo"',
