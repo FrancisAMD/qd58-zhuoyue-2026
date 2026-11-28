@@ -1,5 +1,7 @@
 import worker from "./worker.js";
 
+export { D1BackupWorkflow } from "./d1-backup-workflow.js";
+
 const SESSION_COOKIE = "__Host-qd58_session";
 const encoder = new TextEncoder();
 
