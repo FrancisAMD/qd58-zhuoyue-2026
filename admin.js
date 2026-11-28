@@ -52,6 +52,9 @@ const ERROR_MESSAGES={
   backup_last_successful_protected:"不能删除最后一份成功备份。",
   backup_running:"备份任务正在进行，不能删除。",
   backup_management_failed:"备份管理操作失败，请检查 Worker 日志。",
+  backup_export_already_running:"当前已有一次 D1 导出正在运行，请稍后重试。",
+  backup_export_lock_busy:"备份任务锁正在被其他任务获取，请稍后重试。",
+  backup_export_lock_lost:"备份导出锁已丢失，当前任务已安全终止。",
   group_qr_region_invalid:"所选地区不正确，请刷新页面后重试。",
   group_qr_file_too_large:"二维码图片不能超过 5 MB。",
   group_qr_file_empty:"请先选择二维码图片。",
@@ -280,12 +283,14 @@ async function loadBackups(){
     const actions=item.status==="completed"?
       '<button type="button" class="ghost" data-backup-action="verify" data-backup-id="'+safe(item.backupId)+'">验证完整性</button>'+
       '<button type="button" class="ghost" data-backup-action="download" data-backup-id="'+safe(item.backupId)+'">下载加密文件</button>'+
-      '<button type="button" class="ghost" data-backup-action="manifest" data-backup-id="'+safe(item.backupId)+'">下载清单</button>':
-      '';
+      '<button type="button" class="ghost" data-backup-action="manifest" data-backup-id="'+safe(item.backupId)+'">下载清单</button>':'';
+    const deleteAction=item.status!=="running"?
+      '<button type="button" class="admin-delete-button" data-backup-action="delete" data-backup-id="'+safe(item.backupId)+'">删除</button>':'';
+
     return '<article class="backup-card"><div class="backup-card-heading"><div><b>'+safe(item.createdAt)+'</b><small>'+safe(item.source==="scheduled"?"每日自动备份":item.source==="manual"?"手动备份":"系统任务")+'</small></div><span class="'+statusClass+'">'+backupStatusLabel(item.status)+'</span></div>'+
       '<div class="backup-card-meta"><span>明文大小：'+formatBackupBytes(item.plaintextBytes)+'</span><span>加密大小：'+formatBackupBytes(item.ciphertextBytes)+'</span><span>加密分块：'+safe(item.partCount)+'</span></div>'+
       '<div class="backup-card-verification">'+safe(verification)+(item.verifiedAt?" · "+safe(item.verifiedAt):"")+(item.errorCode?" · "+safe(item.errorCode):"")+'</div>'+
-      '<div class="backup-card-actions">'+actions+'<button type="button" class="admin-delete-button" data-backup-action="delete" data-backup-id="'+safe(item.backupId)+'">删除</button></div></article>';
+      '<div class="backup-card-actions">'+actions+deleteAction+'</div></article>';
   }).join("")||'<div class="muted">暂时没有备份记录。完成首次配置后，可以手动触发一次备份进行验证。</div>';
   if(data.unreadable)$("backupAdminMsg").textContent="有 "+data.unreadable+" 条备份清单无法通过签名验证，已从列表隐藏；请勿删除或覆盖相关 R2 对象。";
   else $("backupAdminMsg").textContent=data.truncated?"备份列表只显示最近 100 条记录。":"";
