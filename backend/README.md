@@ -170,7 +170,7 @@ npx wrangler deploy --config backend/wrangler.toml
 
 ## D1 加密备份
 
-- `D1_BACKUP_WORKFLOW` 每天 18:00 UTC（日本时间次日 03:00）启动，使用 D1 Export API 导出 D1-compatible SQL，并轮询导出状态。
+- `D1_BACKUP_WORKFLOW` 每天 18:05 UTC（日本时间次日 03:05）启动，使用 D1 Export API 导出 D1-compatible SQL，并轮询导出状态。
 - 导出明文只在 Workflow 内存中按 8 MiB 分块处理；每块使用独立随机 nonce 和 AES-256-GCM，关联数据绑定备份 ID、分块序号和明文长度。每块另存 SHA-256；清单由 HKDF 派生的 HMAC 密钥签名。
 - 每份备份使用随机数据密钥；数据密钥由版本化 Worker Secret（例如 `BACKUP_MASTER_KEY_V1`）派生的 AES-GCM 包装密钥加密。主密钥不写入 D1、R2 或 GitHub。
 - 专用 Bucket：`qd58-d1-backups`（`D1_BACKUPS`），必须保持私有且不绑定公开域名。保留期默认 30 天，仅在新备份成功后清理过期备份。
