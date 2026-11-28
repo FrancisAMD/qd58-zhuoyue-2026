@@ -72,6 +72,14 @@ const GROUP_QR={async head(key){
 async function get(path){
   return worker.fetch(new Request(ORIGIN+path,{headers:{origin:ORIGIN,cookie:COOKIE}}),{APP_ORIGIN:ORIGIN,DB,GROUP_QR});
 }
+const defaultRoster=await get("/api/admin/people");
+assert.equal(defaultRoster.status,200);
+const defaultRosterBody=await defaultRoster.json();
+assert.equal(defaultRosterBody.pagination.pageSize,10,"roster API defaults to ten records per page");
+assert.equal(defaultRosterBody.pagination.totalPages,1);
+const defaultRosterQuery=queries.filter(item=>item.kind==="all"&&item.sql.startsWith("SELECT u.id,u.name,u.high_school")).at(-1);
+assert.deepEqual(defaultRosterQuery.bindings.slice(-2),[10,0],"default roster query must fetch ten rows from the first page");
+
 const roster=await get("/api/admin/people?page=1&pageSize=50");
 assert.equal(roster.status,200);
 const rosterBody=await roster.json();
