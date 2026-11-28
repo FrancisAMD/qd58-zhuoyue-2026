@@ -55,5 +55,7 @@ crons = ["*/15 * * * *"]
 name = "qd58-d1-backup"
 binding = "D1_BACKUP_WORKFLOW"
 class_name = "D1BackupWorkflow"
+# Keep exports serialized; D1 export temporarily makes the database unavailable.
+concurrency.limit = 1
 # 18:00 UTC = 03:00 the following day in Japan (Asia/Tokyo).
 schedules = ["0 18 * * *"]
