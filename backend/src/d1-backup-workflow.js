@@ -10,9 +10,11 @@ const API_ROOT = "https://api.cloudflare.com/client/v4";
 const CHUNK_BYTES = 8 * 1024 * 1024;
 const MAX_PARTS = 6000;
 
-function randomId() {
-  return [...crypto.getRandomValues(new Uint8Array(16))]
-    .map(value => value.toString(16).padStart(2, "0")).join("");
+const encoder = new TextEncoder();
+async function workflowBackupId(instanceId) {
+  if (typeof instanceId !== "string" || !instanceId) throw new Error("backup_workflow_instance_invalid");
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode("qd58-d1-backup:" + instanceId)));
+  return [...digest.subarray(0,16)].map(value => value.toString(16).padStart(2,"0")).join("");
 }
 function safeErrorCode(error) {
   const value = String(error?.message || "");
@@ -281,7 +283,7 @@ export class D1BackupWorkflow extends WorkflowEntrypoint {
     const payload = event.payload || {};
     const action = payload.action === "verify" ? "verify" : "backup";
     const backupId = typeof payload.backupId === "string" && /^[a-f0-9]{32}$/.test(payload.backupId)
-      ? payload.backupId : randomId();
+      ? payload.backupId : await workflowBackupId(event.instanceId);
 
     if (!this.env.D1_BACKUPS || !this.env.CLOUDFLARE_ACCOUNT_ID ||
         !this.env.CLOUDFLARE_API_TOKEN || !this.env.D1_DATABASE_ID) {
@@ -294,7 +296,14 @@ export class D1BackupWorkflow extends WorkflowEntrypoint {
           return await verifyStoredBackup(this.env, backupId);
         });
       } catch (error) {
-        await failManifest(this.env, backupId, error, "verify");
+        try {
+          await step.do("record-verification-failure", async () => {
+            await failManifest(this.env, backupId, error, "verify");
+            return { recorded: true };
+          });
+        } catch (recordError) {
+          console.error("Backup verification failure could not be recorded",safeErrorCode(recordError));
+        }
         throw error;
       }
     }
@@ -308,7 +317,9 @@ export class D1BackupWorkflow extends WorkflowEntrypoint {
       source: event.schedule ? "scheduled" : (payload.source === "manual" ? "manual" : "system"),
       requestedBy: typeof payload.requestedBy === "string" ? payload.requestedBy : null,
       workflowInstanceId: event.instanceId,
-      createdAt: event.schedule ? new Date(event.schedule.scheduledTime).toISOString() : new Date().toISOString(),
+      createdAt: event.schedule
+        ? new Date(event.schedule.scheduledTime).toISOString()
+        : (typeof payload.requestedAt === "string" ? payload.requestedAt : new Date().toISOString()),
       keyVersion,
       databaseName: String(this.env.D1_DATABASE_NAME || "qd58-zhuoyue-db"),
       objectKey: backupObjectKey(backupId),
@@ -354,7 +365,15 @@ export class D1BackupWorkflow extends WorkflowEntrypoint {
       await step.do("encrypt-and-store-d1-export", { timeout: "30 minutes", retries: { limit: 1, delay: "15 seconds", backoff: "constant" } }, async () => {
         return await encryptAndUpload(this.env, manifest, exportState.value.signedUrl);
       });
-      const completed = await readManifest(this.env, backupId);
+      const completed = await step.do("read-completed-backup-summary", async () => {
+        const stored = await readManifest(this.env, backupId);
+        return {
+          status:stored.status,
+          plaintextBytes:Number(stored.plaintextBytes)||0,
+          ciphertextBytes:Number(stored.ciphertextBytes)||0,
+          partCount:Number(stored.partCount)||0
+        };
+      });
       const retention = await step.do("prune-expired-backups", async () => {
         try { return { ok: true, ...(await pruneExpiredBackups(this.env)) }; }
         catch (error) {
@@ -371,7 +390,14 @@ export class D1BackupWorkflow extends WorkflowEntrypoint {
         retentionWarning: retention.ok ? null : retention.errorCode
       };
     } catch (error) {
-      await failManifest(this.env, backupId, error, "backup");
+      try {
+        await step.do("record-backup-failure", async () => {
+          await failManifest(this.env, backupId, error, "backup");
+          return { recorded: true };
+        });
+      } catch (recordError) {
+        console.error("Backup failure could not be recorded",safeErrorCode(recordError));
+      }
       throw error;
     }
   }
