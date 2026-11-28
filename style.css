@@ -1690,8 +1690,7 @@ body select option{
 @media(max-width:760px){
   #peoplePanel .admin-roster-grid{gap:12px;margin-top:13px}
   .admin-person-card{padding:15px;border-radius:11px}
-  .admin-person-identity h4{font-size:19px}
-  .admin-person-grade{font-size:12px;padding:6px 9px}
+
   .admin-person-facts{gap:8px}
   .admin-person-facts>div{min-height:56px;padding:9px}
   .admin-person-card .admin-profile-details{grid-template-columns:repeat(2,minmax(0,1fr))}
