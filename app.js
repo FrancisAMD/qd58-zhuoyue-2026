@@ -1,4 +1,20 @@
 const API="https://api.58er.eon21.space/api",SITEKEY="0x4AAAAAAF8tZfD0j4LHU8uN",$=id=>document.getElementById(id);let widgets={},tokens={},consumedTokens={},view="members",directory=null,categoryLocked=false;
+const INITIAL_BOOT_MINIMUM_MS=5000;
+let initialBootPending=true;
+const bootWelcomeDelay=new Promise(resolve=>setTimeout(()=>{
+  $("bootMessage").hidden=true;
+  $("bootWelcome").hidden=false;
+  resolve();
+},1400));
+const bootMinimumDelay=new Promise(resolve=>setTimeout(resolve,INITIAL_BOOT_MINIMUM_MS));
+async function finishInitialBoot(action){
+  if(initialBootPending){
+    await bootWelcomeDelay;
+    await bootMinimumDelay;
+    initialBootPending=false;
+  }
+  action();
+}
 const phoneOK=p=>/^1[3-9]\d{9}$/.test(p);
 async function call(path,data,options={}){
   const timeoutMs=Number(options.timeoutMs)||0;
@@ -364,7 +380,7 @@ function showAppStage(profile={}){
     showRegistrationStep("university");
   }
 }
-async function load(){
+async function load({initial=false}={}){
   try{
     const d=await call("/profile",undefined,{timeoutMs:12000}),p=d.profile||{};
     await loadProfileReferenceData();
@@ -383,7 +399,9 @@ async function load(){
       $("universityCategoryValue").value="overseas";$("universityCategoryField").value="overseas";
       $("selectedUniversityName").textContent=p.overseasUniversityName||p.university||"审核中";
       $("universitySelectionMsg").textContent="资料已提交，等待组织者审核。";
-      showAppStage(p);return;
+      if(initial)await finishInitialBoot(()=>showAppStage(p));
+      else showAppStage(p);
+      return;
     }
     if(p.profileUniversityId){
       categoryLocked=false;
@@ -428,12 +446,25 @@ async function load(){
       $("universityBack").hidden=false;
       $("catalogSearchWrap").hidden=false;$("overseasUniversityWrap").hidden=true;
     }
-    showAppStage(p);
+    if(initial)await finishInitialBoot(()=>showAppStage(p));
+    else showAppStage(p);
   }catch(error){
-    if(error.message==="unauthorized"){showAuthStage();return;}
-    console.warn(error);document.body.classList.remove("session-checking");
-    $("bootMessage").textContent=error.message==="request_timeout"?"服务器在 12 秒内没有响应，请检查 API 服务或网络后重试。":"暂时无法确认登录状态或加载高校数据，请检查网络后重试。";
-    $("retrySession").hidden=false;
+    if(error.message==="unauthorized"){
+      if(initial)await finishInitialBoot(showAuthStage);
+      else showAuthStage();
+      return;
+    }
+    console.warn(error);
+    const showError=()=>{
+      document.body.classList.remove("session-checking");
+      $("bootError").textContent=error.message==="request_timeout"
+        ?"服务器在 12 秒内没有响应，请检查 API 服务或网络后重试。"
+        :"暂时无法确认登录状态或加载高校数据，请检查网络后重试。";
+      $("bootError").hidden=false;
+      $("retrySession").hidden=false;
+    };
+    if(initial)await finishInitialBoot(showError);
+    else showError();
   }
 }
 function renderDonationList(items){
@@ -719,4 +750,12 @@ $("profile").onsubmit=async event=>{
     msg("profileMsg",errors[error.message]||"保存失败，请检查资料后重试",true);
   }
 };
-document.querySelectorAll("[data-toggle-password]").forEach(b=>b.onclick=()=>{const input=$(b.dataset.togglePassword);const visible=input.type==="password";input.type=visible?"text":"password";b.textContent=visible?"隐藏":"显示"});document.querySelectorAll("[data-view]").forEach(x=>x.onclick=()=>{document.querySelectorAll("[data-view]").forEach(b=>b.classList.toggle("active",b===x));view=x.dataset.view;render()});$("search").oninput=render;if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",load,{once:true});else load();
+document.querySelectorAll("[data-toggle-password]").forEach(b=>b.onclick=()=>{const input=$(b.dataset.togglePassword);const visible=input.type==="password";input.type=visible?"text":"password";b.textContent=visible?"隐藏":"显示"});document.querySelectorAll("[data-view]").forEach(x=>x.onclick=()=>{document.querySelectorAll("[data-view]").forEach(b=>b.classList.toggle("active",b===x));view=x.dataset.view;render()});$("search").oninput=render;$("retrySession").onclick=()=>{
+  $("bootError").hidden=true;
+  $("retrySession").hidden=true;
+  $("bootWelcome").hidden=true;
+  $("bootMessage").hidden=false;
+  $("bootMessage").textContent="正在重新确认登录状态…";
+  load().catch(error=>console.warn("Session retry failed",error?.message||"unknown"));
+};
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>load({initial:true}),{once:true});else load({initial:true});
