@@ -201,7 +201,7 @@ for(const code of ["project_985","project_211","double_first_class"]) {
 assert.ok(js.includes("team.catalogProjectTagsJson"),"team cards must also read normalized university tags from the API");
 
 assert.match(html,/data-nav-target="teamsPanel" data-nav-permission="overview"/,"ordinary admins can access teams through the overview permission");
-assert.match(html,/admin\.js\?v=20261128-roster-name-direct-child-v2/,"admin script cache must be versioned with the sidebar account layout");
+assert.match(html,/admin\.js\?v=20261128-team-tier-tag-codes-v1/,"admin script cache must be refreshed for the imported university tier mapping");
 assert.match(js,/async function downloadRosterExport\(format\)/,"CSV and XLSX should share the blob download path");
 assert.match(js,/credentials:"include"/,"roster exports must include the admin session cookie");
 assert.match(js,/mode:"cors"/,"roster exports must use CORS fetch instead of a top-level cross-origin navigation");
