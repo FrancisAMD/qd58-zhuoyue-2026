@@ -2205,3 +2205,55 @@ body.modal-scroll-locked{
   overscroll-behavior:contain;
   -webkit-overflow-scrolling:touch;
 }
+
+
+/* Refined scrollbars: subtle on the page, slimmer inside dialogs. */
+:root{
+  --scrollbar-thumb:rgba(86,111,95,.30);
+  --scrollbar-thumb-hover:rgba(65,109,88,.52);
+  scrollbar-width:thin;
+  scrollbar-color:var(--scrollbar-thumb) transparent;
+}
+:root[data-theme="dark"]{
+  --scrollbar-thumb:rgba(176,197,181,.26);
+  --scrollbar-thumb-hover:rgba(176,197,181,.44);
+}
+*{
+  scrollbar-width:thin;
+  scrollbar-color:var(--scrollbar-thumb) transparent;
+}
+*::-webkit-scrollbar{
+  width:8px;
+  height:8px;
+}
+*::-webkit-scrollbar-track{
+  background:transparent;
+}
+*::-webkit-scrollbar-thumb{
+  background-color:var(--scrollbar-thumb);
+  border:2px solid transparent;
+  border-radius:999px;
+  background-clip:content-box;
+}
+*::-webkit-scrollbar-thumb:hover{
+  background-color:var(--scrollbar-thumb-hover);
+}
+*::-webkit-scrollbar-corner{
+  background:transparent;
+}
+/* Dialog scrollbars should be especially quiet and compact. */
+#modal .dialog{
+  scrollbar-width:thin;
+  scrollbar-color:var(--scrollbar-thumb) transparent;
+}
+#modal .dialog::-webkit-scrollbar{
+  width:7px;
+  height:7px;
+}
+#modal .dialog::-webkit-scrollbar-track{
+  margin-block:14px;
+  background:transparent;
+}
+#modal .dialog::-webkit-scrollbar-thumb{
+  border-width:1.5px;
+}
