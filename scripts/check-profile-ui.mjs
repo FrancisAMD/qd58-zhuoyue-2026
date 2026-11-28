@@ -16,6 +16,13 @@ assert.match(css,/resize:none!important/,"greeting textarea must not be manually
 assert.match(css,/#profile textarea\[name="greeting"\][\s\S]*?max-height:132px/,"greeting textarea must have a fixed height");
 assert.match(css,/padding:0!important/,"step number badges must not inherit the legacy pill padding");
 assert.match(css,/\.profile-stage-panel[\s\S]*?margin-top:18px/,"profile stage cards must have visual separation");
+assert.match(html, /<form id="profile" class="profile-form-shell" hidden>/, "profile form must be a structural wrapper, not an outer panel");
+assert.doesNotMatch(html, /<form id="profile" class="panel"/, "profile journey must not add a redundant panel around each step");
+assert.match(html, /<section id="registrationUniversityPanel" class="profile-stage-panel">/, "university selection must remain its own main card");
+assert.match(html, /<section id="registrationDetailsPanel" class="profile-stage-panel" hidden>/, "profile details must remain their own main card");
+assert.match(css, /#profile\\.profile-form-shell\\{[\\s\\S]*?background:transparent;[\\s\\S]*?box-shadow:none;/, "profile form shell must not draw a nested outer frame");
+assert.match(css, /#profile\\.profile-form-shell>\\.profile-stage-panel\\{[\\s\\S]*?background:var\\(--paper\\)/, "each journey step should render as an independent primary card");
+assert.match(css, /--field-border:#46584b/, "dark inner tiles should use matching muted green-grey borders");
 assert.match(css,/@media\(min-width:761px\)[\s\S]*?#join>#profile\s*\{[^}]*width:100%[^}]*max-width:none/,"desktop registration form must fill the section width and align with the journey and account bars");
 assert.match(html,/id="registerFields" class="register-fields"(?! disabled)/,"registration inputs must remain usable");
 assert.match(html,/id="regCreate"(?! disabled)/,"registration submit must be available after the SMS code is entered");
@@ -30,7 +37,7 @@ assert.doesNotMatch(js,/check-phone/,"frontend must not call a phone-enumeration
 assert.doesNotMatch(html,/auth-required-panel|MEMBERS ONLY · FOR 58ERS/,"the login/register helper banner must be removed so the homepage FAQ is prominent");
 assert.match(html,/id="homeFaq"/,"the homepage FAQ must remain directly after the hero");
 assert.match(css,/--field-bg:#edf0ed/,"light mode must use a neutral grey fill for second-level surfaces");
-assert.match(css,/--field-bg:#303a35/,"dark mode must use a neutral grey fill for second-level surfaces");
+assert.match(css,/--field-bg:#29382f/,"dark mode must use a neutral grey fill for second-level surfaces");
 assert.match(css,/body input:not\(\[type="checkbox"\]\)[\s\S]*?background:var\(--field-bg\)!important/,"editable fields must use the shared grey surface token");
 assert.match(css,/#results\.cards>\.classmate-card\.panel\{[\s\S]*?background:var\(--field-bg\)!important/,"classmate tiles must use grey surfaces inside the green directory panel");
 assert.match(css,/#teamSummary>\.directory-team-grid>div\{[\s\S]*?background:var\(--field-bg\)!important/,"team summary tiles must use grey surfaces");
