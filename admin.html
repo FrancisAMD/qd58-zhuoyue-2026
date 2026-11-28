@@ -60,70 +60,24 @@
       <aside class="admin-sidebar" aria-label="后台功能导航">
         <div class="admin-sidebar-heading">功能导航</div>
         <nav id="adminSectionNav" class="admin-section-nav">
-          <button type="button" data-admin-nav data-nav-target="overviewPanel" data-nav-permission="overview">数据总览</button>
-          <button type="button" data-admin-nav data-nav-target="teamsPanel" data-nav-permission="overview">高校团队</button>
-          <button type="button" data-admin-nav data-nav-target="universityReviewPanel" data-nav-permission="universities:review">海外高校审核</button>
-          <button type="button" data-admin-nav data-nav-target="groupChatQrPanel" data-nav-permission="group-chat:manage">省份群聊二维码</button>
-          <button type="button" data-admin-nav data-nav-target="peoplePanel" data-nav-permission="people:read">报名名单与用户资料</button>
-          <button type="button" data-admin-nav data-nav-target="donationManagementPanel" data-nav-permission="donations:manage">赞助名单管理</button>
-          <button type="button" data-admin-nav data-nav-target="auditPanel" data-nav-permission="audit:read">管理员操作审计</button>
-          <button type="button" data-admin-nav data-nav-target="backupPanel" data-nav-permission="backups:manage">数据库备份</button>
-          <button type="button" data-admin-nav data-nav-target="managePanel" data-nav-permission="admins:manage">管理员账号与角色</button>
-        </nav>
+  <button type="button" data-admin-nav data-nav-target="overviewPanel" data-nav-permission="overview">数据总览</button>
+  <button type="button" data-admin-nav data-nav-target="peoplePanel" data-nav-permission="people:read">报名名单与用户资料</button>
+  <button type="button" data-admin-nav data-nav-target="teamsPanel" data-nav-permission="overview">高校团队</button>
+  <button type="button" data-admin-nav data-nav-target="universityReviewPanel" data-nav-permission="universities:review">海外高校审核</button>
+  <button type="button" data-admin-nav data-nav-target="groupChatQrPanel" data-nav-permission="group-chat:manage">省份群聊二维码</button>
+  <button type="button" data-admin-nav data-nav-target="donationManagementPanel" data-nav-permission="donations:manage">赞助名单管理</button>
+  <button type="button" data-admin-nav data-nav-target="backupPanel" data-nav-permission="backups:manage">数据库备份</button>
+  <button type="button" data-admin-nav data-nav-target="auditPanel" data-nav-permission="audit:read">管理员操作审计</button>
+  <button type="button" data-admin-nav data-nav-target="managePanel" data-nav-permission="admins:manage">管理员账号与角色</button>
+</nav>
       </aside>
       <div class="admin-main-content">
-        <section id="overviewPanel" class="admin-overview-panel">
+<section id="overviewPanel" class="admin-overview-panel admin-view-panel" data-admin-view="overviewPanel" data-view-permission="overview" hidden>
           <p id="adminPanelStatus" class="admin-panel-status" role="status" aria-live="polite"></p>
           <div class="admin-stats" id="summary"></div>
         </section>
-<section id="universityReviewPanel" class="panel" hidden>
-      <div class="admin-heading"><div><p class="eyebrow">OVERSEAS UNIVERSITY REVIEW</p><h3>海外高校审核</h3></div><button id="refreshUniversityReviews" class="ghost" type="button">刷新队列</button></div>
-      <p class="muted">海外学校由同学自行填写。审核时请核实学校名称；系统会将规范化名称相同的海外高校归并到同一支团队。批准后，该同学立即解锁同校页面。</p>
-      <div id="universityReviewRows" class="admin-review-list"></div>
-      <p id="universityReviewMsg" class="msg" role="status" aria-live="polite"></p>
-    </section>
 
-    <section id="groupChatQrPanel" class="panel" hidden>
-      <div class="admin-heading"><div><p class="eyebrow">REGIONAL GROUP CHATS</p><h3>省份群聊二维码管理</h3></div><button id="refreshGroupQr" class="ghost" type="button">刷新二维码配置</button></div>
-      <p class="muted">内地按高校校本部所在省份归组，不按学生就读的异地校区；港澳台共用一个群，海外共用一个群。上传新二维码后，原有确认记录保留，但同学需要重新确认。</p>
-      <div class="group-qr-upload-card">
-        <div class="admin-heading"><div><h4>上传 / 更新二维码</h4><small class="muted">支持 PNG、JPG、WebP，单张不超过 5 MB。</small></div></div>
-        <div class="admin-filters group-qr-upload-form">
-          <label>区域<select id="groupQrRegion"></select></label>
-          <label>二维码图片<input id="groupQrFile" type="file" accept="image/png,image/jpeg,image/webp"></label>
-          <div class="filter-actions"><button id="uploadGroupQr" class="btn" type="button">上传并保存到 R2</button></div>
-        </div>
-        <p id="groupQrUploadMsg" class="msg" role="status" aria-live="polite"></p>
-      </div>
-      <div class="group-qr-asset-block">
-        <h4>区域二维码配置</h4>
-        <div id="groupQrAssetList" class="group-qr-asset-grid"></div>
-      </div>
-    </section>
-
-    <section id="donationManagementPanel" class="panel" hidden>
-      <div class="admin-heading">
-        <div><p class="eyebrow">DONATION RECORDS</p><h3>赞助名单管理</h3></div>
-        <button id="refreshDonations" class="ghost" type="button">刷新名单</button>
-      </div>
-      <p class="muted">在这里新增、修改或删除公开展示的赞助昵称和金额。列表按“显示顺序”从小到大排列；数字相同时按录入时间排列。金额以人民币元录入，保存时精确到分。</p>
-      <form id="donationCreateForm" class="admin-filters donation-create-form">
-        <label>赞助昵称<input id="donationNewNickname" required maxlength="40" placeholder="如：五八校友"></label>
-        <label>金额（人民币元）<input id="donationNewAmount" type="number" required min="0.01" max="1000000" step="0.01" placeholder="如：50.00"></label>
-        <label>显示顺序<input id="donationNewOrder" type="number" min="-10000" max="10000" step="1" value="10"></label>
-        <div class="filter-actions"><button id="donationCreateSubmit" class="btn" type="submit">新增赞助记录</button></div>
-      </form>
-      <p id="donationAdminMsg" class="msg" role="status" aria-live="polite"></p>
-      <div id="donationAdminRows" class="donation-admin-list"></div>
-    </section>
-
-    <section id="teamsPanel" class="panel" hidden>
-      <div class="admin-heading"><div><p class="eyebrow">ACTIVE UNIVERSITY TEAMS</p><h3>当前高校团队</h3></div><button id="refreshAdminData" class="ghost" type="button">刷新名单与团队</button></div>
-      <p id="teamsMeta" class="muted">仅展示当前有成员的高校团队；空团队不会显示，但历史转让记录仍然保留。团队列表每 30 秒自动刷新，也可以手动刷新。</p>
-      <div id="teamsGrid" class="admin-team-grid"></div>
-    </section>
-
-    <section id="peoplePanel" class="panel">
+<section id="peoplePanel" class="panel admin-view-panel" data-admin-view="peoplePanel" data-view-permission="people:read" hidden>
       <div class="admin-heading">
         <div><p class="eyebrow">PEOPLE DIRECTORY</p><h3>报名名单与用户资料</h3></div>
         <div class="admin-actions">
@@ -144,16 +98,54 @@
       <div class="pagination roster-pagination"><button id="firstPage" class="ghost" type="button">首页</button><button id="prevPage" class="ghost" type="button">上一页</button><span id="pageLabel" aria-live="polite"></span><button id="nextPage" class="ghost" type="button">下一页</button><button id="lastPage" class="ghost" type="button">末页</button></div>
     </section>
 
-    
-
-    
-
-    <section id="auditPanel" class="panel" hidden>
-      <div class="admin-heading"><div><p class="eyebrow">AUDIT TRAIL</p><h3>管理员操作审计</h3><small class="muted">仅显示最近 10 条记录</small></div><button id="refreshAudit" class="ghost" type="button">刷新</button></div>
-      <div class="table-wrap"><table class="admin-table"><thead><tr><th>时间</th><th>操作者</th><th>操作</th><th>对象</th><th>记录摘要</th></tr></thead><tbody id="auditRows"></tbody></table></div>
+<section id="teamsPanel" class="panel admin-view-panel" data-admin-view="teamsPanel" data-view-permission="overview" hidden>
+      <div class="admin-heading"><div><p class="eyebrow">ACTIVE UNIVERSITY TEAMS</p><h3>当前高校团队</h3></div><button id="refreshAdminData" class="ghost" type="button">刷新名单与团队</button></div>
+      <p id="teamsMeta" class="muted">仅展示当前有成员的高校团队；空团队不会显示，但历史转让记录仍然保留。团队列表每 30 秒自动刷新，也可以手动刷新。</p>
+      <div id="teamsGrid" class="admin-team-grid"></div>
     </section>
 
-    <section id="backupPanel" class="panel" hidden>
+<section id="universityReviewPanel" class="panel admin-view-panel" data-admin-view="universityReviewPanel" data-view-permission="universities:review" hidden>
+      <div class="admin-heading"><div><p class="eyebrow">OVERSEAS UNIVERSITY REVIEW</p><h3>海外高校审核</h3></div><button id="refreshUniversityReviews" class="ghost" type="button">刷新队列</button></div>
+      <p class="muted">海外学校由同学自行填写。审核时请核实学校名称；系统会将规范化名称相同的海外高校归并到同一支团队。批准后，该同学立即解锁同校页面。</p>
+      <div id="universityReviewRows" class="admin-review-list"></div>
+      <p id="universityReviewMsg" class="msg" role="status" aria-live="polite"></p>
+    </section>
+
+<section id="groupChatQrPanel" class="panel admin-view-panel" data-admin-view="groupChatQrPanel" data-view-permission="group-chat:manage" hidden>
+      <div class="admin-heading"><div><p class="eyebrow">REGIONAL GROUP CHATS</p><h3>省份群聊二维码管理</h3></div><button id="refreshGroupQr" class="ghost" type="button">刷新二维码配置</button></div>
+      <p class="muted">内地按高校校本部所在省份归组，不按学生就读的异地校区；港澳台共用一个群，海外共用一个群。上传新二维码后，原有确认记录保留，但同学需要重新确认。</p>
+      <div class="group-qr-upload-card">
+        <div class="admin-heading"><div><h4>上传 / 更新二维码</h4><small class="muted">支持 PNG、JPG、WebP，单张不超过 5 MB。</small></div></div>
+        <div class="admin-filters group-qr-upload-form">
+          <label>区域<select id="groupQrRegion"></select></label>
+          <label>二维码图片<input id="groupQrFile" type="file" accept="image/png,image/jpeg,image/webp"></label>
+          <div class="filter-actions"><button id="uploadGroupQr" class="btn" type="button">上传并保存到 R2</button></div>
+        </div>
+        <p id="groupQrUploadMsg" class="msg" role="status" aria-live="polite"></p>
+      </div>
+      <div class="group-qr-asset-block">
+        <h4>区域二维码配置</h4>
+        <div id="groupQrAssetList" class="group-qr-asset-grid"></div>
+      </div>
+    </section>
+
+<section id="donationManagementPanel" class="panel admin-view-panel" data-admin-view="donationManagementPanel" data-view-permission="donations:manage" hidden>
+      <div class="admin-heading">
+        <div><p class="eyebrow">DONATION RECORDS</p><h3>赞助名单管理</h3></div>
+        <button id="refreshDonations" class="ghost" type="button">刷新名单</button>
+      </div>
+      <p class="muted">在这里新增、修改或删除公开展示的赞助昵称和金额。列表按“显示顺序”从小到大排列；数字相同时按录入时间排列。金额以人民币元录入，保存时精确到分。</p>
+      <form id="donationCreateForm" class="admin-filters donation-create-form">
+        <label>赞助昵称<input id="donationNewNickname" required maxlength="40" placeholder="如：五八校友"></label>
+        <label>金额（人民币元）<input id="donationNewAmount" type="number" required min="0.01" max="1000000" step="0.01" placeholder="如：50.00"></label>
+        <label>显示顺序<input id="donationNewOrder" type="number" min="-10000" max="10000" step="1" value="10"></label>
+        <div class="filter-actions"><button id="donationCreateSubmit" class="btn" type="submit">新增赞助记录</button></div>
+      </form>
+      <p id="donationAdminMsg" class="msg" role="status" aria-live="polite"></p>
+      <div id="donationAdminRows" class="donation-admin-list"></div>
+    </section>
+
+<section id="backupPanel" class="panel admin-view-panel" data-admin-view="backupPanel" data-view-permission="backups:manage" hidden>
       <div class="admin-heading">
         <div><p class="eyebrow">DATABASE BACKUPS</p><h3>数据库备份管理</h3></div>
         <div class="admin-actions">
@@ -168,7 +160,12 @@
       <p class="muted">下载的是加密文件，不是明文 SQL。完整恢复仍须在独立测试 D1 中执行，并先处理快照时间点之后的账号删除台账；当前面板不会提供覆盖生产库的一键恢复。</p>
     </section>
 
-    <section id="managePanel" class="panel" hidden>
+<section id="auditPanel" class="panel admin-view-panel" data-admin-view="auditPanel" data-view-permission="audit:read" hidden>
+      <div class="admin-heading"><div><p class="eyebrow">AUDIT TRAIL</p><h3>管理员操作审计</h3><small class="muted">仅显示最近 10 条记录</small></div><button id="refreshAudit" class="ghost" type="button">刷新</button></div>
+      <div class="table-wrap"><table class="admin-table"><thead><tr><th>时间</th><th>操作者</th><th>操作</th><th>对象</th><th>记录摘要</th></tr></thead><tbody id="auditRows"></tbody></table></div>
+    </section>
+
+<section id="managePanel" class="panel admin-view-panel" data-admin-view="managePanel" data-view-permission="admins:manage" hidden>
       <p class="eyebrow">ACCESS CONTROL</p><h3>管理员账号与角色</h3>
       <form id="createAdmin" class="admin-filters">
         <label>用户名<input id="newUsername" required minlength="3" maxlength="40"></label>
@@ -178,10 +175,11 @@
       <p class="muted">普通管理员仅可查看统计概览、审核海外高校、管理地区群聊二维码。报名名单与用户资料、管理员操作审计、赞助名单管理和管理员账号管理均仅所有者可访问。</p>
       <p id="createAdminMsg" class="msg"></p><div id="adminAccounts" class="admin-account-list"></div>
     </section>
+    
       </div>
     </div>
   </section>
 </main>
-<script src="admin.js?v=20261128-admin-sidebar-v1" defer></script>
+<script src="admin.js?v=20261128-admin-single-view-v1" defer></script>
 </body>
 </html>
