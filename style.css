@@ -1550,3 +1550,191 @@ body select option{
 @media(prefers-reduced-motion:reduce){
   .boot-logo,.boot-copy{animation:none}
 }
+
+
+/* Admin people directory: replace the wide roster table with readable profile cards. */
+#peoplePanel .admin-heading{align-items:flex-start}
+#peoplePanel .admin-roster-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  align-items:stretch;
+  gap:16px;
+  margin-top:16px;
+}
+.admin-person-card{
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+  padding:19px;
+  border:1px solid var(--line);
+  border-radius:13px;
+  background:var(--paper);
+  box-shadow:0 9px 24px rgba(25,47,32,.045);
+}
+.admin-person-card-heading{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+  margin-bottom:15px;
+}
+.admin-person-identity{min-width:0}
+.admin-person-kicker{
+  margin:0 0 5px;
+  color:var(--green);
+  font:700 10px/1.4 system-ui,"Noto Sans SC",sans-serif;
+  letter-spacing:1.5px;
+}
+.admin-person-identity h4{
+  margin:0;
+  color:var(--ink);
+  font:650 21px/1.4 "Noto Serif SC","Songti SC",serif;
+  overflow-wrap:anywhere;
+}
+.admin-person-identity>p:last-child{
+  margin:4px 0 0;
+  color:var(--muted);
+  font-size:14px;
+  line-height:1.6;
+}
+.admin-person-grade{
+  flex:0 0 auto;
+  max-width:42%;
+  padding:7px 11px;
+  border:1px solid var(--field-border);
+  border-radius:999px;
+  background:var(--field-bg);
+  color:var(--ink);
+  font-size:13px;
+  line-height:1.4;
+  overflow-wrap:anywhere;
+}
+.admin-person-university{
+  display:grid;
+  gap:5px;
+  min-width:0;
+  margin-bottom:13px;
+  padding:12px 14px;
+  border:1px solid var(--field-border);
+  border-radius:9px;
+  background:var(--field-bg);
+}
+.admin-person-university>small,
+.admin-person-facts>div>small{
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.5;
+}
+.admin-person-university>b{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:7px;
+  color:var(--ink);
+  font-size:16px;
+  line-height:1.6;
+  overflow-wrap:anywhere;
+}
+.admin-person-review-state{
+  display:inline-flex;
+  align-items:center;
+  padding:2px 7px;
+  border-radius:999px;
+  background:var(--mint);
+  color:var(--green);
+  font-size:11px;
+  font-weight:700;
+}
+.admin-person-facts{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+  margin-bottom:12px;
+}
+.admin-person-facts>div{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  justify-content:center;
+  gap:5px;
+  min-width:0;
+  min-height:60px;
+  padding:10px 12px;
+  border:1px solid var(--field-border);
+  border-radius:9px;
+  background:var(--field-bg);
+}
+.admin-person-facts>div>strong{
+  color:var(--ink);
+  font-size:14px;
+  line-height:1.55;
+  overflow-wrap:anywhere;
+}
+.admin-person-consent{font-weight:650}
+.admin-person-facts .group-chat-roster-cell{align-items:flex-start;gap:3px}
+.admin-person-facts .group-chat-roster-status{max-width:100%;white-space:normal}
+.admin-person-card .admin-profile-preview{
+  max-width:none;
+  margin:0 0 13px;
+  padding:10px 11px;
+  border:1px solid var(--field-border);
+  border-radius:9px;
+  background:var(--field-bg);
+  gap:6px;
+}
+.admin-person-card .admin-profile-preview span{
+  background:var(--paper);
+  border-color:var(--line);
+  font-size:12px;
+}
+.admin-person-card .admin-profile-preview small{
+  font-size:13px;
+  line-height:1.65;
+}
+.admin-person-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  flex-wrap:wrap;
+  gap:9px;
+  margin-top:auto;
+  padding-top:2px;
+}
+.admin-person-actions button{margin:0}
+.admin-person-card .admin-profile-details{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  margin-top:15px;
+  padding-top:15px;
+  border-top:1px solid var(--line);
+}
+.admin-person-card .admin-profile-field{
+  background:var(--field-bg);
+  border-color:var(--field-border);
+}
+.admin-person-card .admin-profile-greeting{grid-column:1/-1}
+.admin-person-details[hidden]{display:none!important}
+.admin-roster-empty{
+  grid-column:1/-1;
+  padding:28px 18px;
+  border:1px dashed var(--line);
+  border-radius:12px;
+  color:var(--muted);
+  text-align:center;
+}
+@media(max-width:1050px){
+  #peoplePanel .admin-roster-grid{grid-template-columns:minmax(0,1fr)}
+  .admin-person-card .admin-profile-details{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(max-width:760px){
+  #peoplePanel .admin-roster-grid{gap:12px;margin-top:13px}
+  .admin-person-card{padding:15px;border-radius:11px}
+  .admin-person-identity h4{font-size:19px}
+  .admin-person-grade{font-size:12px;padding:6px 9px}
+  .admin-person-facts{gap:8px}
+  .admin-person-facts>div{min-height:56px;padding:9px}
+  .admin-person-card .admin-profile-details{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:420px){
+  .admin-person-card .admin-profile-details{grid-template-columns:minmax(0,1fr)}
+  .admin-person-facts{grid-template-columns:minmax(0,1fr)}
+}
