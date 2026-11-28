@@ -930,7 +930,7 @@ header>div:last-child{display:flex;align-items:center;gap:8px}
 .admin-team-card>p{overflow-wrap:anywhere}
 #adminFooter{margin-top:30px}
 .admin-shell~.site-footer{margin-top:28px}
-.site-footer-brand{width:100%}
+#adminFooter .site-footer-brand{width:100%}
 .site-footer-title{
   display:block;
   min-width:0;
