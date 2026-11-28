@@ -340,7 +340,8 @@ function renderPersonDetails(item){
   const gender=({male:"男",female:"女",undisclosed:"不愿透露"})[item.gender]||"未填写";
   const category=({mainland:"中国内地",hmt:"港澳台",sino_foreign:"中外合作办学",overseas:"海外"})[item.universityCategory]||"未选择";
   const campus=[item.campusName,item.campusTag].filter(Boolean).join(" · ");
-  return '<tr class="admin-profile-detail-row" data-profile-detail-row="'+safe(item.id)+'" hidden><td colspan="10"><div class="admin-profile-details">'+
+  return '<div class="admin-person-details" id="person-details-'+safe(item.id)+'" data-profile-detail-row="'+safe(item.id)+'" hidden>'+
+    '<div class="admin-profile-details">'+
     profileDetailField("用户编号",item.id)+profileDetailField("性别",gender)+profileDetailField("高中学校",item.highSchool)+
     profileDetailField("当前大学",item.university||"尚未选择高校")+profileDetailField("高校类别",category)+profileDetailField("年级",item.grade)+
     profileDetailField("地区",[item.province,item.city].filter(Boolean).join(" · "))+profileDetailField("专业学科门类",item.majorDiscipline)+
@@ -351,7 +352,7 @@ function renderPersonDetails(item){
     profileDetailField("资料隐私版本",item.consentVersion)+profileDetailField("账号隐私版本",item.accountConsentVersion)+
     profileDetailField("资料更新时间",item.updatedAt)+
     '<div class="admin-profile-field admin-profile-greeting"><small>寄语</small><p>'+safe(item.greeting||"未填写")+'</p></div>'+
-    '</div></td></tr>';
+    '</div></div>';
 }
 async function loadPeople(){
   let data=await req("/admin/people?"+params());
@@ -367,12 +368,32 @@ async function loadPeople(){
   $("peopleMeta").textContent="共 "+(pagination.total||0)+" 条账号记录。每行直接显示性别、专业、招生大类和寄语摘要；点击“完整资料”查看详细信息。手机号、第二手机号、微信号和密码不会在管理员页面或导出中展示。";
   $("peopleRows").innerHTML=items.map(item=>{
     const school=item.university||"尚未选择高校";
-    const state=item.profileReviewStatus==="pending"?" · 待审核":"";
-    return '<tr><td>'+safe(item.name||"未填写")+'</td><td>'+safe(item.highSchool||"")+'</td><td>'+safe(school)+safe(state)+'</td><td>'+safe(item.grade||"")+'</td><td>'+safe(item.province||"")+'</td><td>'+groupChatStatusMarkup(item)+'</td><td>'+(item.consentGiven?"已同意":"未同意")+'</td><td>'+safe(item.createdAt||"")+'</td><td>'+renderProfilePreview(item)+'<button type="button" class="ghost admin-detail-toggle" data-profile-toggle="'+safe(item.id)+'" aria-expanded="false">完整资料</button></td><td><div class="admin-row-actions">'+
-      (has("people:delete")?'<button type="button" class="admin-delete-button" data-person-delete="'+safe(item.id)+'" data-person-name="'+safe(item.name||"该同学")+'">删除报名</button>':"")+
-      '</div></td></tr>'+
-      renderPersonDetails(item);
-  }).join("")||'<tr><td colspan="10">没有符合条件的记录</td></tr>';
+    const state=item.profileReviewStatus==="pending"?"待审核":"";
+    const province=item.province||"暂无地区";
+    const grade=item.grade||"年级未填写";
+    const name=item.name||"未填写";
+    const consent=item.consentGiven?"已同意资料使用":"未同意资料使用";
+    return '<article class="admin-person-card" data-person-card="'+safe(item.id)+'">'+
+      '<header class="admin-person-card-heading">'+
+        '<div class="admin-person-identity"><p class="admin-person-kicker">58ER · MEMBER</p><h4>'+safe(name)+'</h4><p>'+safe(item.highSchool||"高中学校未填写")+'</p></div>'+
+        '<span class="admin-person-grade">'+safe(grade)+'</span>'+
+      '</header>'+
+      '<div class="admin-person-university"><small>当前高校</small><b>'+safe(school)+
+        (state?'<span class="admin-person-review-state">'+safe(state)+'</span>':"")+'</b></div>'+
+      '<div class="admin-person-facts">'+
+        '<div><small>所在省份 / 地区</small><strong>'+safe(province)+'</strong></div>'+
+        '<div><small>入群确认</small>'+groupChatStatusMarkup(item)+'</div>'+
+        '<div><small>资料授权</small><strong class="admin-person-consent">'+safe(consent)+'</strong></div>'+
+        '<div><small>登记时间</small><strong>'+safe(item.createdAt||"未记录")+'</strong></div>'+
+      '</div>'+
+      renderProfilePreview(item)+
+      '<div class="admin-person-actions">'+
+        '<button type="button" class="ghost admin-detail-toggle" data-profile-toggle="'+safe(item.id)+'" aria-controls="person-details-'+safe(item.id)+'" aria-expanded="false">完整资料</button>'+
+        (has("people:delete")?'<button type="button" class="admin-delete-button" data-person-delete="'+safe(item.id)+'" data-person-name="'+safe(name)+'">删除报名</button>':"")+
+      '</div>'+
+      renderPersonDetails(item)+
+    '</article>';
+  }).join("")||'<div class="admin-roster-empty">没有符合条件的报名记录</div>';
   $("pageLabel").textContent="第 "+(pagination.page||page)+" / "+totalPages+" 页 · 本页 "+items.length+" 条 · 共 "+(pagination.total||0)+" 条";
   $("firstPage").disabled=page<=1;
   $("prevPage").disabled=page<=1;
@@ -665,13 +686,13 @@ $("peopleRows").addEventListener("click",async event=>{
   }
   const button=event.target.closest("[data-profile-toggle]");
   if(!button)return;
-  const id=button.dataset.profileToggle;
-  const row=Array.from($("peopleRows").querySelectorAll("[data-profile-detail-row]")).find(item=>item.dataset.profileDetailRow===id);
-  if(!row)return;
-  const expanded=row.hidden;
-  row.hidden=!expanded;
+  const card=button.closest("[data-person-card]");
+  const details=card?.querySelector("[data-profile-detail-row]");
+  if(!details)return;
+  const expanded=details.hidden;
+  details.hidden=!expanded;
   button.setAttribute("aria-expanded",String(expanded));
-  button.textContent=expanded?"收起资料":"查看资料";
+  button.textContent=expanded?"收起资料":"完整资料";
 });
 $("refreshAdminData").onclick=async()=>{
   const button=$("refreshAdminData");button.disabled=true;
