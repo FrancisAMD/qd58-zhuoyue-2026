@@ -128,7 +128,7 @@ assert.ok(css.includes("Georgia,\"Times New Roman\",serif!important"),"English w
 assert.match(html,/id="journeySteps"/,"homepage must retain the three-step navigation");
 assert.match(html,/style\.css\?v=20261128-hero-intro-alignment-v1/,"homepage must load the latest shared stylesheet");
 assert.match(html,/class="hero-mark"[\s\S]*?class="art-logo"[\s\S]*?width="390" height="390"/,"homepage hero should show one enlarged school logo in a clean right-side container");
-const heroMarkMarkup=html.match(/<div class="hero-mark">([\\s\\S]*?)<\\/div>/)?.[1]||"";
+const heroMarkMarkup=html.match(/<div class="hero-mark">([\s\S]*?)<\/div>/)?.[1]||"";
 assert.doesNotMatch(heroMarkMarkup,/class="float|<small|THE JOURNEY CONTINUES|山海有归期|燃星星之火/,"homepage hero mark must contain only the school logo, with no decorative labels or overlay copy");
 assert.match(css,/\.hero-mark\{[\s\S]*?background:transparent;[\s\S]*?box-shadow:none;/,"hero logo container must have no illustration background or shadow");
 assert.match(html,/id="join" class="section"><div class="journey-section-intro">[\s\S]*?JOIN THE COMMUNITY[\s\S]*?留下你的坐标[\s\S]*?登录后完善个人资料/,"page two heading and lead must be grouped in the shared intro block");
