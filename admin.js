@@ -220,16 +220,27 @@ async function loadOverview(){
 }
 function parseTeamJsonArray(value){
   try{
-    const parsed=JSON.parse(value||"[]");
-    return Array.isArray(parsed)?parsed.filter(item=>typeof item==="string"):[];
+    const parsed=Array.isArray(value)?value:JSON.parse(value||"[]");
+    if(!Array.isArray(parsed))return [];
+    return parsed.flatMap(item=>{
+      if(typeof item==="string")return [item.trim()].filter(Boolean);
+      if(item&&typeof item==="object"){
+        return [item.tag_code,item.code,item.id].filter(value=>typeof value==="string"&&value.trim()).map(value=>value.trim());
+      }
+      return [];
+    });
   }catch{return [];}
 }
 function teamLevelLabels(team){
-  const tags=parseTeamJsonArray(team.projectTagsJson);
+  const tags=new Set([
+    ...parseTeamJsonArray(team.projectTagsJson),
+    ...parseTeamJsonArray(team.catalogProjectTagsJson)
+  ].map(tag=>tag.toLowerCase()));
+  const hasAny=(...codes)=>codes.some(code=>tags.has(code));
   const labels=[];
-  if(tags.includes("project_985_legacy"))labels.push("985");
-  if(tags.includes("project_211_legacy"))labels.push("211");
-  if(tags.includes("double_first_class_round1")||tags.includes("double_first_class_round2"))labels.push("双一流");
+  if(hasAny("project_985_legacy","project_985","985","985工程","985工程高校"))labels.push("985");
+  if(hasAny("project_211_legacy","project_211","211","211工程","211工程高校"))labels.push("211");
+  if(hasAny("double_first_class_round1","double_first_class_round2","double_first_class","双一流","双一流建设高校"))labels.push("双一流");
   if(!labels.length)labels.push("其他 / 未标注");
   return labels;
 }
