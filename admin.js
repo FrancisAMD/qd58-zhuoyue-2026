@@ -101,9 +101,26 @@ function setActiveAdminNav(targetId){
   document.querySelectorAll("[data-admin-nav]").forEach(button=>{
     const active=button.dataset.navTarget===targetId;
     button.classList.toggle("active",active);
-    if(active)button.setAttribute("aria-current","location");
+    if(active)button.setAttribute("aria-current","page");
     else button.removeAttribute("aria-current");
+    if(active && window.matchMedia("(max-width: 760px)").matches){
+      button.scrollIntoView({behavior:"smooth",block:"nearest",inline:"nearest"});
+    }
   });
+}
+function showAdminView(targetId,{pushHistory=false,replaceHistory=false}={}){
+  const target=$(targetId);
+  if(!target||!has(target.dataset.viewPermission))return false;
+  document.querySelectorAll("[data-admin-view]").forEach(panel=>{
+    panel.hidden=panel!==target||!has(panel.dataset.viewPermission);
+  });
+  setActiveAdminNav(targetId);
+  if(pushHistory && location.hash!=="#"+targetId){
+    history.pushState({adminView:targetId},"","#"+targetId);
+  }else if(replaceHistory && location.hash!=="#"+targetId){
+    history.replaceState({adminView:targetId},"","#"+targetId);
+  }
+  return true;
 }
 function syncAdminNavigation(){
   const nav=$("adminSectionNav");
@@ -116,8 +133,11 @@ function syncAdminNavigation(){
     if(allowed&&!firstVisible)firstVisible=button.dataset.navTarget;
   }
   nav.hidden=!buttons.some(button=>!button.hidden);
-  const active=buttons.find(button=>!button.hidden&&button.dataset.navTarget===location.hash.slice(1));
-  setActiveAdminNav(active?.dataset.navTarget||firstVisible);
+  const panels=Array.from(document.querySelectorAll("[data-admin-view]"));
+  for(const panel of panels)panel.hidden=true;
+  const requested=location.hash.slice(1);
+  const selected=buttons.find(button=>!button.hidden&&button.dataset.navTarget===requested)?.dataset.navTarget||firstVisible;
+  if(selected)showAdminView(selected,{replaceHistory:true});
 }
 function setPanelFailure(target,message){
   const element=$(target);
@@ -147,15 +167,6 @@ async function enter(options={}){
   $("adminMsg").textContent="";
   $("adminIdentity").textContent=current.username;
   $("adminRole").textContent="角色："+({owner:"所有者",admin:"普通管理员"}[current.role]||current.role);
-  $("peoplePanel").hidden=!has("people:read");
-  $("teamsPanel").hidden=!has("overview");
-  $("auditPanel").hidden=!has("audit:read");
-  $("managePanel").hidden=!has("admins:manage");
-  $("universityReviewPanel").hidden=!has("universities:review");
-  $("groupChatQrPanel").hidden=!has("group-chat:manage");
-  $("donationManagementPanel").hidden=!has("donations:manage");
-  $("backupPanel").hidden=!has("backups:manage");
-  $("overviewPanel").hidden=!has("overview");
   syncAdminNavigation();
   if(!overviewRefreshTimer){
     overviewRefreshTimer=setInterval(()=>{
@@ -578,10 +589,10 @@ function closeDemo(){$("demoPanel").hidden=true;}
 $("adminSectionNav").addEventListener("click",event=>{
   const button=event.target.closest("[data-admin-nav]");
   if(!button||button.hidden)return;
-  const target=$(button.dataset.navTarget);
-  if(!target||target.hidden)return;
-  setActiveAdminNav(button.dataset.navTarget);
-  target.scrollIntoView({behavior:"smooth",block:"start"});
+  showAdminView(button.dataset.navTarget,{pushHistory:true});
+});
+window.addEventListener("popstate",()=>{
+  if(current&&$("dashboard")&&!$("dashboard").hidden)syncAdminNavigation();
 });
 $("openDemo").addEventListener("click",openDemo);
 $("dashboardDemo").addEventListener("click",openDemo);
