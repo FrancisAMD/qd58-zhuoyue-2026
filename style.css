@@ -93,21 +93,6 @@ header>div:last-child{display:flex;align-items:center;gap:8px}
 .auth-hero{padding-top:88px;padding-bottom:72px}
 .auth-actions{display:flex;align-items:center;gap:11px;margin-top:22px;flex-wrap:wrap}
 .auth-actions .btn,.auth-actions .ghost{min-width:132px;padding:13px 19px}
-.auth-required-panel{max-width:1100px;margin:-36px auto 64px;padding:22px 28px;display:grid;grid-template-columns:auto 1fr;column-gap:20px;align-items:center;background:linear-gradient(110deg,#ffffffc9,#e7efe8c9);border:1px solid #fff;border-radius:12px;box-shadow:0 12px 36px #294a340c}
-.auth-required-kicker{grid-row:1/3;align-self:center;color:var(--green);font:700 9px system-ui,sans-serif;letter-spacing:1.5px;white-space:nowrap}
-.auth-required-panel strong{font:600 16px "Noto Serif SC",serif;color:var(--ink)}
-.auth-required-panel p{margin:5px 0 0;color:var(--muted);font-size:11px;line-height:1.7}
-:root[data-theme="dark"] body .auth-required-panel{background:linear-gradient(110deg,#27382fe8,#203128e8);border-color:var(--line)}
-@media(max-width:760px){
- .auth-hero{padding-top:48px;padding-bottom:60px}
- .auth-required-panel{margin:-28px 18px 45px;padding:17px 18px;grid-template-columns:1fr;gap:7px}
- .auth-required-kicker{grid-row:auto}
- .auth-required-panel strong{font-size:14px}
- .auth-actions{gap:8px}
- .auth-actions .btn,.auth-actions .ghost{flex:1;min-width:0}
-}
-
-
 /* Three-stage member journey and classmates directory */
 .journey-steps{max-width:1100px;margin:28px auto 0;padding:0 28px;display:flex;align-items:center;gap:14px;color:var(--muted);font:700 10px system-ui,sans-serif;letter-spacing:.7px}
 .journey-steps span{padding:9px 13px;border:1px solid var(--line);border-radius:99px;background:#ffffff80}
@@ -962,4 +947,275 @@ header>div:last-child{display:flex;align-items:center;gap:8px}
 @media(max-width:460px){
   .team-filters{grid-template-columns:1fr}
   .team-filters .filter-actions{grid-column:auto}
+}
+
+
+/* Unified surface system: green primary panels, neutral grey inner surfaces. */
+:root{
+  --bg:#f3f6f2;
+  --paper:#e5eee7;
+  --field-bg:#edf0ed;
+  --field-border:#d4ddd6;
+}
+:root[data-theme="dark"] body{
+  --bg:#151f19;
+  --paper:#202f26ed;
+  --field-bg:#303a35;
+  --field-border:#526057;
+}
+
+/* All editable fields use one neutral, high-contrast surface in both themes. */
+body input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="file"]),
+body select,
+body textarea{
+  background:var(--field-bg)!important;
+  border-color:var(--field-border)!important;
+  color:var(--ink)!important;
+}
+body input::placeholder,
+body textarea::placeholder{
+  color:var(--muted);
+  opacity:1;
+}
+body select option{
+  background:var(--field-bg);
+  color:var(--ink);
+}
+:root[data-theme="dark"] body input,
+:root[data-theme="dark"] body select,
+:root[data-theme="dark"] body textarea{
+  color-scheme:dark;
+}
+
+/* Keep outer cards green; make their second-level tiles visibly grey. */
+.profile-stage-panel{
+  background:var(--paper);
+}
+.university-type-card,
+:root[data-theme="dark"] body .university-type-card{
+  background:var(--field-bg)!important;
+  border-color:var(--field-border);
+}
+.university-type-card.selected,
+:root[data-theme="dark"] body .university-type-card.selected{
+  background:var(--mint)!important;
+  border-color:var(--green);
+}
+.selected-university-type,
+.category-fields,
+.selected-university-panel,
+.university-result,
+:root[data-theme="dark"] body .selected-university-type,
+:root[data-theme="dark"] body .category-fields,
+:root[data-theme="dark"] body .selected-university-panel,
+:root[data-theme="dark"] body .university-result{
+  background:var(--field-bg)!important;
+  border-color:var(--field-border);
+}
+.university-search-empty{
+  background:var(--field-bg);
+  border-color:var(--field-border);
+}
+.register-phone-status{
+  background:var(--field-bg);
+  border-color:var(--field-border);
+}
+:root[data-theme="dark"] body .register-phone-status{
+  background:var(--field-bg);
+  border-color:var(--field-border);
+}
+
+/* Same-school team and classmates: grey information tiles inside green panels. */
+#teamSummary>.directory-team-grid>div{
+  background:var(--field-bg)!important;
+  border-color:var(--field-border);
+}
+.group-chat-qr-frame{
+  background:var(--field-bg)!important;
+  border-color:var(--field-border);
+}
+#results.cards>.classmate-card.panel{
+  background:var(--field-bg)!important;
+  border-color:var(--field-border);
+}
+.classmate-contact{
+  border-color:var(--field-border);
+}
+.classmate-meta span{
+  background:var(--mint);
+}
+
+/* Admin cards and profile fields follow the same two-level surface hierarchy. */
+.admin-stats .stat,
+.admin-team-card,
+.admin-profile-field,
+.admin-review-card,
+.admin-account,
+.transfer-record,
+.group-qr-upload-card,
+.group-qr-asset-block,
+.group-chat-confirmation-block,
+.group-qr-asset-card{
+  background:var(--field-bg)!important;
+  border-color:var(--field-border);
+}
+.admin-profile-detail-row>td{
+  background:var(--field-bg)!important;
+}
+.admin-profile-preview span,
+.admin-team-card-tags span{
+  background:var(--field-bg);
+  border-color:var(--field-border);
+}
+.team-filters{
+  background:var(--paper);
+  border-color:var(--line);
+}
+
+/* The directory keeps compact introductory copy, but every following module
+   receives a real vertical gutter. The #directory rule needs this specificity
+   to override its old margin:0!important declaration. */
+#groups>.directory-school,
+#groups>#teamSummary,
+#groups>#groupChatPanel,
+#groups>#directory.directory-panel,
+#groups>.donation-module,
+#groups>.directory-actions{
+  margin-top:24px!important;
+}
+#groups>#directory.directory-panel{
+  margin-top:24px!important;
+}
+#groups #results.cards{
+  gap:20px!important;
+}
+#teamSummary>.directory-team-grid{
+  row-gap:16px;
+}
+@media(max-width:760px){
+  #groups>.directory-school,
+  #groups>#teamSummary,
+  #groups>#groupChatPanel,
+  #groups>#directory.directory-panel,
+  #groups>.donation-module,
+  #groups>.directory-actions{
+    margin-top:18px!important;
+  }
+  #groups>#directory.directory-panel{
+    margin-top:18px!important;
+  }
+  #groups #results.cards{
+    gap:15px!important;
+  }
+}
+
+/* Homepage FAQ: bring the Q&A directly under the hero and make each answer
+   an intentional, readable panel rather than an unstyled text list. */
+.home-faq{
+  width:min(100%,1100px);
+  margin:8px auto 74px;
+  padding:0 28px 12px;
+}
+.home-faq-heading{
+  display:grid;
+  gap:9px;
+  margin:0 0 22px;
+}
+.home-faq-heading .eyebrow{margin:0}
+.home-faq-heading h2{
+  margin:0;
+  font:600 clamp(25px,3vw,34px)/1.45 "Noto Serif SC",serif;
+  color:var(--ink);
+}
+.home-faq-list{
+  display:grid;
+  gap:12px;
+}
+.home-faq-list details{
+  overflow:hidden;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:var(--paper);
+  box-shadow:0 8px 22px #294a3409;
+}
+.home-faq-list summary{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  min-height:66px;
+  padding:17px 20px;
+  color:var(--ink);
+  font-size:14px;
+  font-weight:650;
+  line-height:1.6;
+  cursor:pointer;
+  list-style:none;
+}
+.home-faq-list summary::-webkit-details-marker{display:none}
+.home-faq-list summary::after{
+  content:"+";
+  flex:0 0 auto;
+  margin-left:auto;
+  color:var(--green);
+  font:400 23px/1 system-ui,sans-serif;
+}
+.home-faq-list details[open] summary::after{content:"−"}
+.home-faq-number{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex:0 0 54px;
+  min-height:27px;
+  padding:4px 7px;
+  border-radius:6px;
+  background:var(--mint);
+  color:var(--green);
+  font:700 9px system-ui,sans-serif;
+  letter-spacing:.7px;
+}
+.home-faq-answer{
+  margin:0 14px 14px;
+  padding:15px 17px;
+  border:1px solid var(--field-border);
+  border-radius:9px;
+  background:var(--field-bg);
+}
+.home-faq-answer p{
+  margin:0;
+  color:var(--ink);
+  font-size:12px;
+  line-height:1.95;
+  overflow-wrap:anywhere;
+}
+.home-faq-answer a{
+  color:var(--green);
+  font-weight:700;
+  text-decoration:underline;
+  text-underline-offset:3px;
+}
+:root[data-theme="dark"] body .home-faq-list details{
+  background:var(--paper);
+  border-color:var(--line);
+}
+:root[data-theme="dark"] body .home-faq-answer{
+  background:var(--field-bg);
+  border-color:var(--field-border);
+}
+@media(max-width:760px){
+  .home-faq{
+    margin:0 auto 48px;
+    padding:0 18px 8px;
+  }
+  .home-faq-heading{margin-bottom:16px}
+  .home-faq-heading h2{font-size:24px}
+  .home-faq-list{gap:10px}
+  .home-faq-list summary{
+    gap:10px;
+    min-height:60px;
+    padding:14px 13px;
+    font-size:12px;
+  }
+  .home-faq-number{flex-basis:49px;font-size:8px}
+  .home-faq-answer{margin:0 9px 9px;padding:12px 13px}
+  .home-faq-answer p{font-size:11px;line-height:1.9}
 }
