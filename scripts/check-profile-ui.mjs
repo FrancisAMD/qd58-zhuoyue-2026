@@ -118,7 +118,7 @@ assert.ok(uiSections.includes("aspect-ratio:1312 / 1787"),"donation image frame 
 assert.ok(uiSections.includes("object-fit:cover;\n  background:transparent"),"donation image must fill its frame without white side gutters");
 assert.ok(uiSections.includes(".donation-qr-pending[hidden]{display:none!important}"),"pending placeholder must respect its hidden state");
 assert.ok(html.includes("ui-sections.css?v=20261128-local-fonts-v1"),"donation QR layout must bust the component stylesheet cache");
-assert.ok(html.includes("app.js?v=20261128-external-stage-actions-v1"),"donation amount logic must bust the frontend script cache");
+assert.ok(html.includes("app.js?v=20261128-modal-scroll-lock-v1"),"donation amount logic must bust the frontend script cache");
 assert.ok(html.includes("theme.js?v=20261128-donation-qr-fix-v2"),"donation theme handling must bust the theme script cache");
 assert.match(theme,/root\.dataset\.theme === "dark" \? "dark" : "light"/,"donation QR mode must follow the active root theme");
 assert.match(theme,/image\.id === "donationQrImage"/,"theme changes must use the donation-specific load state");
@@ -211,3 +211,11 @@ const directoryLayoutFix=css.slice(directoryGapFix);
 assert.match(directoryLayoutFix,/#groups\{\s*gap:0;\s*\}/,"directory heading must not inherit a flex gap between eyebrow, title and lead");
 assert.match(directoryLayoutFix,/#groups>\.directory-school,[\s\S]*?#groups>\.directory-actions\{\s*margin-top:22px!important;\s*\}/,"directory content cards must retain separation after removing heading flex gaps");
 console.log("Profile UI smoke tests: defaults, fixed textarea, centered badges and stage spacing passed.");
+
+assert.match(js,/function openAuthModal\(\)[\s\S]*?modal-scroll-locked/,"opening an auth dialog must lock background scrolling");
+assert.match(js,/function closeAuthModal\(\)[\s\S]*?window\.scrollTo\(0,modalScrollY\)/,"closing an auth dialog must restore the original scroll position");
+assert.match(js,/function auth\(v="login"\)\{openAuthModal\(\)/,"all auth dialogs must use the shared scroll-locking opener");
+assert.doesNotMatch(js,/\$\("modal"\)\.classList\.remove\("show"\)/,"all modal close actions must restore background scrolling");
+assert.match(css,/html\.modal-scroll-locked\{overflow:hidden!important;\}/,"the document root must not scroll while a dialog is open");
+assert.match(css,/body\.modal-scroll-locked\{[\s\S]*?position:fixed!important;[\s\S]*?overflow:hidden!important/,"the background page must remain fixed while a dialog is open");
+assert.match(css,/\.dialog\{[\s\S]*?overscroll-behavior:contain;[\s\S]*?-webkit-overflow-scrolling:touch;/,"dialog scrolling must be contained within the dialog on touch devices");
