@@ -385,6 +385,10 @@ export class D1BackupWorkflow extends WorkflowEntrypoint {
           partCount:Number(stored.partCount)||0
         };
       });
+      await step.do("release-d1-export-lock", async () => ({
+        released:await releaseD1ExportLock(this.env.D1_BACKUPS,event.instanceId)
+      }));
+      exportLockAcquired = false;
       const retention = await step.do("prune-expired-backups", async () => {
         try { return { ok: true, ...(await pruneExpiredBackups(this.env)) }; }
         catch (error) {
@@ -392,10 +396,6 @@ export class D1BackupWorkflow extends WorkflowEntrypoint {
           return { ok: false, deleted: 0, errorCode: safeErrorCode(error) };
         }
       });
-      await step.do("release-d1-export-lock", async () => ({
-        released:await releaseD1ExportLock(this.env.D1_BACKUPS,event.instanceId)
-      }));
-      exportLockAcquired = false;
       return {
         backupId, status: completed.status,
         plaintextBytes: completed.plaintextBytes,
