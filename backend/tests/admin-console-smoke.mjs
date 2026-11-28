@@ -191,7 +191,7 @@ assert.ok(html.indexOf('id="peoplePanel"')<html.indexOf('id="teamsPanel"')&&html
 assert.doesNotMatch(html,/value="viewer"/,"new administrator creation must not offer a read-only role");
 assert.match(html,/普通管理员仅可查看统计概览、审核海外高校、管理地区群聊二维码/);
 assert.match(html,/data-nav-target="teamsPanel" data-nav-permission="overview"/,"ordinary admins can access teams through the overview permission");
-assert.match(html,/admin\.js\?v=20261128-collapsible-sidebar-v1/,"admin sidebar update must bust the admin script cache");
+assert.match(html,/admin\.js\?v=20261128-member-card-heading-v2/,"admin member card update must bust the admin script cache");
 assert.match(js,/async function downloadRosterExport\(format\)/,"CSV and XLSX should share the blob download path");
 assert.match(js,/credentials:"include"/,"roster exports must include the admin session cookie");
 assert.match(js,/mode:"cors"/,"roster exports must use CORS fetch instead of a top-level cross-origin navigation");
