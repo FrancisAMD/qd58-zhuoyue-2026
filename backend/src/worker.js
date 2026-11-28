@@ -1847,7 +1847,7 @@ if(path==="/api/teams/transfer" && method==="POST") {
     const filters = adminPeopleFilters(url);
     if (filters.error) return response({error:filters.error},400,origin,env);
     const page = adminPage(url.searchParams.get("page"),1,1000000);
-    const pageSize = adminPage(url.searchParams.get("pageSize"),50,100);
+    const pageSize = adminPage(url.searchParams.get("pageSize"),10,100);
     const base = " FROM users u LEFT JOIN universities uni ON uni.id=u.university_id WHERE u.deleted_at=''" + filters.clause.replace(/^ WHERE /," AND ");
     const count = await env.DB.prepare("SELECT COUNT(*) AS total" + base).bind(...filters.bindings).first();
     const total = Number(count?.total||0);
