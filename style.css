@@ -1306,3 +1306,132 @@ body select option{
   #profile .university-type-card{min-height:145px;padding:14px}
   #registrationDetailsPanel>.cols{gap:2px}
 }
+
+
+/* Homepage FAQ: three permanent desktop cards, stacked on narrow screens. */
+.home-faq{
+  width:min(100%,1100px);
+  margin:8px auto 74px;
+}
+.home-faq-heading{margin-bottom:22px}
+.home-faq-list{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  align-items:stretch;
+  gap:16px;
+}
+.home-faq-card{
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  min-width:0;
+  height:100%;
+  gap:17px;
+  padding:21px 19px;
+  border:1px solid var(--line);
+  border-radius:13px;
+  background:var(--paper);
+  box-shadow:0 10px 28px #294a3409;
+}
+.home-faq-question{
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+  min-width:0;
+  color:var(--ink);
+  font-family:system-ui,"Noto Sans SC","Microsoft YaHei",sans-serif;
+  font-size:16px;
+  font-weight:700;
+  line-height:1.65;
+}
+.home-faq-question strong{
+  min-width:0;
+  font:700 16px/1.65 system-ui,"Noto Sans SC","Microsoft YaHei",sans-serif;
+  overflow-wrap:anywhere;
+}
+.home-faq-number{
+  flex:0 0 62px;
+  min-height:30px;
+  padding:5px 8px;
+  border-radius:7px;
+  background:var(--mint);
+  color:var(--green);
+  text-align:center;
+  font:700 12px/1.6 system-ui,"Noto Sans SC","Microsoft YaHei",sans-serif;
+  letter-spacing:.4px;
+}
+.home-faq-answer{
+  flex:1 1 auto;
+  margin:0;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  color:var(--ink);
+}
+.home-faq-answer p{
+  margin:0;
+  color:var(--ink);
+  font:400 15px/1.9 system-ui,"Noto Sans SC","Microsoft YaHei",sans-serif;
+  overflow-wrap:anywhere;
+}
+.home-faq-answer b{font-weight:750}
+.home-faq-answer a{
+  color:var(--green);
+  font-weight:750;
+  text-decoration:underline;
+  text-underline-offset:3px;
+}
+:root[data-theme="dark"] body .home-faq-card{
+  background:var(--paper);
+  border-color:var(--line);
+}
+@media(max-width:900px) and (min-width:761px){
+  .home-faq-list{gap:12px}
+  .home-faq-card{padding:18px 15px}
+  .home-faq-question,.home-faq-question strong{font-size:15px}
+  .home-faq-answer p{font-size:14px}
+}
+@media(max-width:760px){
+  .home-faq{
+    margin:0 auto 48px;
+    padding:0 18px 8px;
+  }
+  .home-faq-heading{margin-bottom:16px}
+  .home-faq-list{grid-template-columns:minmax(0,1fr);gap:13px}
+  .home-faq-card{padding:18px 17px;gap:12px}
+  .home-faq-question,.home-faq-question strong{font-size:16px;line-height:1.65}
+  .home-faq-number{flex-basis:62px;font-size:12px}
+  .home-faq-answer p{font-size:15px;line-height:1.95}
+}
+
+/* Readability pass: increase all supporting copy while preserving h1-h6 sizes. */
+body{
+  font-size:16px;
+  font-family:system-ui,"Noto Sans SC","Microsoft YaHei",sans-serif;
+}
+body :where(p,label,small,li,td,th,summary,a,time,figcaption,span,strong,b,em,code,
+  button:not(.x):not(.password-toggle),
+  input,select,textarea,
+  .muted,.field-help,.step-hint,.eyebrow,.note,.lead,.msg,
+  .type-number,.site-footer-tagline,.admin-panel-status,
+  .admin-review-summary small,.admin-review-card>small,
+  .admin-profile-field small,.admin-profile-preview small,
+  .group-chat-status,.group-qr-ready,.group-qr-missing){
+  font-size:max(14px,1em)!important;
+}
+body :where(input,select,textarea){
+  font-size:16px!important;
+}
+@media(max-width:760px){
+  body :where(p,label,small,li,td,th,summary,a,time,figcaption,span,strong,b,em,code,
+    button:not(.x):not(.password-toggle),
+    input,select,textarea,
+    .muted,.field-help,.step-hint,.eyebrow,.note,.lead,.msg,
+    .type-number,.site-footer-tagline,.admin-panel-status,
+    .admin-review-summary small,.admin-review-card>small,
+    .admin-profile-field small,.admin-profile-preview small,
+    .group-chat-status,.group-qr-ready,.group-qr-missing){
+    font-size:max(14px,1em)!important;
+  }
+}
