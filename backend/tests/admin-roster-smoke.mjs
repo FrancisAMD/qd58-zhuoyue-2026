@@ -168,6 +168,27 @@ assert.equal(emptyProvinceFilter.status,200);
 const emptyFilterQuery=queries.filter(item=>item.kind==="all"&&item.sql.startsWith("SELECT u.id,u.name,u.high_school")).at(-1);
 assert.match(emptyFilterQuery.sql,/COALESCE\(u\.province,''\)=''/);
 
+const csvExport=await get("/api/admin/people?format=csv&province=%E5%B1%B1%E4%B8%9C%E7%9C%81&page=2&pageSize=10");
+assert.equal(csvExport.status,200,"authenticated CSV export should succeed when the exact app Origin is present");
+assert.match(csvExport.headers.get("content-type")||"",/text\/csv/);
+assert.match(csvExport.headers.get("content-disposition")||"",/zhuoyue-2026-roster\.csv/);
+const csvText=await csvExport.text();
+assert.ok(csvText.startsWith("\\uFEFF"),"CSV export should retain its UTF-8 BOM");
+assert.ok(csvText.includes("肥宅水"),"CSV export should contain filtered roster rows");
+const csvSelect=queries.filter(item=>item.kind==="all"&&item.sql.startsWith("SELECT u.id,u.name,u.high_school")).at(-1);
+assert.deepEqual(csvSelect.bindings.slice(-2),[5000,0],"CSV export should return all filtered records, not only the current UI page");
+
+const xlsxExport=await get("/api/admin/people?format=xlsx&province=%E5%B1%B1%E4%B8%9C%E7%9C%81");
+assert.equal(xlsxExport.status,200,"authenticated XLSX export should succeed when the exact app Origin is present");
+assert.match(xlsxExport.headers.get("content-type")||"",/spreadsheetml\.sheet/);
+assert.match(xlsxExport.headers.get("content-disposition")||"",/zhuoyue-2026-roster\.xlsx/);
+const xlsxBytes=new Uint8Array(await xlsxExport.arrayBuffer());
+assert.ok(xlsxBytes.length>4&&xlsxBytes[0]===0x50&&xlsxBytes[1]===0x4b,"XLSX export must produce a ZIP-based workbook");
+
+const originlessExport=await worker.fetch(new Request(ORIGIN+"/api/admin/people?format=csv",{headers:{cookie:COOKIE}}),{APP_ORIGIN:ORIGIN,DB,GROUP_QR});
+assert.equal(originlessExport.status,403,"originless direct API navigation must remain blocked");
+assert.equal((await originlessExport.json()).error,"origin_forbidden","strict origin checks must not be relaxed to fix browser downloads");
+
 admin.role="admin";
 const forbiddenRoster=await get("/api/admin/people?page=1&pageSize=50");
 assert.equal(forbiddenRoster.status,403,"ordinary admins must not access registration records or profiles");
