@@ -379,6 +379,13 @@ export class D1BackupWorkflow extends WorkflowEntrypoint {
       await step.do("encrypt-and-store-d1-export", { timeout: "30 minutes", retries: { limit: 1, delay: "15 seconds", backoff: "constant" } }, async () => {
         return await encryptAndUpload(this.env, manifest, exportState.value.signedUrl);
       });
+      await step.do("release-d1-export-lock", async () => ({
+        released:await releaseD1ExportLock(this.env.D1_BACKUPS,event.instanceId)
+      }));
+      exportLockAcquired = false;
+      await step.do("verify-newly-uploaded-backup", { timeout: "30 minutes" }, async () => {
+        return await verifyStoredBackup(this.env, backupId);
+      });
       const completed = await step.do("read-completed-backup-summary", async () => {
         const stored = await readManifest(this.env, backupId);
         return {
@@ -388,10 +395,6 @@ export class D1BackupWorkflow extends WorkflowEntrypoint {
           partCount:Number(stored.partCount)||0
         };
       });
-      await step.do("release-d1-export-lock", async () => ({
-        released:await releaseD1ExportLock(this.env.D1_BACKUPS,event.instanceId)
-      }));
-      exportLockAcquired = false;
       const retention = await step.do("prune-expired-backups", async () => {
         try { return { ok: true, ...(await pruneExpiredBackups(this.env)) }; }
         catch (error) {
