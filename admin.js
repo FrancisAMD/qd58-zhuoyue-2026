@@ -42,6 +42,16 @@ const ERROR_MESSAGES={
   admin_delete_conflict:"删除状态发生冲突，请刷新名单后重试。",
   admin_person_delete_failed:"删除报名记录失败，请稍后重试。",
   group_qr_storage_not_configured:"Worker 尚未绑定 GROUP_QR R2 Bucket，请先创建并绑定 qd58-group-chat-qr。",
+  backup_storage_not_configured:"Worker 尚未绑定专用 D1_BACKUPS R2 Bucket。",
+  backup_workflow_not_configured:"Worker 尚未配置 D1 Backup Workflow。",
+  backup_configuration_incomplete:"数据库备份缺少 Cloudflare API Token、Account ID、D1 ID 或加密密钥配置。",
+  backup_start_failed:"无法启动备份任务，请检查 Worker 日志和 Workflows 配置。",
+  backup_list_failed:"备份列表加载失败，请检查专用 R2 Bucket 和备份密钥。",
+  backup_not_found:"找不到这份备份。",
+  backup_not_ready:"该备份尚未成功完成。",
+  backup_last_successful_protected:"不能删除最后一份成功备份。",
+  backup_running:"备份任务正在进行，不能删除。",
+  backup_management_failed:"备份管理操作失败，请检查 Worker 日志。",
   group_qr_region_invalid:"所选地区不正确，请刷新页面后重试。",
   group_qr_file_too_large:"二维码图片不能超过 5 MB。",
   group_qr_file_empty:"请先选择二维码图片。",
@@ -108,6 +118,7 @@ async function enter(options={}){
   $("universityReviewPanel").hidden=!has("universities:review");
   $("groupChatQrPanel").hidden=!has("group-chat:manage");
   $("donationManagementPanel").hidden=!has("donations:manage");
+  $("backupPanel").hidden=!has("backups:manage");
   if(!overviewRefreshTimer){
     overviewRefreshTimer=setInterval(()=>{
       if(current&&$("dashboard")&&!$("dashboard").hidden&&has("overview")){
@@ -125,7 +136,8 @@ async function enter(options={}){
     ["admins",()=>has("admins:manage")?loadAdmins():Promise.resolve(),()=>setPanelFailure("createAdminMsg","管理员账户列表加载失败。")],
     ["universityReviews",()=>has("universities:review")?loadUniversityReviews():Promise.resolve(),()=>setPanelFailure("universityReviewMsg","海外高校审核队列加载失败。")],
     ["groupChatQr",()=>has("group-chat:manage")?loadGroupQrAssets():Promise.resolve(),()=>setPanelFailure("groupQrAssetList","群聊二维码配置加载失败，请检查 GROUP_QR R2 绑定。")],
-    ["donations",()=>has("donations:manage")?loadDonations():Promise.resolve(),()=>setPanelFailure("donationAdminMsg","赞助名单加载失败。")]
+    ["donations",()=>has("donations:manage")?loadDonations():Promise.resolve(),()=>setPanelFailure("donationAdminMsg","赞助名单加载失败。")],
+    ["backups",()=>has("backups:manage")?loadBackups():Promise.resolve(),()=>setPanelFailure("backupAdminMsg","数据库备份列表加载失败。")]
   ];
   const results=await Promise.allSettled(jobs.map(job=>job[1]()));
   results.forEach((result,index)=>{
@@ -239,6 +251,90 @@ async function loadAudit(){
   $("auditRows").innerHTML=(data.items||[]).slice(0,10).map(item=>
     '<tr><td>'+safe(item.createdAt)+'</td><td>'+safe(item.actorUsername||item.actorType)+'</td><td>'+safe(item.action)+'</td><td>'+safe(item.targetType)+' / '+safe(item.targetId)+'</td><td>'+safe(item.metadata)+'</td></tr>'
   ).join("")||'<tr><td colspan="5">暂无审计记录</td></tr>';
+}
+
+function formatBackupBytes(value){
+  const bytes=Number(value||0);
+  if(bytes>=1024*1024*1024)return (bytes/1024/1024/1024).toFixed(2)+" GB";
+  if(bytes>=1024*1024)return (bytes/1024/1024).toFixed(2)+" MB";
+  if(bytes>=1024)return (bytes/1024).toFixed(1)+" KB";
+  return bytes+" B";
+}
+function backupStatusLabel(status){
+  return ({running:"进行中",completed:"已完成",failed:"失败"})[status]||"未知状态";
+}
+async function loadBackups(){
+  const data=await req("/admin/backups");
+  const flags=[
+    ["Workflow",data.workflowConfigured],
+    ["D1 导出 API",data.exportConfigured],
+    ["加密密钥",data.encryptionConfigured]
+  ];
+  $("backupConfigStatus").textContent=flags.map(([name,ok])=>name+"："+(ok?"已配置":"未配置")).join("　·　")+
+    "　·　R2 存储由服务端检查";
+  const items=data.items||[];
+  $("backupRows").innerHTML=items.map(item=>{
+    const passed=item.verification==="passed";
+    const verification=item.verification==="passed"?"完整性验证通过":item.verification==="failed"?"完整性验证失败":"尚未验证";
+    const statusClass=item.status==="completed"?"backup-state-success":item.status==="failed"?"backup-state-failed":"backup-state-running";
+    const actions=item.status==="completed"?
+      '<button type="button" class="ghost" data-backup-action="verify" data-backup-id="'+safe(item.backupId)+'">验证完整性</button>'+
+      '<button type="button" class="ghost" data-backup-action="download" data-backup-id="'+safe(item.backupId)+'">下载加密文件</button>'+
+      '<button type="button" class="ghost" data-backup-action="manifest" data-backup-id="'+safe(item.backupId)+'">下载清单</button>':
+      '';
+    return '<article class="backup-card"><div class="backup-card-heading"><div><b>'+safe(item.createdAt)+'</b><small>'+safe(item.source==="scheduled"?"每日自动备份":item.source==="manual"?"手动备份":"系统任务")+'</small></div><span class="'+statusClass+'">'+backupStatusLabel(item.status)+'</span></div>'+
+      '<div class="backup-card-meta"><span>明文大小：'+formatBackupBytes(item.plaintextBytes)+'</span><span>加密大小：'+formatBackupBytes(item.ciphertextBytes)+'</span><span>加密分块：'+safe(item.partCount)+'</span></div>'+
+      '<div class="backup-card-verification">'+safe(verification)+(item.verifiedAt?" · "+safe(item.verifiedAt):"")+(item.errorCode?" · "+safe(item.errorCode):"")+'</div>'+
+      '<div class="backup-card-actions">'+actions+'<button type="button" class="admin-delete-button" data-backup-action="delete" data-backup-id="'+safe(item.backupId)+'">删除</button></div></article>';
+  }).join("")||'<div class="muted">暂时没有备份记录。完成首次配置后，可以手动触发一次备份进行验证。</div>';
+  if(data.unreadable)$("backupAdminMsg").textContent="有 "+data.unreadable+" 条备份清单无法通过签名验证，已从列表隐藏；请勿删除或覆盖相关 R2 对象。";
+  else $("backupAdminMsg").textContent=data.truncated?"备份列表只显示最近 100 条记录。":"";
+}
+async function downloadBackupArtifact(backupId,kind){
+  const response=await fetch(API+"/admin/backups/"+encodeURIComponent(backupId)+"/"+kind,{
+    credentials:"include",headers:{}
+  });
+  if(!response.ok){
+    let payload={};try{payload=await response.json();}catch{}
+    const error=new Error(payload.error||"backup_management_failed");error.status=response.status;throw error;
+  }
+  const blob=await response.blob();
+  const filename="qd58-d1-"+backupId+(kind==="manifest"?".manifest.json":".qd58enc");
+  const url=URL.createObjectURL(blob);
+  try{
+    const link=document.createElement("a");link.href=url;link.download=filename;
+    document.body.appendChild(link);link.click();link.remove();
+  }finally{URL.revokeObjectURL(url);}
+}
+async function startManualBackup(){
+  $("createBackup").disabled=true;
+  $("backupAdminMsg").textContent="正在提交备份任务……";
+  try{
+    const result=await req("/admin/backups",{});
+    $("backupAdminMsg").textContent="备份任务已创建："+result.backupId+"。完成后刷新列表即可查看。";
+    await loadBackups();
+  }catch(error){showError("backupAdminMsg",error);}
+  finally{$("createBackup").disabled=false;}
+}
+async function handleBackupAction(action,backupId){
+  try{
+    if(action==="download"||action==="manifest"){
+      await downloadBackupArtifact(backupId,action);
+      return;
+    }
+    if(action==="verify"){
+      if(!window.confirm("将读取并解密这份备份的每个分块，检查 AES-GCM 认证标签和 SHA-256 摘要。不会修改 D1。继续吗？"))return;
+      await req("/admin/backups/"+backupId+"/verify",{});
+      $("backupAdminMsg").textContent="完整性验证任务已启动，请稍后刷新。";
+      return;
+    }
+    if(action==="delete"){
+      if(!window.confirm("确定删除这份 R2 加密备份及其清单吗？此操作不可撤销。系统会保护最后一份成功备份。"))return;
+      await req("/admin/backups/"+backupId,null,"DELETE");
+      $("backupAdminMsg").textContent="备份已删除。";
+      await loadBackups();
+    }
+  }catch(error){showError("backupAdminMsg",error);}
 }
 const formatQrSize=value=>{
   const bytes=Number(value||0);
@@ -634,5 +730,16 @@ $("adminAccounts").onclick=async event=>{
     await req("/admin/admins/"+button.dataset.adminId,{active:button.dataset.active==="true"});
     await loadAdmins();
   } catch(error) { showError("createAdminMsg",error); }
+};
+
+$("refreshBackups").onclick=()=>loadBackups().catch(error=>showError("backupAdminMsg",error));
+$("createBackup").onclick=()=>{
+  if(!window.confirm("现在启动一次 D1 数据库完整导出？导出期间数据库可能暂时无法响应查询。建议在低访问量时段操作。"))return;
+  startManualBackup();
+};
+$("backupRows").onclick=event=>{
+  const button=event.target.closest("[data-backup-action]");
+  if(!button)return;
+  handleBackupAction(button.dataset.backupAction,button.dataset.backupId);
 };
 window.addEventListener("DOMContentLoaded",()=>enter());
