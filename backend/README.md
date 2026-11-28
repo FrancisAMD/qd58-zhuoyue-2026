@@ -5,7 +5,8 @@
 主要模块：
 
 - `src/worker.js`：登录注册、Turnstile/阿里云 PNVS、资料、高校组队、组长转让、同校目录、管理员 API 与 owner 专属备份管理 API。
-- `src/d1-backup-workflow.js`、`src/d1-backup-crypto.js`、`src/d1-backup-lock.js`：每天定时执行 D1 SQL 导出，通过 R2 原子租约锁串行化导出，使用信封加密和 AES-256-GCM 分块加密后写入私有 R2，上传完成后会自动解密回读全部 R2 分块并校验 AES-GCM 标签和 SHA-256；后台还可手动重复验证。
+- `src/d1-backup-crypto.js`：Worker 校验 R2 备份清单的 HMAC 签名、包装密钥与对象路径。
+- 仓库根目录 `scripts/d1-backup-action.mjs` 与 `.github/workflows/d1-backup.yml`：GitHub Actions 执行 D1 Export API、AES-256-GCM 分块加密、R2 上传、回读完整性验证与保留清理。Worker 后台通过可选 `GITHUB_BACKUP_DISPATCH_TOKEN` 手动触发 Actions。
 - `src/xlsx.js`：原生 XLSX 导出。
 - `src/university-catalog-import.js`：高校目录分阶段导入。
 - `src/account-deletion-ledger.js`：账号删除意图 R2 台账。
@@ -56,7 +57,7 @@ npx wrangler deploy --config backend/wrangler.toml
     npm run test:worker
     python backend/tests/schema-smoke.py
 
-远程 D1 迁移、真实短信、Turnstile、部署和浏览器联调均未由本次提交执行。
+远程 D1 迁移、真实短信、Turnstile、部署、真实 D1 导出、R2 上传和恢复演练均需在 Cloudflare/GitHub 配置完成后单独验证。
 ## 组长转让到期
 
 - 默认待处理转让有效期为 7 天（`TRANSFER_TTL_SECONDS`，允许配置范围 1 小时至 30 天）。
@@ -178,3 +179,14 @@ npx wrangler deploy --config backend/wrangler.toml
 - 本地解密工具：`node scripts/decrypt-d1-backup.mjs --manifest <manifest.json> --input <backup.qd58enc> --output <restore.sql>`。主密钥通过本机环境变量提供，脚本先验证清单 HMAC、每块 AES-GCM 标签和 SHA-256，再输出 SQL。
 - D1 Export API 运行期间数据库可能暂时无法处理查询；计划在低访问量时段执行。生产恢复不提供一键按钮，必须先在独立测试 D1 演练，并处理快照之后的账号删除意图。
 - 本地 mock 测试不代表真实 Cloudflare D1 Export、Workflow、R2、Secret 与生产恢复联调。首次部署后必须完成一次真实备份、下载、解密、校验与测试库导入。
+
+
+## GitHub Actions D1 备份
+
+- Workflow：`.github/workflows/d1-backup.yml`，每天 18:05 UTC（日本时间次日 03:05）计划运行；使用标准 `ubuntu-latest` Runner，不占用 Cloudflare Worker CPU。
+- 必需 GitHub Repository Secrets：`CLOUDFLARE_ACCOUNT_ID`、`CLOUDFLARE_API_TOKEN`、`BACKUP_MASTER_KEY_V1`、`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS_KEY`。
+- `CLOUDFLARE_API_TOKEN` 只需目标 D1 的 Edit 权限；R2 Access Key/Secret 只需 `qd58-d1-backups` Bucket 的 Object Read & Write。
+- `BACKUP_MASTER_KEY_V1` 必须与 Worker Secret 同值。Worker 的可选 Secret `GITHUB_BACKUP_DISPATCH_TOKEN` 只用于后台手动触发，Fine-grained PAT 对该仓库授予 `Actions: read/write`。
+- Actions 使用 AWS CLI S3-compatible API；导出明文仅在 Runner 临时目录存在，完成后删除。不会上传 GitHub Artifacts 或把 SQL/签名下载 URL 写入日志。
+- 备份详情、校验、删除仍由 owner-only Worker API 管理；生产恢复仍被账号删除台账的重放能力阻断，先只做独立测试 D1 恢复演练。
+- 完整设置与恢复步骤见 `docs/d1-backup-restore.md`。
