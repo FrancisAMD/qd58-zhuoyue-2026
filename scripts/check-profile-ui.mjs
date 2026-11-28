@@ -93,6 +93,10 @@ assert.ok(css.includes("min-height:100svh;")&&css.includes("padding:28px 20px 16
 assert.ok(css.includes("width:clamp(176px,22vw,244px)"),"boot logo should be large on desktop");
 assert.ok(css.includes('"Noto Serif SC","Songti SC","STSong",serif!important'),"Chinese welcome copy should use an elegant serif face");
 assert.ok(css.includes("Georgia,\"Times New Roman\",serif!important"),"English welcome copy should use a refined serif face");
+assert.match(html,/id="journeySteps"/,"homepage must retain the three-step navigation");
+assert.match(css,/#appStage>\\.journey-steps,[\\s\\S]*?#appStage>#accountBottom\\{[\\s\\S]*?width:min\\(100%,1156px\\)[\\s\\S]*?padding-left:28px/,"desktop journey sections and account removal notice must share the same outer width and inner gutters");
+assert.match(css,/@media\\(max-width:760px\\)[\\s\\S]*?#appStage>.section#groups,[\\s\\S]*?#appStage>#accountBottom\\{[\\s\\S]*?width:100%[\\s\\S]*?padding-left:16px/,"mobile journey sections and account removal notice must share the same width and gutters");
+assert.match(css,/#appStage>#accountBottom\\{[\\s\\S]*?padding-top:0/,"account removal notice should align directly beneath the same content column");
 const pageTitle = html.match(/<title>([^<]+)<\/title>/)?.[1] || "";
 assert.ok(pageTitle.length > 0, "index.html must define the canonical page title");
 assert.match(html, /<footer id="pageFooter" class="site-footer" hidden>/, "member footer must use the new responsive footer layout");
