@@ -45,6 +45,9 @@ ALIBABA_TEMPLATE_CODE = "100001"
 # wrangler secret put TURNSTILE_SECRET_KEY
 # wrangler secret put ALIBABA_ACCESS_KEY_ID
 # wrangler secret put ALIBABA_ACCESS_KEY_SECRET
+[limits]
+cpu_ms = 300000
+
 [triggers]
 crons = ["*/15 * * * *"]
 
