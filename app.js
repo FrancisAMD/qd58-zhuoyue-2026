@@ -1,12 +1,102 @@
 const API="https://api.58er.eon21.space/api",SITEKEY="0x4AAAAAAF8tZfD0j4LHU8uN",$=id=>document.getElementById(id);let widgets={},tokens={},consumedTokens={},view="members",directory=null,categoryLocked=false;
 const INITIAL_BOOT_MINIMUM_MS=5000;
-let initialBootPending=true;
-const bootWelcomeDelay=new Promise(resolve=>setTimeout(()=>{
-  $("bootMessage").hidden=true;
-  $("bootWelcome").hidden=false;
-  resolve();
-},1400));
-const bootMinimumDelay=new Promise(resolve=>setTimeout(resolve,INITIAL_BOOT_MINIMUM_MS));
+let initialBootPending=true,initialBootAssetsReady=false,initialBootStarting=false;
+let bootWelcomeDelay=Promise.resolve(),bootMinimumDelay=Promise.resolve();
+function beginInitialBootPresentation(){
+  $("bootScreen").hidden=false;
+  $("bootLogo").hidden=false;
+  $("bootMessage").hidden=false;
+  $("bootWelcome").hidden=true;
+  $("bootError").hidden=true;
+  $("retrySession").hidden=true;
+  bootWelcomeDelay=new Promise(resolve=>setTimeout(()=>{
+    $("bootMessage").hidden=true;
+    $("bootWelcome").hidden=false;
+    resolve();
+  },1400));
+  bootMinimumDelay=new Promise(resolve=>setTimeout(resolve,INITIAL_BOOT_MINIMUM_MS));
+}
+async function preloadImageSource(source){
+  if(!source)throw Error("image_source_missing");
+  const image=new Image();
+  image.decoding="async";
+  const loaded=new Promise((resolve,reject)=>{
+    image.addEventListener("load",resolve,{once:true});
+    image.addEventListener("error",()=>reject(Error("image_load_failed")),{once:true});
+  });
+  image.src=source;
+  if(image.complete){
+    if(!image.naturalWidth)throw Error("image_load_failed");
+  }else{
+    await loaded;
+  }
+  if(typeof image.decode==="function")await image.decode();
+  if(!image.naturalWidth)throw Error("image_decode_failed");
+}
+async function waitForLogoElement(image){
+  if(!image.complete){
+    await new Promise((resolve,reject)=>{
+      image.addEventListener("load",resolve,{once:true});
+      image.addEventListener("error",()=>reject(Error("logo_element_load_failed")),{once:true});
+    });
+  }
+  if(!image.naturalWidth)throw Error("logo_element_load_failed");
+  if(typeof image.decode==="function")await image.decode();
+}
+async function preloadBootLogo(image){
+  const active=image.dataset.activeThemeSrc||image.currentSrc||image.src;
+  const fallback=image.dataset.fallbackSrc||image.dataset.lightSrc;
+  let target=active;
+  try{
+    await preloadImageSource(active);
+  }catch(error){
+    if(!fallback||fallback===active)throw error;
+    await preloadImageSource(fallback);
+    target=fallback;
+  }
+  if(image.src!==target)image.src=target;
+  image.dataset.activeThemeSrc=target;
+  await waitForLogoElement(image);
+}
+async function preloadInitialBootAssets(){
+  if(document.readyState!=="complete"){
+    await new Promise(resolve=>document.addEventListener("DOMContentLoaded",resolve,{once:true}));
+  }
+  if(!document.fonts||typeof document.fonts.load!=="function")throw Error("font_loading_unavailable");
+  const [titleFaces,bodyFaces]=await Promise.all([
+    document.fonts.load('400 28px "LXGW WenKai Lite"',"欢迎回到青岛五十八中"),
+    document.fonts.load('400 15px "Source Han Sans CN"',"正在确认登录状态…")
+  ]);
+  await document.fonts.ready;
+  if(!titleFaces.some(face=>face.status==="loaded")||!bodyFaces.some(face=>face.status==="loaded")){
+    throw Error("local_font_load_failed");
+  }
+  const logos=[$("bootLogo"),document.querySelector(".art-logo")].filter(Boolean);
+  await Promise.all(logos.map(preloadBootLogo));
+}
+async function startInitialSessionRestore(){
+  if(initialBootAssetsReady||initialBootStarting)return;
+  initialBootStarting=true;
+  $("bootScreen").hidden=true;
+  try{
+    await preloadInitialBootAssets();
+    initialBootAssetsReady=true;
+  }catch(error){
+    console.warn("Initial page assets failed to load",error?.message||"unknown");
+    $("bootLogo").hidden=true;
+    $("bootMessage").hidden=true;
+    $("bootWelcome").hidden=true;
+    $("bootError").textContent="页面字体或校徽暂时无法加载，请检查网络后重试。";
+    $("bootError").hidden=false;
+    $("retrySession").hidden=false;
+    $("bootScreen").hidden=false;
+    initialBootStarting=false;
+    return;
+  }
+  initialBootStarting=false;
+  beginInitialBootPresentation();
+  load({initial:true}).catch(error=>console.warn("Initial session restore failed",error?.message||"unknown"));
+}
 async function finishInitialBoot(action){
   if(initialBootPending){
     await bootWelcomeDelay;
@@ -809,9 +899,13 @@ document.querySelectorAll("[data-donation-amount]").forEach(button=>{
 $("retrySession").onclick=()=>{
   $("bootError").hidden=true;
   $("retrySession").hidden=true;
+  if(!initialBootAssetsReady){
+    startInitialSessionRestore();
+    return;
+  }
   $("bootWelcome").hidden=true;
   $("bootMessage").hidden=false;
   $("bootMessage").textContent="正在重新确认登录状态…";
   load().catch(error=>console.warn("Session retry failed",error?.message||"unknown"));
 };
-if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>load({initial:true}),{once:true});else load({initial:true});
+startInitialSessionRestore();
