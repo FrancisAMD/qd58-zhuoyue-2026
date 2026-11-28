@@ -1,7 +1,31 @@
 <!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f3f6f2">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=20261127-v1">
-  <link rel="shortcut icon" href="/favicon.svg?v=20261127-v1"><script src="theme.js?v=20261128-donation-theme-qr-v1"></script><title>返校宣讲 · 青岛五十八中2026-2027校友组队平台</title><link rel="stylesheet" href="style.css?v=20261128-deep-pine-qr-v2"><link rel="stylesheet" href="donations.css?v=20261127-auto-theme-v1"><link rel="stylesheet" href="ui-sections.css?v=20261127-auto-theme-v1"><script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" defer></script></head><body class="session-checking">
-<div id="bootScreen" class="boot-screen"><span class="boot-mark">58</span><p id="bootMessage">正在确认登录状态…</p><button id="retrySession" class="ghost" hidden>重新检查</button></div>
+  <link rel="shortcut icon" href="/favicon.svg?v=20261127-v1"><script src="theme.js?v=20261128-welcome-screen-v1"></script><title>返校宣讲 · 青岛五十八中2026-2027校友组队平台</title><link rel="stylesheet" href="style.css?v=20261128-welcome-screen-v1"><link rel="stylesheet" href="donations.css?v=20261127-auto-theme-v1"><link rel="stylesheet" href="ui-sections.css?v=20261127-auto-theme-v1"><script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" defer></script></head><body class="session-checking">
+<div id="bootScreen" class="boot-screen" role="status" aria-live="polite">
+  <div class="boot-content">
+    <img
+      id="bootLogo"
+      class="boot-logo"
+      src="assets/58-logo-light.png"
+      data-light-src="assets/58-logo-light.png"
+      data-dark-src="assets/58-logo-dark.png"
+      data-fallback-src="assets/58-logo-light.png"
+      alt="青岛五十八中 58 标志"
+      width="240"
+      height="240"
+      fetchpriority="high"
+    >
+    <div class="boot-copy">
+      <p id="bootMessage" class="boot-status">正在确认登录状态…</p>
+      <div id="bootWelcome" class="boot-welcome" hidden>
+        <strong>欢迎回到青岛五十八中</strong>
+        <span>Welcome Back to QD58ZX</span>
+      </div>
+      <p id="bootError" class="boot-error" hidden></p>
+    </div>
+    <button id="retrySession" class="ghost boot-retry" type="button" hidden>重新检查</button>
+  </div>
+</div>
 <main id="mainContent" hidden><section id="authStage" class="auth-stage"><section class="hero" id="home"><div><p class="eyebrow">2026 · 冬日返校计划</p><h1>去远方求证，<br><em>回原点</em>作答。</h1><p class="lead">在各自的旷野里跋涉后，才懂得最初的坐标最为确凿。冬日里且卸下大学的包裹，回到五十八中，也为学弟学妹们点燃星星之火。</p><div class="auth-actions"><button class="btn" id="authStageLogin">账号登录 ↗</button><button class="ghost" id="authStageRegister">注册账号</button></div><p class="note">青岛五十八中 · 2026-2027 冬日返校计划 | 汇聚校友力量，五八卓越启航</p></div><div class="art"><div class="sun"></div><div class="float a">01 / 返校<b>山海有归期</b></div><div class="float b">02 / 宣讲<b>燃星星之火</b></div><strong>58</strong><small>THE JOURNEY CONTINUES · 2026</small></div></section><section class="home-faq" id="homeFaq" aria-labelledby="homeFaqTitle">
   <div class="home-faq-heading">
     <p class="eyebrow">QUESTIONS & ANSWERS</p>
@@ -213,4 +237,4 @@
 <label>当前登录密码<div class="password-box"><input id="deletePassword" type="password" autocomplete="current-password" required><button type="button" class="password-toggle" data-toggle-password="deletePassword">显示</button></div></label>
 <label>输入 DELETE 确认<input id="deleteConfirm" autocomplete="off" required></label>
 <button class="btn wide danger-button">永久删除账号</button><button type="button" class="text" id="cancelDeleteAccount">取消</button><p id="deleteMsg" class="msg" aria-live="polite"></p>
-</form></section></div><script src="app.js?v=20261128-registration-otp-ownership-v1" defer></script><script src="account-deletion-ui.js?v=20261127-delete-preflight-v1" defer></script></body></html>
+</form></section></div><script src="app.js?v=20261128-welcome-screen-v1" defer></script><script src="account-deletion-ui.js?v=20261127-delete-preflight-v1" defer></script></body></html>
