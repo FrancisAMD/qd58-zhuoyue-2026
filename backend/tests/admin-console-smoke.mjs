@@ -22,7 +22,7 @@ assert.match(js,/密码已被登录接口接受，但随后读取管理员会话
 assert.match(js,/已登录；部分面板加载失败/);
 assert.doesNotMatch(js,/DEMO_DATA|renderDemo|openDemo|dashboardDemo/,"admin JavaScript must not contain fictional demo datasets or renderers");
 assert.doesNotMatch(css,/\.admin-demo|\.demo-warning|\.demo-tabs/,"admin stylesheet must not retain the demo UI");
-assert.match(html,/style\.css\?v=20261128-inner-surface-1a241e-v1/,"admin must load the shared surface stylesheet");
+assert.match(html,/style\.css\?v=20261128-roster-cards-v2/,"admin must load the shared surface stylesheet");
 assert.match(html,/typography\.css\?v=20261128-hierarchy-v2/,"admin must load the shared typography system after its component stylesheets");
 assert.match(typography,/--type-body:15px/,"admin body copy should share the fifteen-pixel body tier");
 assert.match(typography,/--type-secondary:13\.5px/,"admin secondary text should share the readable secondary tier");
