@@ -30,7 +30,7 @@ assert.doesNotMatch(html, /<form id="profile" class="panel"/, "profile journey m
 assert.match(html, /<section id="registrationUniversityPanel" class="profile-stage-panel">/, "university selection must remain its own main card");
 assert.match(html, /<section id="registrationDetailsPanel" class="profile-stage-panel" hidden>/, "profile details must remain their own main card");
 assert.match(html,/<\/section>\s*<div id="universityTypeActions" class="step-actions stage-navigation" hidden>/,"first-step navigation must be outside the university module");
-assert.match(html,/<\/section>\s*<div id="universityDetailsActions" class="step-actions stage-navigation university-continue" hidden>/,"university search navigation must be outside the university module");
+assert.match(html,/<div id="universityTypeActions" class="step-actions stage-navigation" hidden>[\s\S]*?<\/div>\s*<div id="universityDetailsActions" class="step-actions stage-navigation university-continue" hidden>/,"university search navigation must follow the category navigation outside the university module");
 assert.match(html,/<\/section>\s*<div id="profileStageActions" class="step-actions stage-navigation profile-stage-navigation" hidden>/,"profile previous/submit navigation must be outside the details module");
 assert.match(js,/function syncProfileStageActions\(\)[\s\S]*?universityTypeActions[\s\S]*?universityDetailsActions[\s\S]*?profileStageActions/,"external navigation visibility must follow the active form sub-step");
 assert.match(css,/#registrationDetailsPanel>\.cols\{gap:0 12px;\}/,"profile form columns should use a compact horizontal gap");
