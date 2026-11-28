@@ -27,4 +27,20 @@ assert.doesNotMatch(html,/regPhoneStatus|regPhoneRetry/,"registration form must 
 assert.doesNotMatch(js,/\/auth\/register\/check-phone|registrationPhoneCheck|registrationPhoneVerifiedValue|phone_not_registered/,"frontend must not query or cache registration state before phone verification");
 assert.match(js,/if\(x\.message==="phone_already_registered"\)\$\("regExistingAccount"\)\.hidden=false/,"only the post-verification duplicate response may reveal login guidance");
 assert.doesNotMatch(js,/check-phone/,"frontend must not call a phone-enumeration endpoint");
+const pageTitle = html.match(/<title>([^<]+)<\/title>/)?.[1] || "";
+assert.ok(pageTitle.length > 0, "index.html must define the canonical page title");
+assert.match(html, /<footer id="pageFooter" class="site-footer" hidden>/, "member footer must use the new responsive footer layout");
+assert.match(html, /id="siteFooterTitle" class="site-footer-title"/, "footer identity must be populated from the page title");
+assert.match(js, /\$\("siteFooterTitle"\)\.textContent=document\.title/, "footer identity must always match document.title");
+assert.match(html, /class="site-footer-tagline">去远方求证，回原点作答。<\/span>/, "footer tagline must retain the requested wording");
+assert.match(html, /class="site-footer-button site-footer-github" href="https:\/\/github\.com\/FrancisAMD\/qd58-zhuoyue-2026"/, "GitHub footer action must be a button-style link");
+assert.match(html, /class="site-footer-button site-footer-admin" href="admin\.html"/, "admin footer action must be a button-style link");
+assert.match(css, /\.journey-steps\{[\s\S]*?width:min\(calc\(100% - 56px\),1156px\)/, "desktop journey stepper must use a shared fixed outer width");
+assert.match(css, /\.section\{[\s\S]*?box-sizing:border-box;[\s\S]*?width:min\(100%,1156px\)/, "registration and directory sections must share the stepper outer width");
+assert.match(css, /\.directory-stage\{padding-top:65px\}/, "directory heading spacing must align with the profile page on desktop");
+assert.match(css, /@media\(max-width:760px\)\{[\s\S]*?\.directory-stage\{padding-top:50px\}/, "directory spacing must remain compact on mobile");
+assert.match(css, /\.site-footer\{[\s\S]*?display:flex;[\s\S]*?justify-content:space-between/, "desktop footer must put identity left and actions right");
+assert.match(css, /@media\(max-width:760px\)\{[\s\S]*?\.site-footer\{[\s\S]*?display:grid;[\s\S]*?grid-template-columns:minmax\(0,1fr\)/, "mobile footer must stack identity, tagline and actions into three rows");
+assert.match(css, /\.site-footer-actions\{[\s\S]*?display:flex;[\s\S]*?justify-content:flex-start/, "mobile footer actions must share the third row");
+
 console.log("Profile UI smoke tests: defaults, fixed textarea, centered badges and stage spacing passed.");
