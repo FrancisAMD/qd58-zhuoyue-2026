@@ -205,12 +205,14 @@ function showUniversityCategoryStep(){
   universitySearchSequence++;clearTimeout(universitySearchTimer);
   $("universityTypeStep").hidden=false;
   $("universityDetailsStep").hidden=true;
+  syncProfileStageActions();
 }
 async function openUniversityDetails(){
   const category=$("universityCategoryValue").value;
   if(!universityCategories[category])return msg("universityCategoryMsg","请先选择高校类别",true);
   $("universityTypeStep").hidden=true;
   $("universityDetailsStep").hidden=false;
+  syncProfileStageActions();
   $("selectedUniversityType").textContent=universityCategories[category];
   $("universityBack").hidden=categoryLocked;
   $("universitySearch").disabled=categoryLocked;
@@ -414,6 +416,13 @@ function setJourneyStep(step){
     else button.removeAttribute("aria-current");
   });
 }
+function syncProfileStageActions(){
+  const universityVisible=!$("registrationUniversityPanel").hidden;
+  const profileVisible=!$("registrationDetailsPanel").hidden;
+  $("universityTypeActions").hidden=!(universityVisible&&!$("universityTypeStep").hidden);
+  $("universityDetailsActions").hidden=!(universityVisible&&!$("universityDetailsStep").hidden);
+  $("profileStageActions").hidden=!profileVisible;
+}
 function hasUniversitySelection(){
   const category=$("universityCategoryValue").value;
   return !!$("profileUniversityId").value || (category==="overseas"&&!!$("overseasUniversityName").value.trim()) ||
@@ -428,6 +437,7 @@ function showRegistrationStep(step){
   $("join").hidden=false;$("groups").hidden=true;$("reviewPending").hidden=true;
   $("registrationUniversityPanel").hidden=step!=="university";
   $("registrationDetailsPanel").hidden=step!=="profile";
+  syncProfileStageActions();
   setJourneyStep(step);
   window.scrollTo({top:0,behavior:"smooth"});
 }
@@ -442,6 +452,7 @@ function showDirectoryStage(){
   $("join").hidden=true;$("groups").hidden=false;$("reviewPending").hidden=true;
   $("registrationUniversityPanel").hidden=true;
   $("registrationDetailsPanel").hidden=true;
+  syncProfileStageActions();
   setJourneyStep("directory");
   $("directorySchoolTitle").textContent=$("universityName").value.trim()||$("selectedUniversityName").textContent||"尚未填写高校";
   window.scrollTo({top:0,behavior:"smooth"});loadDirectory();
