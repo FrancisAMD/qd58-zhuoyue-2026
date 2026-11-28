@@ -1988,3 +1988,80 @@ body select option{
 #adminSidebar .admin-sidebar-account small{color:var(--muted);font-size:11px;line-height:1.4;}
 #adminSidebar .admin-sidebar-account b{color:var(--ink);font-size:13px;font-weight:700;line-height:1.5;overflow-wrap:anywhere;}
 #adminSidebar .admin-sidebar-logout{width:100%;min-height:36px;margin-top:1px;justify-content:center;padding:8px 10px;font-size:12px;}
+
+
+/* Homepage hero: show only the school mark, without the decorative illustration frame. */
+.hero{
+  grid-template-columns:minmax(0,1.08fr) minmax(300px,.92fr);
+}
+.hero-mark{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-width:0;
+  min-height:360px;
+  background:transparent;
+  border:0;
+  box-shadow:none;
+}
+.hero-mark .art-logo{
+  position:static;
+  display:block;
+  width:clamp(270px,32vw,390px);
+  max-width:100%;
+  height:auto;
+  object-fit:contain;
+  object-position:center;
+  filter:none;
+}
+:root[data-theme="dark"] body .hero-mark{
+  background:transparent;
+  box-shadow:none;
+}
+@media(max-width:760px){
+  .hero{grid-template-columns:minmax(0,1fr)}
+  .hero-mark{
+    min-height:0;
+    margin:10px auto 0;
+  }
+  .hero-mark .art-logo{
+    width:min(76vw,290px);
+  }
+}
+
+/* Page two and page three use one shared title block and identical vertical rhythm. */
+#join.section,
+#groups.directory-stage{
+  padding-top:65px;
+}
+.journey-section-intro{
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  justify-items:start;
+  align-content:start;
+  gap:0;
+  margin:0;
+}
+.journey-section-intro>.eyebrow{
+  margin:0 0 10px!important;
+}
+.journey-section-intro>h2{
+  margin:0 0 12px!important;
+}
+.journey-section-intro>.lead{
+  max-width:760px;
+  margin:0!important;
+  line-height:1.85;
+}
+#join>#gate{margin-top:24px}
+#join>#profile{margin-top:20px}
+@media(max-width:760px){
+  #join.section,
+  #groups.directory-stage{
+    padding-top:50px;
+  }
+  .journey-section-intro>.eyebrow{margin-bottom:9px!important}
+  .journey-section-intro>h2{margin-bottom:10px!important}
+  #join>#gate{margin-top:20px}
+  #join>#profile{margin-top:16px}
+}
