@@ -6,6 +6,7 @@ const html=readFileSync(new URL("index.html",root),"utf8");
 const js=readFileSync(new URL("app.js",root),"utf8");
 const css=readFileSync(new URL("style.css",root),"utf8");
 const theme=readFileSync(new URL("theme.js",root),"utf8");
+const typography=readFileSync(new URL("typography.css",root),"utf8");
 
 assert.match(html,/name="highSchool" value="青岛五十八中"/,"high-school field must default to Qingdao No. 58 High School");
 assert.match(html,/<option selected>大一<\/option>/,"grade selector must default to freshman year");
@@ -52,9 +53,17 @@ assert.match(css,/\.home-faq-list\{[\s\S]*?grid-template-columns:repeat\(3,minma
 assert.match(css,/@media\(max-width:760px\)[\s\S]*?\.home-faq-list\{grid-template-columns:minmax\(0,1fr\)/,"FAQ should stack vertically on mobile");
 assert.match(css,/\.home-faq-question strong\{[\s\S]*?system-ui,"Noto Sans SC"/,"FAQ question text should use the site's readable sans-serif text face");
 assert.match(css,/\.home-faq-answer p\{[\s\S]*?font:400 15px\/1\.9 system-ui/,"FAQ answer copy should use a larger readable font");
-assert.match(css,/body\{\s*font-size:16px;/,"site body text baseline should be increased to sixteen pixels");
-assert.ok(css.includes("font-size:max(14px,1em)!important"),"supporting copy should not fall below fourteen pixels");
-assert.match(css,/Readability pass:[\s\S]*?preserving h1-h6 sizes/,"global readability pass must explicitly exclude heading elements");
+assert.match(html,/typography\.css\?v=20261128-hierarchy-v1/,"homepage must load the shared typography system last");
+assert.match(typography,/--type-body:15px/,"main copy should use a balanced fifteen-pixel size");
+assert.match(typography,/--type-secondary:13\.5px/,"supporting copy should remain readable without becoming oversized");
+assert.match(typography,/--type-control:15px/,"form controls should have a consistent readable size");
+assert.match(typography,/body h1\{font-size:var\(--type-display\)!important/,"main title should use the display tier");
+assert.match(typography,/body h2\{font-size:var\(--type-section\)!important/,"section titles should use the section tier");
+assert.match(typography,/body h3\{font-size:var\(--type-subsection\)!important/,"subsection titles should use the subsection tier");
+assert.match(typography,/body h4\{font-size:var\(--type-card-title\)!important/,"card titles should use the card-title tier");
+assert.doesNotMatch(typography,/body :where\([^)]*(?:span|strong|b)[^)]*\)\s*\{[^}]*font-size/,"inline emphasis must inherit from its semantic parent, not be globally enlarged");
+assert.doesNotMatch(css,/font-size:max\(14px,1em\)!important/,"the recursive global text enlargement rule must stay removed");
+assert.match(typography,/--type-chip:13px/,"badges and metadata must not drop to micro-sized text");
 assert.match(html,/id="donationQrImage"[^>]*data-light-src="assets\/donation-qr-15-light\.png"[^>]*data-dark-src="assets\/donation-qr-15-dark\.png"/,"donation QR must declare separate light and dark assets");
 assert.match(theme,/root\.dataset\.theme === "dark" \? "dark" : "light"/,"donation QR mode must follow the active root theme");
 assert.match(theme,/image\.dataset\[theme \+ "Src"\]/,"theme script must select the matching QR asset");
