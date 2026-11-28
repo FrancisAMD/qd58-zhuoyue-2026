@@ -1571,38 +1571,6 @@ body select option{
   background:var(--paper);
   box-shadow:0 9px 24px rgba(25,47,32,.045);
 }
-.admin-person-card-heading{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:14px;
-  margin-bottom:15px;
-}
-.admin-person-identity{min-width:0}
-.admin-person-identity h4{
-  margin:0;
-  color:var(--ink);
-  font:650 21px/1.4 "Noto Serif SC","Songti SC",serif;
-  overflow-wrap:anywhere;
-}
-.admin-person-identity>p:last-child{
-  margin:4px 0 0;
-  color:var(--muted);
-  font-size:14px;
-  line-height:1.6;
-}
-.admin-person-grade{
-  flex:0 0 auto;
-  max-width:42%;
-  padding:7px 11px;
-  border:1px solid var(--field-border);
-  border-radius:999px;
-  background:var(--field-bg);
-  color:var(--ink);
-  font-size:13px;
-  line-height:1.4;
-  overflow-wrap:anywhere;
-}
 .admin-person-university{
   display:grid;
   gap:5px;
@@ -1912,135 +1880,77 @@ body select option{
 }
 
 
-/* Member roster cards: clear name, high-school and grade hierarchy. */
-.admin-person-card-heading{
-  display:grid;
-  grid-template-columns:minmax(0,1fr) auto;
-  align-items:start;
-  gap:14px;
-  margin-bottom:16px;
-}
-.admin-person-identity{
-  display:grid;
-  gap:5px;
-  min-width:0;
-}
-.admin-person-identity h4{
-  margin:0;
-  color:var(--ink);
-  font:650 22px/1.35 "Noto Serif SC","Songti SC",serif;
-  letter-spacing:.01em;
-  overflow-wrap:anywhere;
-}
-.admin-person-high-school{
-  display:flex;
-  align-items:flex-start;
-  gap:7px;
-  min-width:0;
-  margin:0!important;
-  color:var(--muted);
-  font-size:13px!important;
-  line-height:1.6!important;
-}
-.admin-person-high-school>span{
-  flex:0 0 auto;
-  color:var(--muted);
-  font-size:12px;
-}
-.admin-person-high-school>strong{
-  min-width:0;
-  color:var(--ink);
-  font-size:13px;
-  font-weight:550;
-  overflow-wrap:anywhere;
-}
-.admin-person-grade{
-  display:grid;
-  justify-items:center;
-  align-content:center;
-  gap:3px;
-  min-width:82px;
-  max-width:120px;
-  padding:8px 11px;
-  border:1px solid var(--field-border);
-  border-radius:10px;
-  background:var(--field-bg);
-  color:var(--ink);
-  text-align:center;
-}
-.admin-person-grade>small{
-  color:var(--muted);
-  font-size:10px;
-  line-height:1.35;
-  white-space:nowrap;
-}
-.admin-person-grade>strong{
-  color:var(--ink);
-  font-size:14px;
-  font-weight:750;
-  line-height:1.35;
-  overflow-wrap:anywhere;
-}
-@media(max-width:760px){
-  .admin-person-card-heading{gap:10px;margin-bottom:13px}
-  .admin-person-identity h4{font-size:20px}
-  .admin-person-high-school,.admin-person-high-school>strong{font-size:13px!important}
-  .admin-person-grade{min-width:76px;padding:7px 9px}
-}
-@media(max-width:390px){
-  .admin-person-card-heading{grid-template-columns:minmax(0,1fr) auto;gap:8px}
-  .admin-person-identity h4{font-size:18px}
-  .admin-person-grade{min-width:68px;padding:6px 7px}
-}
-
-
-/* Roster identity block: keep the high-school line and grade badge on a stable horizontal row. */
-#peoplePanel .admin-person-card-heading{
-  box-sizing:border-box;
+/* Roster identity: the name is a direct first-level child of each card.
+   Only the high-school and grade values use their own side-by-side information tiles. */
+#peoplePanel .admin-person-card > .admin-person-name{
+  display:block;
   width:100%;
-  display:grid!important;
-  grid-template-columns:minmax(0,1fr) minmax(112px,max-content)!important;
-  align-items:start!important;
-  gap:12px!important;
+  margin:0 0 12px;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+  color:var(--ink);
+  font-family:"Noto Serif SC","Songti SC","STSong",serif!important;
+  font-size:22px!important;
+  font-weight:650!important;
+  line-height:1.4!important;
+  letter-spacing:.01em;
+  text-align:left;
+  overflow-wrap:anywhere;
 }
-#peoplePanel .admin-person-identity{
+#peoplePanel .admin-person-info-row{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+  align-items:stretch;
+  gap:10px!important;
+  width:100%;
+  margin:0 0 12px!important;
+}
+#peoplePanel .admin-person-info-box{
+  box-sizing:border-box!important;
   display:flex!important;
   flex-direction:column!important;
-  align-items:stretch!important;
+  align-items:flex-start!important;
+  justify-content:center;
+  gap:5px!important;
+  width:100%!important;
+  max-width:none!important;
   min-width:0!important;
+  margin:0!important;
+  padding:12px!important;
+  border:1px solid var(--field-border)!important;
+  border-radius:9px!important;
+  background:var(--field-bg)!important;
+}
+#peoplePanel .admin-person-info-box small{
+  color:var(--muted)!important;
+  font-size:12px!important;
+  line-height:1.5!important;
+}
+#peoplePanel .admin-person-info-box strong{
+  display:block!important;
   width:100%!important;
+  min-width:0!important;
+  color:var(--ink)!important;
+  font-size:15px!important;
+  font-weight:650;
+  line-height:1.6!important;
+  overflow-wrap:anywhere!important;
+  white-space:normal!important;
 }
-#peoplePanel .admin-person-high-school{
-  display:flex!important;
-  flex-direction:row!important;
-  align-items:baseline!important;
-  flex-wrap:wrap!important;
-  width:100%!important;
+@media(max-width:760px){
+  #peoplePanel .admin-person-card > .admin-person-name{font-size:21px!important;margin-bottom:11px;}
+  #peoplePanel .admin-person-info-row{gap:9px!important;}
+  #peoplePanel .admin-person-info-box{padding:10px!important;}
 }
-#peoplePanel .admin-person-grade{
-  box-sizing:border-box!important;
-  display:grid!important;
-  width:auto!important;
-  min-width:112px!important;
-  max-width:140px!important;
-  justify-self:end!important;
-  align-self:start!important;
+@media(max-width:420px){
+  #peoplePanel .admin-person-card > .admin-person-name{font-size:20px!important;}
+  #peoplePanel .admin-person-info-row{gap:8px!important;}
+  #peoplePanel .admin-person-info-box{padding:9px!important;}
+  #peoplePanel .admin-person-info-box strong{font-size:14px!important;}
 }
-@media(max-width:390px){
-  #peoplePanel .admin-person-card-heading{grid-template-columns:minmax(0,1fr) minmax(98px,max-content)!important;gap:8px!important}
-  #peoplePanel .admin-person-grade{min-width:98px!important;padding:6px 7px!important}
-}
-
-
-/* Roster card: name directly in the card; high school and grade side-by-side. */
-#peoplePanel .admin-person-card-heading{display:block!important;width:100%!important;margin:0 0 14px!important;padding:0!important;}
-#peoplePanel .admin-person-card-heading h4{margin:0!important;text-align:left!important;font-size:21px!important;}
-#peoplePanel .admin-person-info-row{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:10px!important;width:100%!important;margin:0 0 12px!important;}
-#peoplePanel .admin-person-info-box{box-sizing:border-box!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:5px!important;width:100%!important;min-width:0!important;margin:0!important;padding:12px!important;border:1px solid var(--field-border)!important;border-radius:9px!important;background:var(--field-bg)!important;}
-#peoplePanel .admin-person-info-box small{color:var(--muted)!important;font-size:12px!important;line-height:1.5!important;}
-#peoplePanel .admin-person-info-box strong{display:block!important;width:100%!important;color:var(--ink)!important;font-size:15px!important;line-height:1.6!important;overflow-wrap:anywhere!important;white-space:normal!important;}
-@media(max-width:420px){#peoplePanel .admin-person-info-row{gap:8px!important;}#peoplePanel .admin-person-info-box{padding:9px!important;}#peoplePanel .admin-person-info-box strong{font-size:14px!important;}}
-
 
 /* Keep administrator identity and sign-out controls inside the sidebar role card. */
 #adminSidebar .admin-sidebar-role-card{gap:10px;}
