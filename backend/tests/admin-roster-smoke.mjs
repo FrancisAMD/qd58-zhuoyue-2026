@@ -54,7 +54,8 @@ const DB={
             memberCount:2,leaderName:"威海校区组长",region:"黑龙江省",
             universityCategory:"mainland",educationLevel:"undergraduate",
             degreeLevelsJson:'["undergraduate"]',
-            projectTagsJson:'["project_985_legacy","project_211_legacy"]'
+            projectTagsJson:'["ordinary_undergraduate","public","project_985","project_211","double_first_class"]',
+            catalogProjectTagsJson:'["project_985_legacy"]'
           }]};
         }
         if(sql.startsWith("SELECT DISTINCT active_teams.region")){
@@ -126,11 +127,17 @@ const teamListBody=await teamList.json();
 assert.equal(teamListBody.items.length,1);
 assert.equal(teamListBody.items[0].university,"哈尔滨工业大学");
 assert.equal(teamListBody.items[0].region,"黑龙江省");
+assert.equal(teamListBody.items[0].projectTagsJson,'["ordinary_undergraduate","public","project_985","project_211","double_first_class"]',
+  "team API must preserve the project tags from the imported profile JSON");
+assert.equal(teamListBody.items[0].catalogProjectTagsJson,'["project_985_legacy"]',
+  "team API must also expose normalized relational catalog tags");
 assert.deepEqual(teamListBody.filterOptions.regions,["黑龙江省","山东省","上海市"]);
 assert.equal(teamListBody.pagination.pageSize,20);
 const teamListSql=queries.find(item=>item.kind==="all"&&item.sql.startsWith("SELECT teams.* FROM ("));
 assert.match(teamListSql.sql,/province_name_zh/,"region must come from university catalog location metadata");
 assert.match(teamListSql.sql,/project_tags_json/,"tier filters must use catalog project tags");
+assert.match(teamListSql.sql,/json_group_array\(catalog_tag\.tag_code\)/,
+  "team cards must receive project tags from the normalized university_tags table too");
 assert.match(teamListSql.sql,/degree_levels_json/,"cards must include catalog degree-level metadata");
 assert.match(teamListSql.sql,/COUNT\(u\.id\) AS memberCount/,"team size must count active users");
 assert.equal(teamListSql.bindings.slice(-2)[0],20,"team directory should page twenty teams by default");
@@ -143,6 +150,20 @@ assert.match(filteredTeamSql.sql,/json_each\(CASE WHEN json_valid\(teams\.projec
 assert.match(filteredTeamSql.sql,/teams\.memberCount>=\?/);
 assert.match(filteredTeamSql.sql,/teams\.memberCount<=\?/);
 for(const value of ["工业","黑龙江省","project_985_legacy",2,20])assert.ok(filteredTeamSql.bindings.includes(value));
+assert.ok(filteredTeamSql.bindings.includes("project_985"),"985 filter must recognize the uploaded JSON tag code");
+const filtered211=await get("/api/admin/teams?level=211");
+assert.equal(filtered211.status,200);
+const filtered211Sql=queries.filter(item=>item.kind==="all"&&item.sql.startsWith("SELECT teams.* FROM (")).at(-1);
+assert.ok(filtered211Sql.bindings.includes("project_211"),"211 filter must recognize the uploaded JSON tag code");
+const filteredDoubleFirstClass=await get("/api/admin/teams?level=double_first_class");
+assert.equal(filteredDoubleFirstClass.status,200);
+const filteredDoubleSql=queries.filter(item=>item.kind==="all"&&item.sql.startsWith("SELECT teams.* FROM (")).at(-1);
+assert.ok(filteredDoubleSql.bindings.includes("double_first_class"),"double-first-class filter must recognize the uploaded JSON tag code");
+const filteredOther=await get("/api/admin/teams?level=other");
+assert.equal(filteredOther.status,200);
+const filteredOtherSql=queries.filter(item=>item.kind==="all"&&item.sql.startsWith("SELECT teams.* FROM (")).at(-1);
+assert.ok(filteredOtherSql.bindings.includes("project_985")&&filteredOtherSql.bindings.includes("double_first_class"),
+  "other filter must exclude all project-tag formats recognized by the cards");
 
 const invalidTeamRange=await get("/api/admin/teams?minMembers=20&maxMembers=2");
 assert.equal(invalidTeamRange.status,400);
