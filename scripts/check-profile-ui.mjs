@@ -27,6 +27,16 @@ assert.doesNotMatch(html,/regPhoneStatus|regPhoneRetry/,"registration form must 
 assert.doesNotMatch(js,/\/auth\/register\/check-phone|registrationPhoneCheck|registrationPhoneVerifiedValue|phone_not_registered/,"frontend must not query or cache registration state before phone verification");
 assert.match(js,/if\(x\.message==="phone_already_registered"\)\$\("regExistingAccount"\)\.hidden=false/,"only the post-verification duplicate response may reveal login guidance");
 assert.doesNotMatch(js,/check-phone/,"frontend must not call a phone-enumeration endpoint");
+assert.doesNotMatch(html,/auth-required-panel|MEMBERS ONLY · FOR 58ERS/,"the login/register helper banner must be removed so the homepage FAQ is prominent");
+assert.match(html,/id="homeFaq"/,"the homepage FAQ must remain directly after the hero");
+assert.match(css,/--field-bg:#edf0ed/,"light mode must use a neutral grey fill for second-level surfaces");
+assert.match(css,/--field-bg:#303a35/,"dark mode must use a neutral grey fill for second-level surfaces");
+assert.match(css,/body input:not\(\[type="checkbox"\]\)[\s\S]*?background:var\(--field-bg\)!important/,"editable fields must use the shared grey surface token");
+assert.match(css,/#results\.cards>\.classmate-card\.panel\{[\s\S]*?background:var\(--field-bg\)!important/,"classmate tiles must use grey surfaces inside the green directory panel");
+assert.match(css,/#teamSummary>\.directory-team-grid>div\{[\s\S]*?background:var\(--field-bg\)!important/,"team summary tiles must use grey surfaces");
+assert.match(css,/#groups>#directory\.directory-panel\{[\s\S]*?margin-top:24px!important/,"the directory panel must keep a vertical gutter after group chat");
+assert.match(css,/\.home-faq-list details\{[\s\S]*?background:var\(--paper\)/,"FAQ questions should be presented as first-level cards");
+assert.match(css,/\.home-faq-answer\{[\s\S]*?background:var\(--field-bg\)/,"FAQ answers should use the shared second-level grey surface");
 const pageTitle = html.match(/<title>([^<]+)<\/title>/)?.[1] || "";
 assert.ok(pageTitle.length > 0, "index.html must define the canonical page title");
 assert.match(html, /<footer id="pageFooter" class="site-footer" hidden>/, "member footer must use the new responsive footer layout");
