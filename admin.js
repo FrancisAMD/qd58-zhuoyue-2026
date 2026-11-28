@@ -658,11 +658,17 @@ $("clearFilters").onclick=()=>{
     loadPeople().catch(error=>showError("peopleMeta",error));
   },0);
 };
+$("firstPage").onclick=()=>{
+  if(page>1){page=1;loadPeople().catch(error=>showError("peopleMeta",error));}
+};
 $("prevPage").onclick=()=>{
   if(page>1){page--;loadPeople().catch(error=>showError("peopleMeta",error));}
 };
 $("nextPage").onclick=()=>{
   if(page<totalPages){page++;loadPeople().catch(error=>showError("peopleMeta",error));}
+};
+$("lastPage").onclick=()=>{
+  if(page<totalPages){page=totalPages;loadPeople().catch(error=>showError("peopleMeta",error));}
 };
 $("export").onclick=()=>{
   readFilters();
