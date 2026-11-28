@@ -10,7 +10,7 @@ const BACKUP_B="22222222222222222222222222222222";
 const FAILED="33333333333333333333333333333333";
 const bucketObjects=new Map();
 const audits=[];
-const workflowCalls=[];
+const githubDispatchCalls=[];
 let activeAdmin={id:"owner-1",username:"rootops",role:"owner"};
 
 function objectFor(key,value,bytes=null){
@@ -43,9 +43,6 @@ const db={
     };
   }
 };
-const workflow={
-  async create(options){workflowCalls.push(options);return {id:options.id,status:async()=>"queued"};}
-};
 async function putManifest(id,status,createdAt) {
   const master=await getBackupMasterKey({BACKUP_MASTER_KEY_V1:MASTER},"v1");
   const manifest={
@@ -74,11 +71,14 @@ function request(path,method="GET",body,role="owner"){
   });
 }
 const env={
-  APP_ORIGIN:ORIGIN,DB:db,D1_BACKUPS:bucket,D1_BACKUP_WORKFLOW:workflow,
-  CLOUDFLARE_ACCOUNT_ID:"account-test",CLOUDFLARE_API_TOKEN:"not-a-real-token",
-  D1_DATABASE_ID:"database-test",BACKUP_MASTER_KEY_V1:MASTER
+  APP_ORIGIN:ORIGIN,DB:db,D1_BACKUPS:bucket,
+  GITHUB_BACKUP_DISPATCH_TOKEN:"github-actions-test-token",BACKUP_MASTER_KEY_V1:MASTER
 };
 const oldFetch=globalThis.fetch;
+globalThis.fetch=async(url,options)=>{
+  githubDispatchCalls.push({url:String(url),options});
+  return new Response(null,{status:204});
+};
 try{
   await putManifest(BACKUP_A,"completed","2026-11-28T18:00:00.000Z");
   await putManifest(BACKUP_B,"completed","2026-11-27T18:00:00.000Z");
@@ -96,13 +96,18 @@ try{
   assert.equal(listing.items[0].backupId,BACKUP_A);
   assert.equal(listing.items[0].status,"completed");
   assert.equal(listing.items[0].plaintextBytes,20);
+  assert.equal(listing.dispatchConfigured,true);
 
   const start=await worker.fetch(request("/api/admin/backups","POST",{}),env);
   assert.equal(start.status,202);
   const started=await start.json();
   assert.match(started.backupId,/^[a-f0-9]{32}$/);
-  assert.equal(workflowCalls.at(-1).params.source,"manual");
-  assert.equal(workflowCalls.at(-1).params.requestedBy,"owner-1");
+  assert.equal(started.runner,"github-actions");
+  const manualPayload=JSON.parse(githubDispatchCalls.at(-1).options.body);
+  assert.equal(manualPayload.ref,"main");
+  assert.equal(manualPayload.inputs.action,"backup");
+  assert.equal(manualPayload.inputs.backup_id,started.backupId);
+  assert.equal(manualPayload.inputs.requested_by,"owner-1");
 
   const manifestResponse=await worker.fetch(request("/api/admin/backups/"+BACKUP_A+"/manifest"),env);
   assert.equal(manifestResponse.status,200);
@@ -115,8 +120,9 @@ try{
 
   const verify=await worker.fetch(request("/api/admin/backups/"+BACKUP_A+"/verify","POST",{}),env);
   assert.equal(verify.status,202);
-  assert.equal(workflowCalls.at(-1).params.action,"verify");
-  assert.equal(workflowCalls.at(-1).params.backupId,BACKUP_A);
+  const verifyPayload=JSON.parse(githubDispatchCalls.at(-1).options.body);
+  assert.equal(verifyPayload.inputs.action,"verify");
+  assert.equal(verifyPayload.inputs.backup_id,BACKUP_A);
 
   const deleteOne=await worker.fetch(request("/api/admin/backups/"+BACKUP_B,"DELETE"),env);
   assert.equal(deleteOne.status,200);
@@ -131,7 +137,11 @@ try{
   assert(audits.some(item=>item.args?.[3]==="admin.backup.started"));
   assert(audits.some(item=>item.args?.[3]==="admin.backup.verification_started"));
   assert(audits.some(item=>item.args?.[3]==="admin.backup.deleted"));
-  console.log("D1 backup admin tests: PASS (owner-only access, manual trigger, signed manifest, encrypted download, verification trigger, audited deletion and last-good protection).");
+  const noDispatchToken={...env,GITHUB_BACKUP_DISPATCH_TOKEN:""};
+  const dispatchMissing=await worker.fetch(request("/api/admin/backups","POST",{}),noDispatchToken);
+  assert.equal(dispatchMissing.status,503);
+  assert.equal((await dispatchMissing.json()).error,"backup_dispatch_not_configured");
+  console.log("D1 backup admin tests: PASS (owner-only access, GitHub Actions dispatch, signed manifest, encrypted download, verification trigger, audited deletion and last-good protection).");
 } finally {
   globalThis.fetch=oldFetch;
 }
