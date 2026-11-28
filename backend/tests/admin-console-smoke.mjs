@@ -54,13 +54,13 @@ assert.doesNotMatch(adminToolbar,/id="adminRole"/,"administrator role badge must
 const sidebarRoleCard=html.slice(html.indexOf('<aside class="admin-sidebar"'),html.indexOf('<div class="admin-main-content">'));
 assert.match(sidebarRoleCard,/class="admin-section-nav"/);
 assert.match(sidebarRoleCard,/class="admin-sidebar-role-card"[\s\S]*?id="adminRole"/,"administrator role should appear in a compact card below sidebar navigation");
-assert.match(js,/window\\.matchMedia\\("\\(max-width:760px\\)"\\)/,"mobile sidebar default should be detected from the viewport");
+assert.ok(js.includes('window.matchMedia("(max-width:760px)")'),"mobile sidebar default should be detected from the viewport");
 assert.ok(js.includes("setAdminSidebarCollapsed(adminSidebarMedia.matches)"),"desktop should default expanded while mobile defaults collapsed");
 assert.ok(js.includes('$("adminSidebarToggle").addEventListener("click"'),"sidebar toggle should be interactive");
 assert.ok(js.includes('adminSidebarMedia.addEventListener("change",handleAdminSidebarViewportChange)'),"sidebar should adapt when the viewport crosses the mobile breakpoint");
 assert.ok(js.includes('$("adminRole").textContent=({owner:"所有者",admin:"普通管理员"}[current.role]||current.role)'),"role card should show the correct role label");
 assert.ok(css.includes(".admin-sidebar-toggle{")&&css.includes("grid-column:1/-1;"),"sidebar toggle should appear at the upper-left of the dashboard workspace");
-assert.match(css,/\\.admin-workspace\\.is-sidebar-collapsed \\.admin-sidebar\\{[\\s\\S]*?display:none!important/,"collapsed state should hide the sidebar while preserving the content area");
+assert.ok(css.includes(".admin-workspace.is-sidebar-collapsed .admin-sidebar{")&&css.includes("display:none!important"),"collapsed state should hide the sidebar while preserving the content area");
 assert.ok(css.includes(".admin-sidebar-role-card{")&&css.includes("background:var(--field-bg);"),"role indicator should be a small card under navigation");
 assert.ok(css.includes("@media(max-width:760px){\n  .admin-sidebar{")&&css.includes(".admin-section-nav{\n    display:grid;"),"expanded mobile navigation should stack into a compact grid");
 
