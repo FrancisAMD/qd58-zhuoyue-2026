@@ -54,7 +54,12 @@ try {
     }
     inputOffset+=encrypted.length;
     const plaintext=await decryptBackupPart(dataKey,manifest.backupId,{...part,ciphertext:new Uint8Array(encrypted)});
-    await output.write(plaintext);
+    let written=0;
+    while(written<plaintext.length){
+      const result=await output.write(plaintext,written,plaintext.length-written,null);
+      if(!result.bytesWritten)throw new Error("Could not write the complete plaintext chunk.");
+      written+=result.bytesWritten;
+    }
     plainTotal+=plaintext.length;
     cipherTotal+=encrypted.length;
   }
