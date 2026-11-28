@@ -29,7 +29,7 @@ assert.match(css, /--field-border:#354239/, "dark inner tiles should use matchin
 assert.match(css,/@media\(min-width:761px\)[\s\S]*?#join>#profile\s*\{[^}]*width:100%[^}]*max-width:none/,"desktop registration form must fill the section width and align with the journey and account bars");
 assert.match(html,/id="registerFields" class="register-fields"(?! disabled)/,"registration inputs must remain usable");
 assert.match(html,/id="regCreate"(?! disabled)/,"registration submit must be available after the SMS code is entered");
-assert.match(html,/app\.js\?v=20261128-welcome-screen-v1/,"welcome splash update must bust the cached frontend script");
+assert.match(html,/app\.js\?v=20261128-donation-amounts-v1/,"donation amount logic must bust the cached frontend script");
 assert.match(html,/完成短信验证后，系统才会确认该手机号是否已有账号/,"registration UI must explain phone ownership verification before account status");
 assert.match(html,/id="regExistingAccount"[^>]*hidden/,"existing-account guidance must remain hidden until server-side verification");
 assert.match(html,/id="regGoLogin"/,"a verified existing account must have a direct login action");
