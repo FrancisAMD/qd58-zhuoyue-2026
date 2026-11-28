@@ -27,7 +27,7 @@
     <button id="retrySession" class="ghost boot-retry" type="button" hidden>重新检查</button>
   </div>
 </div>
-<main id="mainContent" hidden><section id="authStage" class="auth-stage"><section class="hero" id="home"><div><p class="eyebrow">2026 · 冬日返校计划</p><h1>去远方求证，<br><em>回原点</em>作答。</h1><p class="lead">在各自的旷野里跋涉后，才懂得最初的坐标最为确凿。冬日里且卸下大学的包裹，回到五十八中，也为学弟学妹们点燃星星之火。</p><div class="auth-actions"><button class="btn" id="authStageLogin">账号登录 ↗</button><button class="ghost" id="authStageRegister">注册账号</button></div><p class="note">青岛五十八中 · 2026-2027 冬日返校计划 | 汇聚校友力量，五八卓越启航</p></div><div class="art"><img class="art-logo" src="assets/58-logo-light.png" data-light-src="assets/58-logo-light.png" data-dark-src="assets/58-logo-dark.png" data-fallback-src="assets/58-logo-light.png" alt="青岛五十八中校徽" width="170" height="170" decoding="async"><div class="float a">01 / 返校<b>山海有归期</b></div><div class="float b">02 / 宣讲<b>燃星星之火</b></div><small>THE JOURNEY CONTINUES · 2026</small></div></section><section class="home-faq" id="homeFaq" aria-labelledby="homeFaqTitle">
+<main id="mainContent" hidden><section id="authStage" class="auth-stage"><section class="hero" id="home"><div><p class="eyebrow">2026 · 冬日返校计划</p><h1>去远方求证，<br><em>回原点</em>作答。</h1><p class="lead">在各自的旷野里跋涉后，才懂得最初的坐标最为确凿。冬日里且卸下大学的包裹，回到五十八中，也为学弟学妹们点燃星星之火。</p><div class="auth-actions"><button class="btn" id="authStageLogin">账号登录 ↗</button><button class="ghost" id="authStageRegister">注册账号</button></div><p class="note">青岛五十八中 · 2026-2027 冬日返校计划 | 汇聚校友力量，五八卓越启航</p></div><div class="hero-mark"><img class="art-logo" src="assets/58-logo-light.png" data-light-src="assets/58-logo-light.png" data-dark-src="assets/58-logo-dark.png" data-fallback-src="assets/58-logo-light.png" alt="青岛五十八中校徽" width="390" height="390" decoding="async"></div></section><section class="home-faq" id="homeFaq" aria-labelledby="homeFaqTitle">
   <div class="home-faq-heading">
     <p class="eyebrow">QUESTIONS & ANSWERS</p>
     <h2 id="homeFaqTitle">关于返校宣讲，你可能想知道</h2>
@@ -68,7 +68,7 @@
 <button type="button" data-journey-step="profile"><span>02</span><b>完善资料</b></button>
 <button type="button" data-journey-step="directory"><span>03</span><b>查看同校同学</b></button>
 </nav>
-<section id="join" class="section"><p class="eyebrow">JOIN THE COMMUNITY</p><h2>留下你的坐标</h2><p class="lead">登录后完善个人资料，系统会自动将你加入所在大学的返校小队。</p><div id="gate" class="panel"><div><h3>锚定自我，觅同路人。</h3><p>用户名为注册手机号，需要创建密码登录。首次注册及找回密码需要短信验证。</p></div><button class="btn" id="gateLogin">登录 / 注册</button></div><form id="profile" class="profile-form-shell" hidden>
+<section id="join" class="section"><div class="journey-section-intro"><p class="eyebrow">JOIN THE COMMUNITY</p><h2>留下你的坐标</h2><p class="lead">登录后完善个人资料，系统会自动将你加入所在大学的返校小队。</p></div><div id="gate" class="panel"><div><h3>锚定自我，觅同路人。</h3><p>用户名为注册手机号，需要创建密码登录。首次注册及找回密码需要短信验证。</p></div><button class="btn" id="gateLogin">登录 / 注册</button></div><form id="profile" class="profile-form-shell" hidden>
 <section id="registrationUniversityPanel" class="profile-stage-panel">
 <section id="universityTypeStep" class="university-type-step">
 <p class="profile-intro">请选择高校所在范围。</p>
@@ -143,9 +143,11 @@
 <div class="panel"><strong id="reviewUniversityName">—</strong><p>已收到你的海外高校登记资料。组织者核实并归入对应高校团队后，你就可以查看同校同学和组长信息。</p><p>审核期间，每次登录都会显示此页面。你可以手动刷新审核状态。</p><button type="button" class="btn" id="reviewRefresh">刷新审核状态</button><p id="reviewMsg" class="msg" aria-live="polite"></p></div>
 </section>
 <section id="groups" class="section directory-stage" hidden>
+<div class="journey-section-intro">
 <p class="eyebrow">FIND YOUR TEAMMATES</p>
 <h2>发现你的队友</h2>
 <p class="lead">这里汇集与你就读同一所高校的五十八中同学，通讯信息仅对同校团队成员展示。</p>
+</div>
 <div class="directory-school panel"><div><span>你的就读高校</span><strong id="directorySchoolTitle">—</strong></div><span class="directory-count" id="directoryCount">正在加载同学资料…</span></div>
 <div id="teamSummary" class="panel directory-team-summary" hidden>
 <div><span class="eyebrow">UNIVERSITY TEAM</span><h3>我的返校宣讲小队</h3></div>
