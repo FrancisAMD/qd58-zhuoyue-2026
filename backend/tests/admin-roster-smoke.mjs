@@ -18,6 +18,7 @@ const DB={
         if(sql.startsWith("SELECT COUNT(*) AS total FROM teams t"))return {total:1};
         if(sql.startsWith("SELECT COUNT(*) AS total, SUM"))return {total:2,completed:1,consented:1};
         if(sql.startsWith("SELECT COUNT(*) AS total FROM audit_logs"))return {total:15};
+        if(sql.startsWith("SELECT COUNT(*) AS total FROM ("))return {total:1};
         throw new Error("Unexpected first query: "+sql);
       },
       all:async()=>{
@@ -46,6 +47,18 @@ const DB={
         }
         if(sql.includes("FROM group_chat_confirmations WHERE user_id IN (")){
           return {results:[{userId:"user-2",regionKey:"heilongjiang",universityIdSnapshot:"university-2",qrUploadedAtSnapshot:"2026-11-27T11:00:00.000Z",confirmedAt:"2026-11-27T11:20:00.000Z"}]};
+        }
+        if(sql.startsWith("SELECT teams.* FROM (")){
+          return {results:[{
+            id:"team-filtered",universityId:"university-2",university:"哈尔滨工业大学",
+            memberCount:2,leaderName:"威海校区组长",region:"黑龙江省",
+            universityCategory:"mainland",educationLevel:"undergraduate",
+            degreeLevelsJson:'["undergraduate"]',
+            projectTagsJson:'["project_985_legacy","project_211_legacy"]'
+          }]};
+        }
+        if(sql.startsWith("SELECT DISTINCT active_teams.region")){
+          return {results:[{region:"黑龙江省"},{region:"山东省"},{region:"上海市"}]};
         }
         if(sql.startsWith("SELECT t.id,uni.canonical_name AS university")){
           assert.match(sql,/HAVING COUNT\(u.id\)>0/);
