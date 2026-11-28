@@ -49,7 +49,7 @@ assert.match(css, /--field-border:#354239/, "dark inner tiles should use matchin
 assert.match(css,/@media\(min-width:761px\)[\s\S]*?#join>#profile\s*\{[^}]*width:100%[^}]*max-width:none/,"desktop registration form must fill the section width and align with the journey and account bars");
 assert.match(html,/id="registerFields" class="register-fields"(?! disabled)/,"registration inputs must remain usable");
 assert.match(html,/id="regCreate"(?! disabled)/,"registration submit must be available after the SMS code is entered");
-assert.match(html,/app\.js\?v=20261128-university-level-tags-v1/,"donation amount logic must bust the cached frontend script");
+assert.match(html,/app\.js\?v=20261128-university-ownership-tags-v2/,"donation amount logic must bust the cached frontend script");
 assert.match(html,/完成短信验证后，系统才会确认该手机号是否已有账号/,"registration UI must explain phone ownership verification before account status");
 assert.match(html,/id="regExistingAccount"[^>]*hidden/,"existing-account guidance must remain hidden until server-side verification");
 assert.match(html,/id="regGoLogin"/,"a verified existing account must have a direct login action");
@@ -119,7 +119,7 @@ assert.ok(uiSections.includes("aspect-ratio:1312 / 1787"),"donation image frame 
 assert.ok(uiSections.includes("object-fit:cover;\n  background:transparent"),"donation image must fill its frame without white side gutters");
 assert.ok(uiSections.includes(".donation-qr-pending[hidden]{display:none!important}"),"pending placeholder must respect its hidden state");
 assert.ok(html.includes("ui-sections.css?v=20261128-local-fonts-v1"),"donation QR layout must bust the component stylesheet cache");
-assert.ok(html.includes("app.js?v=20261128-university-level-tags-v1"),"donation amount logic must bust the frontend script cache");
+assert.ok(html.includes("app.js?v=20261128-university-ownership-tags-v2"),"donation amount logic must bust the frontend script cache");
 assert.ok(html.includes("theme.js?v=20261128-donation-qr-fix-v2"),"donation theme handling must bust the theme script cache");
 assert.match(theme,/root\.dataset\.theme === "dark" \? "dark" : "light"/,"donation QR mode must follow the active root theme");
 assert.match(theme,/image\.id === "donationQrImage"/,"theme changes must use the donation-specific load state");
@@ -245,8 +245,10 @@ assert.match(css,/\.card-reveal-pending\{[\s\S]*?opacity:0[\s\S]*?translate:0 20
 assert.match(css,/\.card-reveal-visible\{\s*opacity:1;[\s\S]*?translate:0 0;/,"revealed cards should settle into their original position");
 
 
-assert.match(js,/const UNIVERSITY_LEVEL_TAG_LABELS=Object\.freeze\([\s\S]*?project_985:"985工程"[\s\S]*?project_211:"211工程"[\s\S]*?double_first_class:"双一流"/,"university hierarchy tags should be translated into concise Chinese labels");
-assert.match(js,/function universityLevelTags\(item\)[\s\S]*?UNIVERSITY_LEVEL_TAG_LABELS\[tag\][\s\S]*?filter\(Boolean\)/,"university search should retain only meaningful hierarchy tags, omitting generic public/undergraduate labels");
-assert.match(js,/function renderUniversitySearchResults\(rows\)[\s\S]*?university-result-tags[\s\S]*?university-tag-chip[\s\S]*?safe\(location\)/,"university search should render hierarchy labels as separate chips and keep location as plain metadata");
+assert.match(js,/const UNIVERSITY_DISPLAY_TAG_LABELS=Object\.freeze\([\s\S]*?public:"公办"[\s\S]*?private:"民办"[\s\S]*?sino:"中外合作办学"[\s\S]*?project_985:"985工程"[\s\S]*?project_211:"211工程"[\s\S]*?double_first_class:"双一流"/,"university ownership and hierarchy tags should be translated into concise Chinese labels");
+assert.match(js,/function universityDisplayTags\(item\)[\s\S]*?UNIVERSITY_DISPLAY_TAG_LABELS\[tag\][\s\S]*?filter\(Boolean\)/,"university search should retain meaningful ownership/hierarchy tags while omitting unneeded undergraduate metadata");
+assert.doesNotMatch(js,/ordinary_undergraduate\s*:/,"ordinary undergraduate metadata should not be shown as a display tag");
+assert.match(js,/aria-label="高校属性标签"/,"university search chips should be identified as school attribute tags");
+assert.match(js,/function renderUniversitySearchResults\(rows\)[\s\S]*?university-result-tags[\s\S]*?university-tag-chip[\s\S]*?safe\(location\)/,"university search should render attribute labels as separate chips and keep location as plain metadata");
 assert.match(css,/\.university-result-tags\{[\s\S]*?display:flex[\s\S]*?flex-wrap:wrap/,"university hierarchy chips should wrap cleanly within search results");
 assert.match(css,/\.university-result-tags \.university-tag-chip\{margin:0\}/,"search hierarchy chips should use consistent spacing");

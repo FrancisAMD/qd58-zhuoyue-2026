@@ -371,13 +371,18 @@ async function openUniversityDetails(){
     msg("profileMsg","登记数据暂时无法加载，请刷新页面后重试。",true);
   }
 }
-const UNIVERSITY_LEVEL_TAG_LABELS=Object.freeze({
+const UNIVERSITY_DISPLAY_TAG_LABELS=Object.freeze({
+  public:"公办",
+  private:"民办",
+  sino:"中外合作办学",
+  sino_foreign_cooperative:"中外合作办学",
+  cooperative:"合作办学",
   project_985:"985工程",
   project_211:"211工程",
   double_first_class:"双一流"
 });
-function universityLevelTags(item){
-  return [...new Set((Array.isArray(item?.tags)?item.tags:[]).map(tag=>UNIVERSITY_LEVEL_TAG_LABELS[tag]).filter(Boolean))];
+function universityDisplayTags(item){
+  return [...new Set((Array.isArray(item?.tags)?item.tags:[]).map(tag=>UNIVERSITY_DISPLAY_TAG_LABELS[tag]).filter(Boolean))];
 }
 function renderUniversitySearchResults(rows){
   const container=$("universitySearchResults");
@@ -387,8 +392,8 @@ function renderUniversitySearchResults(rows){
   }
   container.innerHTML=rows.map((item,index)=>{
     const location=item._category==="mainland"?[item.province_or_state,item.city].filter(Boolean).join(" · "):(item.region||"");
-    const tags=universityLevelTags(item);
-    const tagMarkup=tags.length?'<span class="university-result-tags" aria-label="高校层次">'+tags.map(tag=>'<span class="university-tag-chip">'+safe(tag)+'</span>').join("")+'</span>':"";
+    const tags=universityDisplayTags(item);
+    const tagMarkup=tags.length?'<span class="university-result-tags" aria-label="高校属性标签">'+tags.map(tag=>'<span class="university-tag-chip">'+safe(tag)+'</span>').join("")+'</span>':"";
     const locationMarkup=location?'<small>'+safe(location)+'</small>':"";
     return '<button type="button" class="university-result" data-university-index="'+index+'"><span><strong>'+safe(item.name)+'</strong>'+locationMarkup+tagMarkup+'</span><span class="university-result-action">选择</span></button>';
   }).join("");
