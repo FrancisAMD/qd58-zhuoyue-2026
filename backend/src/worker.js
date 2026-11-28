@@ -1789,13 +1789,14 @@ if(path==="/api/teams/transfer" && method==="POST") {
       "COALESCE(uni.education_level,'') AS educationLevel,",
       "COALESCE(uni.degree_levels_json,'[]') AS degreeLevelsJson,",
       "COALESCE(uni.project_tags_json,'[]') AS projectTagsJson,",
+      "COALESCE(profile_catalog.tags_json,'[]') AS profileCatalogTagsJson,",
       "COALESCE((SELECT json_group_array(catalog_tag.tag_code) FROM university_tags catalog_tag WHERE catalog_tag.university_id=uni.id AND catalog_tag.tag_group='project'),'[]') AS catalogProjectTagsJson",
       "FROM teams t JOIN universities uni ON uni.id=t.university_id",
       "LEFT JOIN profile_university_catalog profile_catalog ON profile_catalog.university_id=uni.id",
       "LEFT JOIN users u ON u.university_id=t.university_id AND u.deleted_at=''",
       "LEFT JOIN users leader ON leader.id=t.leader_user_id AND leader.deleted_at=''",
       "GROUP BY t.id,t.university_id,uni.canonical_name,leader.name,uni.province_name_zh,",
-      "profile_catalog.province_name,uni.country_name_zh,uni.region_name,uni.category,",
+      "profile_catalog.province_name,profile_catalog.tags_json,uni.country_name_zh,uni.region_name,uni.category,",
       "uni.education_level,uni.degree_levels_json,uni.project_tags_json",
       "HAVING COUNT(u.id)>0"
     ].join(" ");
@@ -1807,6 +1808,7 @@ if(path==="/api/teams/transfer" && method==="POST") {
     }
     if(region){where.push("teams.region=?");bindings.push(region);}
     const projectJson = "CASE WHEN json_valid(teams.projectTagsJson) THEN teams.projectTagsJson ELSE '[]' END";
+    const profileProjectJson = "CASE WHEN json_valid(teams.profileCatalogTagsJson) THEN teams.profileCatalogTagsJson ELSE '[]' END";
     const projectLevelCodes={
       "985":["project_985_legacy","project_985","985","985工程","985工程高校"],
       "211":["project_211_legacy","project_211","211","211工程","211工程高校"],
@@ -1818,19 +1820,21 @@ if(path==="/api/teams/transfer" && method==="POST") {
       const placeholders=codes.map(()=>"?").join(",");
       where.push(
         "(EXISTS(SELECT 1 FROM json_each("+projectJson+") project_tag WHERE project_tag.value IN ("+placeholders+")) "+
+        "OR EXISTS(SELECT 1 FROM json_each("+profileProjectJson+") profile_tag WHERE profile_tag.value IN ("+placeholders+")) "+
         "OR EXISTS(SELECT 1 FROM university_tags catalog_tag WHERE catalog_tag.university_id=teams.universityId "+
         "AND catalog_tag.tag_group='project' AND catalog_tag.tag_code IN ("+placeholders+")))"
       );
-      bindings.push(...codes,...codes);
+      bindings.push(...codes,...codes,...codes);
     } else if(level==="other"){
       const knownCodes=allKnownProjectCodes;
       const placeholders=knownCodes.map(()=>"?").join(",");
       where.push(
         "(NOT EXISTS(SELECT 1 FROM json_each("+projectJson+") project_tag WHERE project_tag.value IN ("+placeholders+")) "+
+        "AND NOT EXISTS(SELECT 1 FROM json_each("+profileProjectJson+") profile_tag WHERE profile_tag.value IN ("+placeholders+")) "+
         "AND NOT EXISTS(SELECT 1 FROM university_tags catalog_tag WHERE catalog_tag.university_id=teams.universityId "+
         "AND catalog_tag.tag_group='project' AND catalog_tag.tag_code IN ("+placeholders+")))"
       );
-      bindings.push(...knownCodes,...knownCodes);
+      bindings.push(...knownCodes,...knownCodes,...knownCodes);
     }
     if(minMembers!==null){where.push("teams.memberCount>=?");bindings.push(minMembers);}
     if(maxMembers!==null){where.push("teams.memberCount<=?");bindings.push(maxMembers);}
