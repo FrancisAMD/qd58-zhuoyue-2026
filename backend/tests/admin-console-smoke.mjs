@@ -137,7 +137,7 @@ assert.match(js,/class="admin-person-grade admin-person-info-box"><small>当前�
 assert.match(js,/class="admin-person-high-school admin-person-info-box"><small>高中/,"roster card high school must have its own labeled block");
 assert.match(css,/#peoplePanel \.admin-person-info-row\{\s*display:grid!important;\s*grid-template-columns:minmax\(0,1fr\) minmax\(0,1fr\)!important;/,"high school and grade blocks should appear side by side");
 assert.match(html,/style\.css\?v=20261128-roster-name-direct-child-v2/,"admin must load the latest shared stylesheet");
-assert.match(html,/admin\.js\?v=20261128-roster-name-direct-child-v2/,"admin must load the current admin script");
+assert.match(html,/admin\.js\?v=20261128-team-tier-tag-codes-v1/,"admin must load the current admin script");
 assert.ok(js.includes("'<h4 class=\"admin-person-name\">'+safe(name)+'</h4>'+"),"member name should render directly inside the card, without a wrapping header module");
 assert.doesNotMatch(js,/<header class="admin-person-card-heading"/,"roster name must not use the global site header element");
 assert.match(css,/#peoplePanel \.admin-person-card > \.admin-person-name\{[\s\S]*?background:transparent[\s\S]*?font-family:"Noto Serif SC"/,"member name should be unboxed and use the intended serif title font");
