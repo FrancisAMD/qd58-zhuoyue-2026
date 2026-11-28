@@ -20,8 +20,8 @@ assert.match(html, /<form id="profile" class="profile-form-shell" hidden>/, "pro
 assert.doesNotMatch(html, /<form id="profile" class="panel"/, "profile journey must not add a redundant panel around each step");
 assert.match(html, /<section id="registrationUniversityPanel" class="profile-stage-panel">/, "university selection must remain its own main card");
 assert.match(html, /<section id="registrationDetailsPanel" class="profile-stage-panel" hidden>/, "profile details must remain their own main card");
-assert.match(css, /#profile\\.profile-form-shell\\{[\\s\\S]*?background:transparent;[\\s\\S]*?box-shadow:none;/, "profile form shell must not draw a nested outer frame");
-assert.match(css, /#profile\\.profile-form-shell>\\.profile-stage-panel\\{[\\s\\S]*?background:var\\(--paper\\)/, "each journey step should render as an independent primary card");
+assert.match(css, /#profile\.profile-form-shell\{[\s\S]*?background:transparent;[\s\S]*?box-shadow:none;/, "profile form shell must not draw a nested outer frame");
+assert.match(css, /#profile\.profile-form-shell>\.profile-stage-panel\{[\s\S]*?background:var\(--paper\)/, "each journey step should render as an independent primary card");
 assert.match(css, /--field-border:#46584b/, "dark inner tiles should use matching muted green-grey borders");
 assert.match(css,/@media\(min-width:761px\)[\s\S]*?#join>#profile\s*\{[^}]*width:100%[^}]*max-width:none/,"desktop registration form must fill the section width and align with the journey and account bars");
 assert.match(html,/id="registerFields" class="register-fields"(?! disabled)/,"registration inputs must remain usable");
