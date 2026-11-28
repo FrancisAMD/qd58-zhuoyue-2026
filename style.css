@@ -1992,3 +1992,41 @@ body select option{
   .admin-person-identity h4{font-size:18px}
   .admin-person-grade{min-width:68px;padding:6px 7px}
 }
+
+
+/* Roster identity block: keep the high-school line and grade badge on a stable horizontal row. */
+#peoplePanel .admin-person-card-heading{
+  box-sizing:border-box;
+  width:100%;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) minmax(112px,max-content)!important;
+  align-items:start!important;
+  gap:12px!important;
+}
+#peoplePanel .admin-person-identity{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:stretch!important;
+  min-width:0!important;
+  width:100%!important;
+}
+#peoplePanel .admin-person-high-school{
+  display:flex!important;
+  flex-direction:row!important;
+  align-items:baseline!important;
+  flex-wrap:wrap!important;
+  width:100%!important;
+}
+#peoplePanel .admin-person-grade{
+  box-sizing:border-box!important;
+  display:grid!important;
+  width:auto!important;
+  min-width:112px!important;
+  max-width:140px!important;
+  justify-self:end!important;
+  align-self:start!important;
+}
+@media(max-width:390px){
+  #peoplePanel .admin-person-card-heading{grid-template-columns:minmax(0,1fr) minmax(98px,max-content)!important;gap:8px!important}
+  #peoplePanel .admin-person-grade{min-width:98px!important;padding:6px 7px!important}
+}
