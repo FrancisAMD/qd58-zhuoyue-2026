@@ -1,4 +1,5 @@
 import { buildXlsxWorkbook } from "./xlsx.js";
+import { backupManifestKey, getBackupMasterKey, verifyBackupManifest } from "./d1-backup-crypto.js";
 import { recordDeletionIntent } from "./account-deletion-ledger.js";
 import {
   stageCatalogImport,
@@ -219,7 +220,7 @@ async function currentAdmin(request, env) {
     .bind(digest, now()).first();
 }
 const ADMIN_PERMISSIONS = {
-  owner: ["overview", "people:read", "people:export", "people:delete", "audit:read", "admins:manage", "universities:import", "universities:review", "group-chat:manage", "donations:manage"],
+  owner: ["overview", "people:read", "people:export", "people:delete", "audit:read", "admins:manage", "universities:import", "universities:review", "group-chat:manage", "donations:manage", "backups:manage"],
   admin: ["overview", "universities:review", "group-chat:manage"]
 };
 function hasAdminPermission(admin, permission) {
@@ -626,13 +627,17 @@ async function route(request, env) {
   if(!isTrustedAppOrigin(origin,env) && !originlessPublicRead)
     return response({error:"origin_forbidden"},403,origin,env);
   if(path==="/api/health" && method==="GET") return response({
-    ok:true,service:"zhuoyue-2026-api",build:"registration-otp-ownership-20261128",
+    ok:true,service:"zhuoyue-2026-api",build:"encrypted-d1-backup-20261128",
     passwordKdf:"pbkdf2-sha256-100000",
     readiness:{
       rateLimitConfigured:typeof env.RATE_LIMIT_HMAC_SECRET==="string"&&env.RATE_LIMIT_HMAC_SECRET.length>=32,
       turnstileConfigured:!!env.TURNSTILE_SECRET_KEY,
       smsCredentialsConfigured:!!env.ALIBABA_ACCESS_KEY_ID&&!!env.ALIBABA_ACCESS_KEY_SECRET,
-      smsTemplateConfigured:!!env.ALIBABA_SIGN_NAME&&!!env.ALIBABA_TEMPLATE_CODE
+      smsTemplateConfigured:!!env.ALIBABA_SIGN_NAME&&!!env.ALIBABA_TEMPLATE_CODE,
+      backupStorageConfigured:!!env.D1_BACKUPS,
+      backupWorkflowConfigured:!!env.D1_BACKUP_WORKFLOW,
+      backupExportConfigured:!!env.CLOUDFLARE_ACCOUNT_ID&&!!env.CLOUDFLARE_API_TOKEN&&!!env.D1_DATABASE_ID,
+      backupEncryptionConfigured:typeof env.BACKUP_MASTER_KEY_V1==="string"&&env.BACKUP_MASTER_KEY_V1.length>=32
     }
   },200,origin,env);
   if(path==="/api/donations" && method==="GET") {
@@ -1939,6 +1944,151 @@ if(path==="/api/teams/transfer" && method==="POST") {
     } catch (e) {
       const conflict = String(e?.message||"").toLowerCase().includes("unique");
       return response({error:conflict?"admin_username_exists":"admin_create_failed"},conflict?409:400,origin,env);
+    }
+  }
+  if (path === "/api/admin/backups" && (method === "GET" || method === "POST")) {
+    const admin = await currentAdmin(request,env);
+    if (!admin) return response({error:"unauthorized"},401,origin,env);
+    if (!hasAdminPermission(admin,"backups:manage")) return response({error:"forbidden"},403,origin,env);
+    if (!env.D1_BACKUPS) return response({error:"backup_storage_not_configured"},503,origin,env);
+    if (method === "POST") {
+      if (!env.D1_BACKUP_WORKFLOW || !env.CLOUDFLARE_ACCOUNT_ID || !env.CLOUDFLARE_API_TOKEN ||
+          !env.D1_DATABASE_ID || !env.BACKUP_MASTER_KEY_V1) {
+        return response({error:"backup_configuration_incomplete"},503,origin,env);
+      }
+      const backupId = randomHex(16);
+      try {
+        const instance = await env.D1_BACKUP_WORKFLOW.create({
+          id: backupId,
+          params: { backupId, source: "manual", requestedBy: admin.id }
+        });
+        await writeAudit(env.DB,"admin",admin.id,"admin.backup.started","d1_backup",backupId,{source:"manual"});
+        return response({ok:true,backupId,workflowInstanceId:instance.id},202,origin,env);
+      } catch (error) {
+        console.error("Manual D1 backup could not be started",error?.message||"unknown");
+        return response({error:"backup_start_failed"},503,origin,env);
+      }
+    }
+    try {
+      const page = await env.D1_BACKUPS.list({prefix:"d1-backups/v1/manifests/",limit:100});
+      const items = [];
+      let unreadable = 0;
+      for (const objectInfo of page.objects || []) {
+        const object = await env.D1_BACKUPS.get(objectInfo.key);
+        if (!object) continue;
+        try {
+          const manifest = await object.json();
+          if (!manifest || !/^[a-f0-9]{32}$/.test(manifest.backupId||"") ||
+              objectInfo.key !== backupManifestKey(manifest.backupId) ||
+              manifest.format !== "qd58-d1-backup" || manifest.schemaVersion !== 1) {
+            unreadable++;
+            continue;
+          }
+          const master = await getBackupMasterKey(env,manifest.keyVersion);
+          if (!(await verifyBackupManifest(manifest,master))) {
+            unreadable++;
+            continue;
+          }
+          items.push({
+            backupId:manifest.backupId,status:manifest.status,
+            createdAt:manifest.createdAt||"",completedAt:manifest.completedAt||"",
+            plaintextBytes:Number(manifest.plaintextBytes)||0,
+            ciphertextBytes:Number(manifest.ciphertextBytes)||0,
+            partCount:Number(manifest.partCount)||0,
+            source:manifest.source||"unknown",
+            verification:manifest.verification?.status||"not_checked",
+            verifiedAt:manifest.verification?.checkedAt||"",
+            errorCode:manifest.errorCode||manifest.verification?.errorCode||""
+          });
+        } catch {
+          unreadable++;
+        }
+      }
+      items.sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));
+      return response({
+        items,unreadable,truncated:page.truncated===true,
+        workflowConfigured:!!env.D1_BACKUP_WORKFLOW,
+        exportConfigured:!!env.CLOUDFLARE_ACCOUNT_ID&&!!env.CLOUDFLARE_API_TOKEN&&!!env.D1_DATABASE_ID,
+        encryptionConfigured:typeof env.BACKUP_MASTER_KEY_V1==="string"&&env.BACKUP_MASTER_KEY_V1.length>=32
+      },200,origin,env);
+    } catch (error) {
+      console.error("D1 backup list failed",error?.message||"unknown");
+      return response({error:"backup_list_failed"},500,origin,env);
+    }
+  }
+  const backupMatch = path.match(/^\/api\/admin\/backups\/([a-f0-9]{32})(?:\/(manifest|download|verify))?$/);
+  if (backupMatch) {
+    const admin = await currentAdmin(request,env);
+    if (!admin) return response({error:"unauthorized"},401,origin,env);
+    if (!hasAdminPermission(admin,"backups:manage")) return response({error:"forbidden"},403,origin,env);
+    if (!env.D1_BACKUPS) return response({error:"backup_storage_not_configured"},503,origin,env);
+    const backupId = backupMatch[1];
+    const action = backupMatch[2] || "";
+    try {
+      const manifestObject = await env.D1_BACKUPS.get(backupManifestKey(backupId));
+      if (!manifestObject) return response({error:"backup_not_found"},404,origin,env);
+      const manifest = await manifestObject.json();
+      if (manifest?.backupId !== backupId || manifest?.format !== "qd58-d1-backup" || manifest?.schemaVersion !== 1) {
+        return response({error:"backup_manifest_invalid"},409,origin,env);
+      }
+      const master = await getBackupMasterKey(env,manifest.keyVersion);
+      if (!(await verifyBackupManifest(manifest,master))) {
+        return response({error:"backup_manifest_signature_invalid"},409,origin,env);
+      }
+      if (action === "manifest" && method === "GET") {
+        return response({manifest},200,origin,env);
+      }
+      if (action === "download" && method === "GET") {
+        if (manifest.status !== "completed") return response({error:"backup_not_ready"},409,origin,env);
+        const stored = await env.D1_BACKUPS.get(manifest.objectKey);
+        if (!stored?.body) return response({error:"backup_object_missing"},404,origin,env);
+        const headers = {
+          "content-type":"application/octet-stream",
+          "content-disposition":'attachment; filename="qd58-d1-' + backupId + '.qd58enc"',
+          "content-length":String(stored.size),
+          "cache-control":"no-store",
+          "x-content-type-options":"nosniff",
+          ...corsHeaders(origin,env)
+        };
+        return new Response(stored.body,{status:200,headers});
+      }
+      if (action === "verify" && method === "POST") {
+        if (manifest.status !== "completed") return response({error:"backup_not_ready"},409,origin,env);
+        if (!env.D1_BACKUP_WORKFLOW) return response({error:"backup_workflow_not_configured"},503,origin,env);
+        const instanceId = "verify-" + backupId + "-" + randomHex(8);
+        const instance = await env.D1_BACKUP_WORKFLOW.create({
+          id:instanceId,params:{action:"verify",backupId,requestedBy:admin.id}
+        });
+        await writeAudit(env.DB,"admin",admin.id,"admin.backup.verification_started","d1_backup",backupId,{});
+        return response({ok:true,workflowInstanceId:instance.id},202,origin,env);
+      }
+      if (!action && method === "DELETE") {
+        if (manifest.status === "running") return response({error:"backup_running"},409,origin,env);
+        if (manifest.status === "completed") {
+          const page = await env.D1_BACKUPS.list({prefix:"d1-backups/v1/manifests/",limit:100});
+          let otherCompleted = 0;
+          for (const item of page.objects || []) {
+            if (item.key === backupManifestKey(backupId)) continue;
+            const otherObject = await env.D1_BACKUPS.get(item.key);
+            if (!otherObject) continue;
+            try {
+              const other = await otherObject.json();
+              if (other?.status !== "completed" || other?.format !== "qd58-d1-backup") continue;
+              const otherMaster = await getBackupMasterKey(env,other.keyVersion);
+              if (await verifyBackupManifest(other,otherMaster)) otherCompleted++;
+            } catch {}
+          }
+          if (!otherCompleted) return response({error:"backup_last_successful_protected"},409,origin,env);
+        }
+        if (manifest.objectKey) await env.D1_BACKUPS.delete(manifest.objectKey);
+        await env.D1_BACKUPS.delete(backupManifestKey(backupId));
+        await writeAudit(env.DB,"admin",admin.id,"admin.backup.deleted","d1_backup",backupId,{status:manifest.status});
+        return response({ok:true,deleted:true,backupId},200,origin,env);
+      }
+      return response({error:"method_not_allowed"},405,origin,env);
+    } catch (error) {
+      console.error("D1 backup management action failed",error?.message||"unknown");
+      return response({error:"backup_management_failed"},500,origin,env);
     }
   }
   const adminAccountMatch = path.match(/^\/api\/admin\/admins\/([a-f0-9]{32})$/);
