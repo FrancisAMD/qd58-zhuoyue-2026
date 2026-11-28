@@ -79,6 +79,7 @@ assert.ok(html.includes('data-amount-15-dark-src="assets/donation-qr-15-dark.png
 assert.ok(js.includes("function selectDonationAmount(amount)"),"donation amount buttons must update the QR image");
 assert.ok(js.includes("image.dataset.lightSrc=light")&&js.includes("image.dataset.darkSrc=dark"),"amount selection must update both theme-aware QR sources");
 assert.ok(js.includes('const target=theme==="dark"?dark:light'),"amount selection must respect the current color theme");
+assert.ok(js.includes("image.onerror=()=>{")&&js.includes("image.dataset.activeThemeSrc!==target"),"selected QR image should retain a safe fallback without stale image handlers");
 assert.ok(uiSections.includes(".donation-amount-options button.active"),"selected donation amount must be visually highlighted");
 assert.ok(html.includes("ui-sections.css?v=20261128-donation-amount-member-card-v1"),"donation selector update must bust the component stylesheet cache");
 assert.ok(html.includes("app.js?v=20261128-donation-amounts-v1"),"donation amount logic must bust the frontend script cache");
