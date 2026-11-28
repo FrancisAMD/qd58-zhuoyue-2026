@@ -22,7 +22,7 @@
 .home-faq-answer{padding:0 17px 16px 46px;color:var(--muted);font-size:12px;line-height:1.9}
 .home-faq-answer p{margin:0}
 
-/* Student directory sponsorship module. The illustration is intentionally 3:4. */
+/* Student directory sponsorship module. QR assets use their verified native 1312:1787 ratio. */
 .donation-module{
   display:grid;
   grid-template-columns:minmax(190px,.72fr) minmax(0,1.28fr);
