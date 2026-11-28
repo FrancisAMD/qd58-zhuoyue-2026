@@ -37,7 +37,7 @@
 
   applyPreference();
 
-  // theme.js is loaded in <head>, before the donation image exists in the DOM.
+  // theme.js is loaded in <head>, before the themed images exist in the DOM.
   document.addEventListener("DOMContentLoaded", updateThemeImages, { once: true });
 
   // Keep the QR image in sync if another script changes the theme attribute.
