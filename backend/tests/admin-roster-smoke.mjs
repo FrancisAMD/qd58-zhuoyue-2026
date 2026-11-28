@@ -120,6 +120,33 @@ assert.match(teamCountSql,/EXISTS\(SELECT 1 FROM users active_member/);
 const teamsSql=queries.find(item=>item.kind==="all"&&item.sql.startsWith("SELECT t.id,uni.canonical_name")).sql;
 assert.match(teamsSql,/HAVING COUNT\(u.id\)>0/);
 
+const teamList=await get("/api/admin/teams");
+assert.equal(teamList.status,200);
+const teamListBody=await teamList.json();
+assert.equal(teamListBody.items.length,1);
+assert.equal(teamListBody.items[0].university,"哈尔滨工业大学");
+assert.equal(teamListBody.items[0].region,"黑龙江省");
+assert.deepEqual(teamListBody.filterOptions.regions,["黑龙江省","山东省","上海市"]);
+assert.equal(teamListBody.pagination.pageSize,20);
+const teamListSql=queries.find(item=>item.kind==="all"&&item.sql.startsWith("SELECT teams.* FROM ("));
+assert.match(teamListSql.sql,/province_name_zh/,"region must come from university catalog location metadata");
+assert.match(teamListSql.sql,/project_tags_json/,"tier filters must use catalog project tags");
+assert.match(teamListSql.sql,/degree_levels_json/,"cards must include catalog degree-level metadata");
+assert.match(teamListSql.sql,/COUNT\(u\.id\) AS memberCount/,"team size must count active users");
+assert.equal(teamListSql.bindings.slice(-2)[0],20,"team directory should page twenty teams by default");
+
+const filteredTeamList=await get("/api/admin/teams?q=%E5%B7%A5%E4%B8%9A&region=%E9%BB%91%E9%BE%99%E6%B1%9F%E7%9C%81&level=985&minMembers=2&maxMembers=20");
+assert.equal(filteredTeamList.status,200);
+const filteredTeamSql=queries.filter(item=>item.kind==="all"&&item.sql.startsWith("SELECT teams.* FROM (")).at(-1);
+assert.match(filteredTeamSql.sql,/teams\.region=\?/);
+assert.match(filteredTeamSql.sql,/json_each\(CASE WHEN json_valid\(teams\.projectTagsJson\)/);
+assert.match(filteredTeamSql.sql,/teams\.memberCount>=\?/);
+assert.match(filteredTeamSql.sql,/teams\.memberCount<=\?/);
+for(const value of ["工业","黑龙江省","project_985_legacy",2,20])assert.ok(filteredTeamSql.bindings.includes(value));
+
+const invalidTeamRange=await get("/api/admin/teams?minMembers=20&maxMembers=2");
+assert.equal(invalidTeamRange.status,400);
+
 const audit=await get("/api/admin/audit?page=1&pageSize=100");
 assert.equal(audit.status,200);
 const auditBody=await audit.json();
@@ -146,6 +173,8 @@ const forbiddenRoster=await get("/api/admin/people?page=1&pageSize=50");
 assert.equal(forbiddenRoster.status,403,"ordinary admins must not access registration records or profiles");
 const forbiddenAudit=await get("/api/admin/audit?page=1&pageSize=10");
 assert.equal(forbiddenAudit.status,403,"ordinary admins must not read the admin audit trail");
+const ordinaryAdminTeams=await get("/api/admin/teams?region=%E9%BB%91%E9%BE%99%E6%B1%9F%E7%9C%81");
+assert.equal(ordinaryAdminTeams.status,200,"ordinary admins with overview permission may filter team summaries");
 const teamOverview=await get("/api/admin/overview");
 assert.equal(teamOverview.status,200,"ordinary admins retain high-level overview access");
 const teamOverviewBody=await teamOverview.json();
