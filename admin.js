@@ -43,9 +43,10 @@ const ERROR_MESSAGES={
   admin_person_delete_failed:"删除报名记录失败，请稍后重试。",
   group_qr_storage_not_configured:"Worker 尚未绑定 GROUP_QR R2 Bucket，请先创建并绑定 qd58-group-chat-qr。",
   backup_storage_not_configured:"Worker 尚未绑定专用 D1_BACKUPS R2 Bucket。",
-  backup_workflow_not_configured:"Worker 尚未配置 D1 Backup Workflow。",
-  backup_configuration_incomplete:"数据库备份缺少 Cloudflare API Token、Account ID、D1 ID 或加密密钥配置。",
-  backup_start_failed:"无法启动备份任务，请检查 Worker 日志和 Workflows 配置。",
+  backup_dispatch_not_configured:"Worker 尚未配置 GitHub Actions 手动触发权限；可从 GitHub Actions 页面手动运行备份。",
+  backup_dispatch_failed:"无法触发 GitHub Actions，请检查 GITHUB_BACKUP_DISPATCH_TOKEN 的权限、有效期和仓库 Actions 设置。",
+  backup_configuration_incomplete:"Worker 缺少备份清单校验所需的 BACKUP_MASTER_KEY_V1。",
+  backup_start_failed:"无法启动 GitHub Actions 备份任务，请检查 Worker 日志和 GitHub Actions 配置。",
   backup_list_failed:"备份列表加载失败，请检查专用 R2 Bucket 和备份密钥。",
   backup_not_found:"找不到这份备份。",
   backup_not_ready:"该备份尚未成功完成。",
@@ -269,9 +270,8 @@ function backupStatusLabel(status){
 async function loadBackups(){
   const data=await req("/admin/backups");
   const flags=[
-    ["Workflow",data.workflowConfigured],
-    ["D1 导出 API",data.exportConfigured],
-    ["加密密钥",data.encryptionConfigured]
+    ["后台触发 GitHub Actions",data.dispatchConfigured],
+    ["Worker 清单校验密钥",data.encryptionConfigured]
   ];
   $("backupConfigStatus").textContent=flags.map(([name,ok])=>name+"："+(ok?"已配置":"未配置")).join("　·　")+
     "　·　R2 存储由服务端检查";
@@ -316,7 +316,7 @@ async function startManualBackup(){
   $("backupAdminMsg").textContent="正在提交备份任务……";
   try{
     const result=await req("/admin/backups",{});
-    $("backupAdminMsg").textContent="备份任务已创建："+result.backupId+"。完成后刷新列表即可查看。"+(result.auditRecorded===false?"（注意：审计记录写入失败，请查看 Worker 日志。）":"");
+    $("backupAdminMsg").textContent="GitHub Actions 备份任务已触发："+result.backupId+"。完成后刷新列表即可查看。"+(result.auditRecorded===false?"（注意：审计记录写入失败，请查看 Worker 日志。）":"");
     await loadBackups();
   }catch(error){showError("backupAdminMsg",error);}
   finally{$("createBackup").disabled=false;}
@@ -330,7 +330,7 @@ async function handleBackupAction(action,backupId){
     if(action==="verify"){
       if(!window.confirm("将读取并解密这份备份的每个分块，检查 AES-GCM 认证标签和 SHA-256 摘要。不会修改 D1。继续吗？"))return;
       const result=await req("/admin/backups/"+backupId+"/verify",{});
-      $("backupAdminMsg").textContent="完整性验证任务已启动，请稍后刷新。"+(result.auditRecorded===false?"（注意：审计记录写入失败，请查看 Worker 日志。）":"");
+      $("backupAdminMsg").textContent="GitHub Actions 完整性验证已触发，请稍后刷新。"+(result.auditRecorded===false?"（注意：审计记录写入失败，请查看 Worker 日志。）":"");
       return;
     }
     if(action==="delete"){
