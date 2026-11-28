@@ -874,3 +874,17 @@ header>div:last-child{display:flex;align-items:center;gap:8px}
     padding:9px 12px;
   }
 }
+
+
+/* Directory heading spacing: do not apply flex gaps between eyebrow, title and lead. */
+#groups{
+  gap:0;
+}
+#groups>.directory-school,
+#groups>#teamSummary,
+#groups>#groupChatPanel,
+#groups>#directory,
+#groups>.donation-module,
+#groups>.directory-actions{
+  margin-top:22px!important;
+}
