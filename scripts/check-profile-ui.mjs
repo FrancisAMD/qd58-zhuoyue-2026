@@ -237,7 +237,7 @@ assert.match(css,/\.modal\.show \.dialog\{[\s\S]*?auth-dialog-pop-in/,"authentic
 assert.match(css,/@media\(prefers-reduced-motion:reduce\)[\s\S]*?\.modal\.show \.dialog\{animation:none!important\}/,"motion effects must respect reduced-motion preferences");
 
 
-assert.match(cardMotion,/const CARD_SELECTOR = \[[\s\S]*?"\.panel"[\s\S]*?"\.classmate-card"[\s\S]*?"\.admin-person-card"[\s\S]*?"\.admin-team-card"/,"shared card motion should cover public and admin card types");
+assert.match(cardMotion,/const CARD_SELECTOR = \[[\s\S]*?"\.panel"[\s\S]*?"\.classmate-card"[\s\S]*?"\.admin-team-card"[\s\S]*?"\.admin-person-card"/,"shared card motion should cover public and admin card types");
 assert.match(cardMotion,/new IntersectionObserver/,"shared card motion should reveal cards when they enter the viewport");
 assert.match(cardMotion,/new MutationObserver/,"shared card motion should catch cards added dynamically after API responses");
 assert.match(cardMotion,/prefers-reduced-motion: reduce/,"shared card motion should respect reduced-motion preferences");
