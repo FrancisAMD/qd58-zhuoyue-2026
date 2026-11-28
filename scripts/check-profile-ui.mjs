@@ -7,6 +7,7 @@ const js=readFileSync(new URL("app.js",root),"utf8");
 const css=readFileSync(new URL("style.css",root),"utf8");
 const theme=readFileSync(new URL("theme.js",root),"utf8");
 const typography=readFileSync(new URL("typography.css",root),"utf8");
+const uiSections=readFileSync(new URL("ui-sections.css",root),"utf8");
 
 assert.match(html,/name="highSchool" value="青岛五十八中"/,"high-school field must default to Qingdao No. 58 High School");
 assert.match(html,/<option selected>大一<\/option>/,"grade selector must default to freshman year");
@@ -69,11 +70,25 @@ assert.match(typography,/body :is\(\.admin-profile-field b,\.donation-list-row>s
 assert.match(typography,/body :is\(\.backup-state-success,\.backup-state-failed,\.backup-state-running\)/,"backup state badges must not retain tiny type");
 assert.doesNotMatch(typography,/font-size:\s*(?:[89]|1[01]|12)px(?:\s|!|;|\/)/,"the shared typography file must not define micro-sized text");
 assert.match(html,/id="donationQrImage"[^>]*data-light-src="assets\/donation-qr-15-light\.png"[^>]*data-dark-src="assets\/donation-qr-15-dark\.png"/,"donation QR must declare separate light and dark assets");
+assert.ok(html.includes('data-donation-amount="5" aria-pressed="false">￥5'),"donation selector must offer the five-yuan amount");
+assert.ok(html.includes('data-donation-amount="15" class="active" aria-pressed="true">￥15'),"donation selector must default to fifteen yuan");
+assert.ok(html.includes('data-amount-5-light-src="assets/donation-qr-5-light.png"'),"five-yuan selector must provide a light-mode QR asset");
+assert.ok(html.includes('data-amount-5-dark-src="assets/donation-qr-5-dark.png"'),"five-yuan selector must provide a dark-mode QR asset");
+assert.ok(html.includes('data-amount-15-light-src="assets/donation-qr-15-light.png"'),"fifteen-yuan selector must provide a light-mode QR asset");
+assert.ok(html.includes('data-amount-15-dark-src="assets/donation-qr-15-dark.png"'),"fifteen-yuan selector must provide a dark-mode QR asset");
+assert.ok(js.includes("function selectDonationAmount(amount)"),"donation amount buttons must update the QR image");
+assert.ok(js.includes("image.dataset.lightSrc=light")&&js.includes("image.dataset.darkSrc=dark"),"amount selection must update both theme-aware QR sources");
+assert.ok(js.includes('const target=theme==="dark"?dark:light'),"amount selection must respect the current color theme");
+assert.ok(uiSections.includes(".donation-amount-options button.active"),"selected donation amount must be visually highlighted");
+assert.ok(html.includes("ui-sections.css?v=20261128-donation-amount-member-card-v1"),"donation selector update must bust the component stylesheet cache");
+assert.ok(html.includes("app.js?v=20261128-donation-amounts-v1"),"donation amount logic must bust the frontend script cache");
+assert.ok(html.includes("style.css?v=20261128-donation-amount-member-card-v1"),"homepage must load the updated shared stylesheet");
+for(const asset of ["assets/donation-qr-5-dark.png","assets/donation-qr-5-light.png","assets/donation-qr-15-dark.png","assets/donation-qr-15-light.png"]){assert.ok(readFileSync(new URL(asset,root)).length>0,"donation QR asset must exist: "+asset);}
 assert.match(theme,/root\.dataset\.theme === "dark" \? "dark" : "light"/,"donation QR mode must follow the active root theme");
 assert.match(theme,/image\.dataset\[theme \+ "Src"\]/,"theme script must select the matching QR asset");
 assert.match(theme,/DOMContentLoaded", updateThemeImages/,"initial themed-image selection must run after the head-loaded theme script can see the images");
 assert.match(theme,/new MutationObserver\(updateThemeImages\)/,"themed images must react if the data-theme attribute changes");
-assert.match(html,/data-fallback-src="assets\/donation-qr-15\.png"/,"old QR must remain as a safe fallback while theme-specific images are not deployed");
+assert.ok(html.includes('data-fallback-src="assets/donation-qr-15-light.png"'),"donation QR should fall back to its current amount light image");
 assert.match(css,/--field-bg:#1A241E/,"deep dark nested surface should match the supplied green-grey reference");
 assert.match(css,/--field-border:#354239/,"deep dark nested surface should use the muted green-grey border");
 assert.match(css,/:root\[data-theme="dark"\] body :is\([\s\S]*?#teamSummary>\.directory-team-grid>div,[\s\S]*?#results\.cards>\.classmate-card\.panel,[\s\S]*?\.admin-team-card,[\s\S]*?background:#1A241E!important/,"main nested info cards should use the same deep #1A241E surface");
