@@ -81,7 +81,7 @@ assert.match(css,/\.admin-sidebar\{[\s\S]*?position:sticky/,"desktop sidebar sho
 assert.match(css,/@media\(max-width:760px\)[\s\S]*?\.admin-section-nav\{[\s\S]*?overflow-x:auto/,"sidebar should become a horizontally scrollable section bar on mobile");
 
 assert.match(html,/ACTIVE UNIVERSITY TEAMS/);
-assert.match(html,/资料概览 \/ 完整资料/);
+assert.match(html,/id="peopleRows" class="admin-roster-grid"/,"roster should use a card grid instead of a wide table");
 assert.match(js,/function renderPersonDetails\(item\)/);
 assert.match(js,/data-profile-toggle/);
 assert.match(js,/尚未选择高校/);
@@ -112,6 +112,16 @@ assert.match(css,/justify-self:center/);
 assert.match(html,/资料概览 \/ 完整资料/);
 assert.match(html,/仅显示最近 10 条记录/);
 assert.match(js,/function renderProfilePreview\(item\)/);
+assert.match(js,/class="admin-person-card"/,"each person must render as an independent card");
+assert.match(js,/class="admin-person-facts"/,"person cards must group key account facts");
+assert.match(js,/class="admin-person-details"/,"full profile details must expand inside the person card");
+assert.match(js,/card\?\.querySelector\("\[data-profile-detail-row\]"\)/,"profile detail toggle must target the current card only");
+assert.match(js,/has\("people:delete"\)/,"delete action must continue to obey the people:delete permission");
+assert.match(css,/\.admin-person-card\{/,"person cards should have a dedicated visual surface");
+assert.match(css,/#peoplePanel \.admin-roster-grid\{[\s\S]*?grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/,"wide screens should use a two-column roster card layout");
+assert.match(css,/@media\(max-width:760px\)[\s\S]*?#peoplePanel \.admin-roster-grid\{gap:12px/,"mobile roster cards should reduce spacing");
+assert.match(css,/\.admin-person-card \.admin-profile-details\{/,"expanded profile details should stay inside the profile card");
+
 assert.match(js,/pageSize=10/);
 assert.match(js,/let current=null,page=1,pageSize=10/,"roster should default to ten rows per page");
 assert.match(html,/id="firstPage"/,"roster pagination should provide a first-page control");
@@ -146,7 +156,7 @@ assert.doesNotMatch(js,/loadGroupChatConfirmations|groupChatConfirmationRegion|g
 assert.match(js,/method:"PUT",credentials:"include"/);
 assert.match(js,/data-qr-delete/);
 
-assert.match(html,/入群确认/,"roster table must include a group-chat confirmation column");
+assert.match(js,/入群确认/,"each roster card must display the group-chat confirmation status");
 assert.match(js,/groupChatStatusMarkup\(item\)/);
 assert.match(js,/profileDetailField\("入群确认状态",item\.groupChatStatusLabel\)/);
 assert.doesNotMatch(html,/group-chat-confirmation-block/,"confirmation status must not be a separate admin section");
@@ -155,7 +165,7 @@ assert.ok(html.indexOf('id="peoplePanel"')<html.indexOf('id="teamsPanel"')&&html
 assert.doesNotMatch(html,/value="viewer"/,"new administrator creation must not offer a read-only role");
 assert.match(html,/普通管理员仅可查看统计概览、审核海外高校、管理地区群聊二维码/);
 assert.match(html,/data-nav-target="teamsPanel" data-nav-permission="overview"/,"ordinary admins can access teams through the overview permission");
-assert.match(html,/admin\.js\?v=20261128-roster-export-fetch-v1/,"roster export fix must bust the admin script cache");
+assert.match(html,/admin\.js\?v=20261128-roster-cards-v2/,"roster card layout must bust the admin script cache");
 assert.match(js,/async function downloadRosterExport\(format\)/,"CSV and XLSX should share the blob download path");
 assert.match(js,/credentials:"include"/,"roster exports must include the admin session cookie");
 assert.match(js,/mode:"cors"/,"roster exports must use CORS fetch instead of a top-level cross-origin navigation");
