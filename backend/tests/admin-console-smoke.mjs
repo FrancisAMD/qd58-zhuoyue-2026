@@ -147,7 +147,7 @@ assert.match(css,/#dashboard[\s\S]*?row-gap:22px/);
 assert.match(css,/#results\.cards[\s\S]*?gap:20px!important/);
 assert.match(css,/#teamSummary[\s\S]*?directory-team-grid[\s\S]*?gap:16px/);
 
-assert.match(js,/colspan="10"/);
+assert.match(js, /admin-roster-empty/, "empty roster state should be rendered as a card-list message");
 
 for(const id of ["groupChatQrPanel","groupQrRegion","groupQrFile","uploadGroupQr","groupQrAssetList","refreshGroupQr"]) {
   assert.match(html,new RegExp('id="'+id+'"'),"admin QR management must include #"+id);
