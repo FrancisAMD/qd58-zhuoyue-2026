@@ -1579,12 +1579,6 @@ body select option{
   margin-bottom:15px;
 }
 .admin-person-identity{min-width:0}
-.admin-person-kicker{
-  margin:0 0 5px;
-  color:var(--green);
-  font:700 10px/1.4 system-ui,"Noto Sans SC",sans-serif;
-  letter-spacing:1.5px;
-}
 .admin-person-identity h4{
   margin:0;
   color:var(--ink);
