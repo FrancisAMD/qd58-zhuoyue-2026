@@ -45,6 +45,13 @@ const ERROR_MESSAGES={
   backup_storage_not_configured:"Worker 尚未绑定专用 D1_BACKUPS R2 Bucket。",
   backup_dispatch_not_configured:"Worker 尚未配置 GitHub Actions 手动触发权限；可从 GitHub Actions 页面手动运行备份。",
   backup_dispatch_failed:"无法触发 GitHub Actions，请检查 GITHUB_BACKUP_DISPATCH_TOKEN 的权限、有效期和仓库 Actions 设置。",
+  github_token_invalid:"GitHub Token 无效、已过期或已撤销。请检查 Worker Secret GITHUB_BACKUP_DISPATCH_TOKEN。",
+  github_actions_permission_denied:"GitHub 拒绝了 Workflow Dispatch。请确认 Fine-grained Token 对本仓库具有 Actions: Read and write 权限，并检查组织策略。",
+  github_repository_or_workflow_not_found:"GitHub 找不到目标仓库或备份 Workflow；请确认仓库名、Workflow 文件名及 main 分支。",
+  github_workflow_dispatch_rejected:"GitHub 收到请求但拒绝启动 Workflow。请检查 Workflow 是否已在默认分支启用 workflow_dispatch，以及请求输入是否匹配。",
+  github_rate_limited:"GitHub API 已触发限流，请稍后重试。",
+  github_api_unavailable:"GitHub API 暂时不可用，请稍后重试。",
+  github_api_network_error:"Worker 无法连接 GitHub API，请检查网络或稍后重试。",
   backup_configuration_incomplete:"Worker 缺少备份清单校验所需的 BACKUP_MASTER_KEY_V1。",
   backup_start_failed:"无法启动 GitHub Actions 备份任务，请检查 Worker 日志和 GitHub Actions 配置。",
   backup_list_failed:"备份列表加载失败，请检查专用 R2 Bucket 和备份密钥。",
@@ -80,7 +87,10 @@ const ERROR_MESSAGES={
 };
 function errorMessage(error){
   const message=ERROR_MESSAGES[error?.message]||"操作失败，请稍后重试。";
-  return error?.status?message+"（HTTP "+error.status+"）":message;
+  const details=[];
+  if(error?.status)details.push("HTTP "+error.status);
+  if(Number.isInteger(error?.payload?.upstreamStatus))details.push("GitHub HTTP "+error.payload.upstreamStatus);
+  return details.length?message+"（"+details.join("；")+"）":message;
 }
 function showError(id,error){
   const element=$(id);
