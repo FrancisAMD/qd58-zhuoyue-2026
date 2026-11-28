@@ -50,10 +50,11 @@ assert.match(html,/class="admin-workspace"/,"dashboard panels must be arranged b
 assert.match(html,/id="adminSidebarToggle"[^>]*aria-controls="adminSidebar"/,"admin workspace must provide an accessible sidebar toggle");
 assert.match(html,/id="adminWorkspace"/,"sidebar toggle must control the authenticated workspace");
 assert.doesNotMatch(html,/class="admin-toolbar"/,"the separate top admin toolbar must be removed");
-assert.doesNotMatch(html,/id="adminIdentity"[^>]*>[\\s\\S]*?<\\/div>[\\s\\S]*?admin-toolbar/,"administrator identity must not remain in the top toolbar");
+assert.doesNotMatch(html,/class="admin-toolbar"/,"the separate top admin toolbar must be removed");
 const sidebarRoleCard=html.slice(html.indexOf('<aside class="admin-sidebar"'),html.indexOf('<div class="admin-main-content">'));
 assert.match(sidebarRoleCard,/class="admin-section-nav"/);
-assert.match(sidebarRoleCard,/class="admin-sidebar-role-card"[\\s\\S]*?id="adminRole"[\\s\\S]*?id="adminIdentity"[\\s\\S]*?id="adminLogout"/,"role, login account and logout action should appear together below sidebar navigation");
+assert.ok(sidebarRoleCard.indexOf('class="admin-section-nav"')<sidebarRoleCard.indexOf('class="admin-sidebar-role-card"'),"account controls must be placed below the sidebar navigation");
+for(const id of ["adminRole","adminIdentity","adminLogout"]) assert.ok(sidebarRoleCard.includes('id="'+id+'"'),"sidebar role card must contain #"+id);
 assert.ok(js.includes('window.matchMedia("(max-width:760px)")'),"mobile sidebar default should be detected from the viewport");
 assert.ok(js.includes("setAdminSidebarCollapsed(adminSidebarMedia.matches)"),"desktop should default expanded while mobile defaults collapsed");
 assert.ok(js.includes('$("adminSidebarToggle").addEventListener("click"'),"sidebar toggle should be interactive");
@@ -133,7 +134,11 @@ assert.match(html,/仅显示最近 10 条记录/);
 assert.match(js,/function renderProfilePreview\(item\)/);
 assert.doesNotMatch(js,/58ER · MEMBER/,"roster cards must not show the decorative member kicker");
 
-assert.match(js,/class="admin-person-grade"><small>当前年级<\/small><strong>/,"roster card grade must have its own labeled badge");
+assert.match(js,/class="admin-person-grade admin-person-info-box"><small>当前年级/,"roster card grade must have its own labeled block");
+assert.match(js,/class="admin-person-high-school admin-person-info-box"><small>高中/,"roster card high school must have its own labeled block");
+assert.ok(css.includes("#peoplePanel .admin-person-info-row{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;"),"high school and grade blocks should appear side by side");
+assert.match(html,/style\.css\?v=20261128-admin-account-in-sidebar-v1/,"admin must load the latest shared stylesheet");
+assert.match(html,/admin\.js\?v=20261128-admin-account-in-sidebar-v1/,"admin must load the current admin script");
 assert.ok(css.includes(".admin-person-card-heading{")&&css.includes("grid-template-columns:minmax(0,1fr) auto;"),"roster identity header should use a stable two-column layout");
 assert.ok(css.includes(".admin-person-high-school{")&&css.includes(".admin-person-grade>small{"),"high-school and grade rows should have clear separate typography");
 assert.match(html,/style\.css\?v=20261128-donation-amount-member-card-v1/,"admin member card update must bust the shared stylesheet cache");
@@ -205,7 +210,5 @@ assert.match(js,/roster_export_empty/,"empty export files must be reported inste
 assert.match(js,/data-admin-delete/,"owner UI must provide admin deletion actions");
 assert.match(js,/历史只读账号（待删除）/,"legacy viewer accounts must be identifiable for cleanup");
 
-assert.match(js,/admin-person-info-box[\\s\\S]*?高中学校未填写/,"high school should be a separate info block");
-assert.match(js,/admin-person-info-box[\\s\\S]*?当前年级/,"grade should be a separate info block");
-assert.match(css,/#peoplePanel \.admin-person-info-box[\\s\\S]*?flex-direction:column/,"high-school and grade cards should be separate vertical blocks");
-\nassert.match(js,/admin-person-info-row/,'high school and grade should share a horizontal row');\nassert.match(css,/#peoplePanel \\.admin-person-info-row\\{display:grid/,'high school and grade blocks should be side by side');\n
+assert.ok(js.includes('admin-person-info-row'),"high school and grade should share one horizontal row");
+assert.ok(css.includes("#peoplePanel .admin-person-info-row{display:grid!important;"),"the school/grade row must use a two-column grid");
