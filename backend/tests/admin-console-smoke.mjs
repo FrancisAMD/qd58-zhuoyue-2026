@@ -137,7 +137,7 @@ assert.match(js,/class="admin-person-grade admin-person-info-box"><small>当前�
 assert.match(js,/class="admin-person-high-school admin-person-info-box"><small>高中/,"roster card high school must have its own labeled block");
 assert.match(css,/#peoplePanel \.admin-person-info-row\{\s*display:grid!important;\s*grid-template-columns:minmax\(0,1fr\) minmax\(0,1fr\)!important;/,"high school and grade blocks should appear side by side");
 assert.match(html,/style\.css\?v=20261128-roster-name-direct-child-v2/,"admin must load the latest shared stylesheet");
-assert.match(html,/admin\.js\?v=20261128-team-tier-tag-codes-v1/,"admin must load the current admin script");
+assert.match(html,/admin\.js\?v=20261128-team-tier-tag-codes-v2/,"admin must load the current admin script");
 assert.ok(js.includes("'<h4 class=\"admin-person-name\">'+safe(name)+'</h4>'+"),"member name should render directly inside the card, without a wrapping header module");
 assert.doesNotMatch(js,/<header class="admin-person-card-heading"/,"roster name must not use the global site header element");
 assert.match(css,/#peoplePanel \.admin-person-card > \.admin-person-name\{[\s\S]*?background:transparent[\s\S]*?font-family:"Noto Serif SC"/,"member name should be unboxed and use the intended serif title font");
@@ -199,9 +199,10 @@ for(const code of ["project_985","project_211","double_first_class"]) {
   assert.ok(js.includes('"'+code+'"'),"team card labels must recognize imported catalog tag "+code);
 }
 assert.ok(js.includes("team.catalogProjectTagsJson"),"team cards must also read normalized university tags from the API");
+assert.ok(js.includes("team.profileCatalogTagsJson"),"team cards must read the original tags maintained by the profile catalog seeder");
 
 assert.match(html,/data-nav-target="teamsPanel" data-nav-permission="overview"/,"ordinary admins can access teams through the overview permission");
-assert.match(html,/admin\.js\?v=20261128-team-tier-tag-codes-v1/,"admin script cache must be refreshed for the imported university tier mapping");
+assert.match(html,/admin\.js\?v=20261128-team-tier-tag-codes-v2/,"admin script cache must be refreshed for the imported university tier mapping");
 assert.match(js,/async function downloadRosterExport\(format\)/,"CSV and XLSX should share the blob download path");
 assert.match(js,/credentials:"include"/,"roster exports must include the admin session cookie");
 assert.match(js,/mode:"cors"/,"roster exports must use CORS fetch instead of a top-level cross-origin navigation");
