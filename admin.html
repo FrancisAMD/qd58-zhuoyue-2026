@@ -56,6 +56,26 @@
         <button id="adminLogout" class="ghost" type="button">退出后台</button>
       </div>
     </div>
+    <div class="admin-workspace">
+      <aside class="admin-sidebar" aria-label="后台功能导航">
+        <div class="admin-sidebar-heading">功能导航</div>
+        <nav id="adminSectionNav" class="admin-section-nav">
+          <button type="button" data-admin-nav data-nav-target="overviewPanel" data-nav-permission="overview">数据总览</button>
+          <button type="button" data-admin-nav data-nav-target="teamsPanel" data-nav-permission="overview">高校团队</button>
+          <button type="button" data-admin-nav data-nav-target="universityReviewPanel" data-nav-permission="universities:review">海外高校审核</button>
+          <button type="button" data-admin-nav data-nav-target="groupChatQrPanel" data-nav-permission="group-chat:manage">省份群聊二维码</button>
+          <button type="button" data-admin-nav data-nav-target="peoplePanel" data-nav-permission="people:read">报名名单与用户资料</button>
+          <button type="button" data-admin-nav data-nav-target="donationManagementPanel" data-nav-permission="donations:manage">赞助名单管理</button>
+          <button type="button" data-admin-nav data-nav-target="auditPanel" data-nav-permission="audit:read">管理员操作审计</button>
+          <button type="button" data-admin-nav data-nav-target="backupPanel" data-nav-permission="backups:manage">数据库备份</button>
+          <button type="button" data-admin-nav data-nav-target="managePanel" data-nav-permission="admins:manage">管理员账号与角色</button>
+        </nav>
+      </aside>
+      <div class="admin-main-content">
+        <section id="overviewPanel" class="admin-overview-panel">
+          <p id="adminPanelStatus" class="admin-panel-status" role="status" aria-live="polite"></p>
+          <div class="admin-stats" id="summary"></div>
+        </section>
 <section id="universityReviewPanel" class="panel" hidden>
       <div class="admin-heading"><div><p class="eyebrow">OVERSEAS UNIVERSITY REVIEW</p><h3>海外高校审核</h3></div><button id="refreshUniversityReviews" class="ghost" type="button">刷新队列</button></div>
       <p class="muted">海外学校由同学自行填写。审核时请核实学校名称；系统会将规范化名称相同的海外高校归并到同一支团队。批准后，该同学立即解锁同校页面。</p>
@@ -97,8 +117,6 @@
       <div id="donationAdminRows" class="donation-admin-list"></div>
     </section>
 
-    <p id="adminPanelStatus" class="admin-panel-status" role="status" aria-live="polite"></p>
-    <div class="admin-stats" id="summary"></div>
     <section id="teamsPanel" class="panel" hidden>
       <div class="admin-heading"><div><p class="eyebrow">ACTIVE UNIVERSITY TEAMS</p><h3>当前高校团队</h3></div><button id="refreshAdminData" class="ghost" type="button">刷新名单与团队</button></div>
       <p id="teamsMeta" class="muted">仅展示当前有成员的高校团队；空团队不会显示，但历史转让记录仍然保留。团队列表每 30 秒自动刷新，也可以手动刷新。</p>
@@ -160,8 +178,10 @@
       <p class="muted">普通管理员仅可查看统计概览、审核海外高校、管理地区群聊二维码。报名名单与用户资料、管理员操作审计、赞助名单管理和管理员账号管理均仅所有者可访问。</p>
       <p id="createAdminMsg" class="msg"></p><div id="adminAccounts" class="admin-account-list"></div>
     </section>
+      </div>
+    </div>
   </section>
 </main>
-<script src="admin.js?v=20261128-admin-pagination-backup-ui-v2" defer></script>
+<script src="admin.js?v=20261128-admin-sidebar-v1" defer></script>
 </body>
 </html>
