@@ -67,3 +67,78 @@
   .donation-copy h3{font-size:22px}
   .donation-qr-area{align-items:flex-start}
 }
+
+
+/* Donation QR amount selector sits above the 3:4 QR artwork. */
+.donation-image-column{
+  display:grid;
+  align-content:start;
+  gap:11px;
+  min-width:0;
+}
+.donation-amount-picker{
+  display:grid;
+  gap:7px;
+}
+.donation-amount-picker>span{
+  color:var(--muted);
+  font-size:12px;
+  font-weight:650;
+  line-height:1.5;
+}
+.donation-amount-options{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+}
+.donation-amount-options button{
+  min-height:42px;
+  padding:9px 12px;
+  border:1px solid var(--line);
+  border-radius:9px;
+  background:var(--paper);
+  color:var(--ink);
+  font:700 15px/1.2 system-ui,"Noto Sans SC",sans-serif;
+  cursor:pointer;
+  transition:background .16s ease,border-color .16s ease,color .16s ease,transform .16s ease;
+}
+.donation-amount-options button:hover{
+  border-color:var(--green);
+  transform:translateY(-1px);
+}
+.donation-amount-options button.active,
+.donation-amount-options button[aria-pressed="true"]{
+  border-color:var(--green);
+  background:var(--green);
+  color:#fff;
+  box-shadow:0 5px 14px #294a3418;
+}
+.donation-amount-options button:focus-visible{
+  outline:3px solid var(--green);
+  outline-offset:2px;
+}
+.donation-image-wrap{
+  width:100%;
+  aspect-ratio:3/4;
+}
+.donation-image{
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  background:#fff;
+}
+:root[data-theme="dark"] body .donation-amount-options button.active,
+:root[data-theme="dark"] body .donation-amount-options button[aria-pressed="true"]{
+  background:#416d58;
+  border-color:#416d58;
+  color:#fff;
+}
+@media(max-width:700px){
+  .donation-image-column{
+    width:min(100%,320px);
+    justify-self:center;
+    gap:9px;
+  }
+  .donation-image-wrap{width:100%}
+  .donation-amount-options button{min-height:40px}
+}
