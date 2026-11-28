@@ -673,8 +673,7 @@ header>div:last-child{display:flex;align-items:center;gap:8px}
 :root[data-theme="dark"] body .tabs button.active,
 :root[data-theme="dark"] body .dialog .auth-tabs button.active,
 :root[data-theme="dark"] body .journey-steps span.active,
-:root[data-theme="dark"] body .journey-steps button.active,
-:root[data-theme="dark"] body .demo-tabs button.active{
+:root[data-theme="dark"] body .journey-steps button.active{
   background:#416d58;
   border-color:#416d58;
   color:#fff;
