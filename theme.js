@@ -4,6 +4,10 @@
   const preference = window.matchMedia("(prefers-color-scheme: dark)");
 
   const updateThemeImages = () => {
+    document.querySelectorAll('link[data-light-href][data-dark-href]').forEach(link => {
+      const target = link.dataset[root.dataset.theme === 'dark' ? 'darkHref' : 'lightHref'];
+      if (target && link.href !== new URL(target, document.baseURI).href) link.href = target;
+    });
     const theme = root.dataset.theme === "dark" ? "dark" : "light";
     document.querySelectorAll("img[data-light-src][data-dark-src]").forEach(image => {
       const target = image.dataset[theme + "Src"];
