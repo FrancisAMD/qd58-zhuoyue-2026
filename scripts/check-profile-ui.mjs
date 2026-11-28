@@ -33,7 +33,12 @@ assert.match(html,/<\/section>\s*<div id="universityTypeActions" class="step-act
 assert.match(html,/<\/section>\s*<div id="universityDetailsActions" class="step-actions stage-navigation university-continue" hidden>/,"university search navigation must be outside the university module");
 assert.match(html,/<\/section>\s*<div id="profileStageActions" class="step-actions stage-navigation profile-stage-navigation" hidden>/,"profile previous/submit navigation must be outside the details module");
 assert.match(js,/function syncProfileStageActions\(\)[\s\S]*?universityTypeActions[\s\S]*?universityDetailsActions[\s\S]*?profileStageActions/,"external navigation visibility must follow the active form sub-step");
-assert.match(css,/#registrationDetailsPanel>\.cols\{\s*gap:0 14px;\s*\}[\s\S]*?#registrationDetailsPanel>\.cols>label,[\s\S]*?margin:9px 0;/,"profile form rows should use the compact shared spacing rhythm");
+assert.match(css,/#registrationDetailsPanel>\.cols\{gap:0 12px;\}/,"profile form columns should use a compact horizontal gap");
+assert.match(css,/#registrationDetailsPanel>\.cols>label,[\s\S]*?margin:5px 0!important/,"profile form fields should use tighter vertical spacing");
+assert.match(css,/\.auth-form label:not\(\.check\)\{margin:9px 0!important/,"first-page authentication fields should use tighter vertical spacing");
+assert.match(css,/\.profile-field-pair\{[\s\S]*?grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/,"paired profile fields should remain in two columns");
+assert.match(html,/<div class="cols profile-field-pair">\s*<label>高中学校[\s\S]*?<label>当前年级[\s\S]*?<\/div>/,"high-school and current-grade fields should share one row");
+assert.match(html,/<div class="cols profile-field-pair profile-major-admission-row">\s*<label>专业大类[\s\S]*?<label id="admissionFields" hidden>招生大类[\s\S]*?<\/div>/,"major and admission categories should share one row");
 assert.match(css,/\.account-danger-heading p,\.account-delete-copy p\{margin:0;color:var\(--ink\);font-size:12px/,"account panel descriptions should use normal text color");
 assert.match(css,/\.account-delete-copy strong\{color:var\(--ink\);font-size:15px/,"delete account section title should be readable and use normal text color");
 
