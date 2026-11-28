@@ -138,7 +138,7 @@ assert.match(js,/class="admin-person-high-school admin-person-info-box"><small>é
 assert.ok(css.includes("#peoplePanel .admin-person-info-row{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;"),"high school and grade blocks should appear side by side");
 assert.match(html,/style\.css\?v=20261128-roster-name-direct-child-v2/,"admin must load the latest shared stylesheet");
 assert.match(html,/admin\.js\?v=20261128-roster-name-direct-child-v2/,"admin must load the current admin script");
-assert.match(js,/<h4 class="admin-person-name">\+safe\(name\)\+'<\\/h4>'/,"member name should render as a direct heading, without a wrapping header module");
+assert.ok(js.includes("'<h4 class=\"admin-person-name\">'+safe(name)+'</h4>'+"),"member name should render directly inside the card, without a wrapping header module");
 assert.doesNotMatch(js,/<header class="admin-person-card-heading"/,"roster name must not use the global site header element");
 assert.match(css,/#peoplePanel \.admin-person-card > \.admin-person-name\{[\s\S]*?background:transparent[\s\S]*?font-family:"Noto Serif SC"/,"member name should be unboxed and use the intended serif title font");
 assert.match(css,/#peoplePanel \.admin-person-card > \.admin-person-name\{[\s\S]*?margin:0 0 12px/,"member name spacing should be controlled without an empty header gap");
