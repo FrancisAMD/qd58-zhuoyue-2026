@@ -29,13 +29,13 @@ assert.match(html, /<form id="profile" class="profile-form-shell" hidden>/, "pro
 assert.doesNotMatch(html, /<form id="profile" class="panel"/, "profile journey must not add a redundant panel around each step");
 assert.match(html, /<section id="registrationUniversityPanel" class="profile-stage-panel">/, "university selection must remain its own main card");
 assert.match(html, /<section id="registrationDetailsPanel" class="profile-stage-panel" hidden>/, "profile details must remain their own main card");
-assert.match(html,/<\\/section>\\s*<div id="universityTypeActions" class="step-actions stage-navigation" hidden>/,"first-step navigation must be outside the university module");
-assert.match(html,/<\\/section>\\s*<div id="universityDetailsActions" class="step-actions stage-navigation university-continue" hidden>/,"university search navigation must be outside the university module");
-assert.match(html,/<\\/section>\\s*<div id="profileStageActions" class="step-actions stage-navigation profile-stage-navigation" hidden>/,"profile previous/submit navigation must be outside the details module");
-assert.match(js,/function syncProfileStageActions\(\)[\\s\\S]*?universityTypeActions[\\s\\S]*?universityDetailsActions[\\s\\S]*?profileStageActions/,"external navigation visibility must follow the active form sub-step");
-assert.match(css,/#registrationDetailsPanel>\\.cols\\{\\s*gap:0 14px;\\s*\\}[\\s\\S]*?#registrationDetailsPanel>\\.cols>label,[\\s\\S]*?margin:9px 0;/,"profile form rows should use the compact shared spacing rhythm");
-assert.match(css,/\.account-danger-heading p,\.account-delete-copy p\\{margin:0;color:var\\(--ink\\);font-size:12px/,"account panel descriptions should use normal text color");
-assert.match(css,/\.account-delete-copy strong\\{color:var\\(--ink\\);font-size:15px/,"delete account section title should be readable and use normal text color");
+assert.match(html,/<\/section>\s*<div id="universityTypeActions" class="step-actions stage-navigation" hidden>/,"first-step navigation must be outside the university module");
+assert.match(html,/<\/section>\s*<div id="universityDetailsActions" class="step-actions stage-navigation university-continue" hidden>/,"university search navigation must be outside the university module");
+assert.match(html,/<\/section>\s*<div id="profileStageActions" class="step-actions stage-navigation profile-stage-navigation" hidden>/,"profile previous/submit navigation must be outside the details module");
+assert.match(js,/function syncProfileStageActions\(\)[\s\S]*?universityTypeActions[\s\S]*?universityDetailsActions[\s\S]*?profileStageActions/,"external navigation visibility must follow the active form sub-step");
+assert.match(css,/#registrationDetailsPanel>\.cols\{\s*gap:0 14px;\s*\}[\s\S]*?#registrationDetailsPanel>\.cols>label,[\s\S]*?margin:9px 0;/,"profile form rows should use the compact shared spacing rhythm");
+assert.match(css,/\.account-danger-heading p,\.account-delete-copy p\{margin:0;color:var\(--ink\);font-size:12px/,"account panel descriptions should use normal text color");
+assert.match(css,/\.account-delete-copy strong\{color:var\(--ink\);font-size:15px/,"delete account section title should be readable and use normal text color");
 
 assert.match(css, /#profile\.profile-form-shell\{[\s\S]*?background:transparent;[\s\S]*?box-shadow:none;/, "profile form shell must not draw a nested outer frame");
 assert.match(css, /#profile\.profile-form-shell>\.profile-stage-panel\{[\s\S]*?background:var\(--paper\)/, "each journey step should render as an independent primary card");
@@ -113,7 +113,7 @@ assert.ok(uiSections.includes("aspect-ratio:1312 / 1787"),"donation image frame 
 assert.ok(uiSections.includes("object-fit:cover;\n  background:transparent"),"donation image must fill its frame without white side gutters");
 assert.ok(uiSections.includes(".donation-qr-pending[hidden]{display:none!important}"),"pending placeholder must respect its hidden state");
 assert.ok(html.includes("ui-sections.css?v=20261128-local-fonts-v1"),"donation QR layout must bust the component stylesheet cache");
-assert.ok(html.includes("app.js?v=20261128-profile-form-compact-v1"),"donation amount logic must bust the frontend script cache");
+assert.ok(html.includes("app.js?v=20261128-external-stage-actions-v1"),"donation amount logic must bust the frontend script cache");
 assert.ok(html.includes("theme.js?v=20261128-donation-qr-fix-v2"),"donation theme handling must bust the theme script cache");
 assert.match(theme,/root\.dataset\.theme === "dark" \? "dark" : "light"/,"donation QR mode must follow the active root theme");
 assert.match(theme,/image\.id === "donationQrImage"/,"theme changes must use the donation-specific load state");
