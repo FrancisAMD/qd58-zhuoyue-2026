@@ -673,11 +673,11 @@ $("peopleRows").addEventListener("click",async event=>{
 $("refreshAdminData").onclick=async()=>{
   const button=$("refreshAdminData");button.disabled=true;
   try{
-    await Promise.all([loadOverview(),loadPeople()]);
-    $("adminPanelStatus").textContent="名单和高校团队已刷新。";
+    await Promise.all([loadOverview(),loadTeams()]);
+    $("adminPanelStatus").textContent="高校团队和统计数据已刷新。";
   }catch(error){
-    $("adminPanelStatus").textContent="刷新失败，请稍后重试。";
-    console.error("Admin data refresh failed",error?.message||"unknown");
+    $("teamsMeta").textContent="刷新失败："+errorMessage(error);
+    console.error("Admin team refresh failed",error?.message||"unknown");
   }finally{button.disabled=false;}
 };
 $("filters").onsubmit=async event=>{
