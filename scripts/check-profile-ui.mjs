@@ -105,7 +105,7 @@ assert.ok(uiSections.includes("aspect-ratio:1312 / 1787"),"donation image frame 
 assert.ok(uiSections.includes("object-fit:cover;\n  background:transparent"),"donation image must fill its frame without white side gutters");
 assert.ok(uiSections.includes(".donation-qr-pending[hidden]{display:none!important}"),"pending placeholder must respect its hidden state");
 assert.ok(html.includes("ui-sections.css?v=20261128-local-fonts-v1"),"donation QR layout must bust the component stylesheet cache");
-assert.ok(html.includes("app.js?v=20261128-boot-assets-before-session-v1"),"donation amount logic must bust the frontend script cache");
+assert.ok(html.includes("app.js?v=20261128-account-privacy-footer-v1"),"donation amount logic must bust the frontend script cache");
 assert.ok(html.includes("theme.js?v=20261128-donation-qr-fix-v2"),"donation theme handling must bust the theme script cache");
 assert.match(theme,/root\.dataset\.theme === "dark" \? "dark" : "light"/,"donation QR mode must follow the active root theme");
 assert.match(theme,/image\.id === "donationQrImage"/,"theme changes must use the donation-specific load state");
@@ -160,19 +160,19 @@ assert.match(css,/\.journey-section-intro>\.lead\{[\s\S]*?margin:0!important/,"j
 assert.match(html,/class="auth-brand"[\s\S]*?2026 · 冬日返校计划/,"login modal must display the school logo and new campaign identity");
 assert.ok(css.includes('.dialog .auth-brand span{')&&css.includes('font:600 18px/1.45 "LXGW WenKai Lite",serif;'),"login brand should use the title serif font without the generic mark tile");
 assert.ok(css.includes("#appStage>.journey-steps,")&&css.includes("#appStage>#accountBottom{")&&css.includes("width:min(100%,1156px);")&&css.includes("padding-left:28px;"),"desktop journey sections and account removal notice must share the same outer width and inner gutters");
-assert.match(html,/<div id="accountDangerZone" class="account-danger-zone">[\\s\\S]*?<div class="account-actions">[\\s\\S]*?id="changePassword"[\\s\\S]*?id="logout"[\\s\\S]*?<div class="account-delete-row">[\\s\\S]*?id="deleteAccountOpen"/,"password change, logout and delete actions must live inside one account/security module");
-assert.match(css,/\.account-danger-zone\{[\\s\\S]*?grid-template-columns:minmax\\(0,1fr\\) auto;[\\s\\S]*?background:var\\(--paper\\);/,"account and security should be one neutral compact panel");
-assert.match(css,/#appStage>\\.section#groups\{padding-bottom:22px!important\}[\\s\\S]*?#appStage>#accountBottom\{margin-top:4px!important\}/,"account module must sit closer to the third page");
+assert.match(html,/<div id="accountDangerZone" class="account-danger-zone">[\s\S]*?<div class="account-actions">[\s\S]*?id="changePassword"[\s\S]*?id="logout"[\s\S]*?<div class="account-delete-row">[\s\S]*?id="deleteAccountOpen"/,"password change, logout and delete actions must live inside one account/security module");
+assert.match(css,/\.account-danger-zone\{[\s\S]*?grid-template-columns:minmax\(0,1fr\) auto;[\s\S]*?background:var\(--paper\);/,"account and security should be one neutral compact panel");
+assert.match(css,/#appStage>\.section#groups\{padding-bottom:22px!important\}[\s\S]*?#appStage>#accountBottom\{margin-top:4px!important\}/,"account module must sit closer to the third page");
 
 assert.ok(css.includes("@media(max-width:760px){")&&css.includes("#appStage>.section#groups,")&&css.includes("width:100%;")&&css.includes("padding-left:16px;"),"mobile journey sections and account removal notice must share the same width and gutters");
 assert.ok(css.includes("#appStage>#accountBottom{\n  padding-top:0;"),"account removal notice should align directly beneath the same content column");
 const privacyHtml = readFileSync(new URL("privacy.html",root),"utf8");
-assert.doesNotMatch(privacyHtml,/<header[\\s>]/,"privacy page must not show the old top navigation bar");
-assert.doesNotMatch(privacyHtml,/href=["']index\\.html["'][^>]*>\\s*返回首页/,"privacy page must not navigate back to the homepage");
-assert.match(privacyHtml,/<footer class="site-footer privacy-footer">[\\s\\S]*?class="site-footer-title"[\\s\\S]*?class="site-footer-tagline"/,"privacy page must use the current site footer");
+assert.doesNotMatch(privacyHtml,/<header[\s>]/,"privacy page must not show the old top navigation bar");
+assert.doesNotMatch(privacyHtml,/href=["']index\.html["'][^>]*>\s*返回首页/,"privacy page must not navigate back to the homepage");
+assert.match(privacyHtml,/<footer class="site-footer privacy-footer">[\s\S]*?class="site-footer-title"[\s\S]*?class="site-footer-tagline"/,"privacy page must use the current site footer");
 assert.match(privacyHtml,/id="privacyBackButton" class="site-footer-button site-footer-admin"/,"privacy footer must provide a real back/close button instead of a hyperlink");
-assert.match(privacyHtml,/window\\.history\\.back\\(\\)/,"privacy back button must use browser history when appropriate");
-assert.match(privacyHtml,/window\\.close\\(\\)/,"privacy footer must attempt to close the current tab when opened separately");
+assert.match(privacyHtml,/window\.history\.back\(\)/,"privacy back button must use browser history when appropriate");
+assert.match(privacyHtml,/window\.close\(\)/,"privacy footer must attempt to close the current tab when opened separately");
 const pageTitle = html.match(/<title>([^<]+)<\/title>/)?.[1] || "";
 assert.ok(pageTitle.length > 0, "index.html must define the canonical page title");
 assert.match(html, /<footer id="pageFooter" class="site-footer" hidden>/, "member footer must use the new responsive footer layout");
