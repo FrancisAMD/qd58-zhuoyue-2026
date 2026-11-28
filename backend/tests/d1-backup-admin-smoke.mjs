@@ -11,6 +11,7 @@ const FAILED="33333333333333333333333333333333";
 const bucketObjects=new Map();
 const audits=[];
 const githubDispatchCalls=[];
+let githubDispatchStatus=204;
 let activeAdmin={id:"owner-1",username:"rootops",role:"owner"};
 
 function objectFor(key,value,bytes=null){
@@ -77,7 +78,7 @@ const env={
 const oldFetch=globalThis.fetch;
 globalThis.fetch=async(url,options)=>{
   githubDispatchCalls.push({url:String(url),options});
-  return new Response(null,{status:204});
+  return new Response(null,{status:githubDispatchStatus});
 };
 try{
   await putManifest(BACKUP_A,"completed","2026-11-28T18:00:00.000Z");
@@ -108,6 +109,24 @@ try{
   assert.equal(manualPayload.inputs.action,"backup");
   assert.equal(manualPayload.inputs.backup_id,started.backupId);
   assert.equal(manualPayload.inputs.requested_by,"owner-1");
+
+  assert.equal(githubDispatchCalls.at(-1).options.headers["user-agent"],"zhuoyue-2026-backup-dispatch");
+  githubDispatchStatus=401;
+  const invalidToken=await worker.fetch(request("/api/admin/backups","POST",{}),env);
+  assert.equal(invalidToken.status,503);
+  const invalidTokenBody=await invalidToken.json();
+  assert.equal(invalidTokenBody.error,"github_token_invalid");
+  assert.equal(invalidTokenBody.upstreamStatus,401);
+  githubDispatchStatus=403;
+  const missingPermission=await worker.fetch(request("/api/admin/backups","POST",{}),env);
+  assert.equal((await missingPermission.json()).error,"github_actions_permission_denied");
+  githubDispatchStatus=404;
+  const wrongWorkflow=await worker.fetch(request("/api/admin/backups","POST",{}),env);
+  assert.equal((await wrongWorkflow.json()).error,"github_repository_or_workflow_not_found");
+  githubDispatchStatus=422;
+  const invalidDispatch=await worker.fetch(request("/api/admin/backups","POST",{}),env);
+  assert.equal((await invalidDispatch.json()).error,"github_workflow_dispatch_rejected");
+  githubDispatchStatus=204;
 
   const manifestResponse=await worker.fetch(request("/api/admin/backups/"+BACKUP_A+"/manifest"),env);
   assert.equal(manifestResponse.status,200);
