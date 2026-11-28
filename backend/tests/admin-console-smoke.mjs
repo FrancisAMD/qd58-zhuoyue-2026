@@ -27,16 +27,8 @@ assert.match(html,/OVERSEAS UNIVERSITY REVIEW/);
 assert.match(js,/loadUniversityReviews/);
 assert.match(js,/universities:review/);
 assert.match(js,/\/admin\/universities\/review/);
-assert.match(js,/function renderDemo\(\)/);
-assert.match(js,/虚构报名数据/);
-assert.match(js,/不会接受或拒绝任何真实转让/);
-assert.match(css,/\.admin-demo/);
-assert.match(css,/\.demo-warning/);
-
-const renderStart=js.indexOf("function renderDemo()");
-const renderEnd=js.indexOf("function openDemo()",renderStart);
-assert.ok(renderStart>=0 && renderEnd>renderStart,"demo renderer must exist");
-assert.doesNotMatch(js.slice(renderStart,renderEnd),/\breq\s*\(/,"demo renderer must not call admin API");
+assert.doesNotMatch(js,/DEMO_DATA|renderDemo|openDemo|dashboardDemo/,"admin JavaScript must not contain demo data or renderer functions");
+assert.doesNotMatch(css,/\.admin-demo|\.demo-warning|\.demo-tabs/,"admin CSS must not retain demo-specific styles");
 console.log("Admin console UI tests: PASS (login/session separation, no demo data, homepage footer and team filters).");
 
 assert.match(html,/id="adminSectionNav"/,"authenticated dashboard must provide a sidebar navigation container");
