@@ -1756,6 +1756,98 @@ if(path==="/api/teams/transfer" && method==="POST") {
     }
   }
 
+  if (path === "/api/admin/teams" && method === "GET") {
+    const admin = await currentAdmin(request,env);
+    if (!admin) return response({error:"unauthorized"},401,origin,env);
+    if (!hasAdminPermission(admin,"overview")) return response({error:"forbidden"},403,origin,env);
+
+    const page = adminPage(url.searchParams.get("page"),1,100000);
+    const pageSize = adminPage(url.searchParams.get("pageSize"),20,50);
+    const offset = (page-1)*pageSize;
+    const query = (url.searchParams.get("q")||"").trim().slice(0,100);
+    const region = (url.searchParams.get("region")||"").trim().slice(0,100);
+    const level = (url.searchParams.get("level")||"").trim();
+    const minMembersRaw = url.searchParams.get("minMembers");
+    const maxMembersRaw = url.searchParams.get("maxMembers");
+    const minMembers = minMembersRaw===null||minMembersRaw==="" ? null : Number.parseInt(minMembersRaw,10);
+    const maxMembers = maxMembersRaw===null||maxMembersRaw==="" ? null : Number.parseInt(maxMembersRaw,10);
+    if ((minMembers!==null && (!Number.isSafeInteger(minMembers)||minMembers<1||minMembers>100000)) ||
+        (maxMembers!==null && (!Number.isSafeInteger(maxMembers)||maxMembers<1||maxMembers>100000)) ||
+        (minMembers!==null && maxMembers!==null && minMembers>maxMembers)) {
+      return response({error:"invalid_team_member_range"},400,origin,env);
+    }
+    if (!["","985","211","double_first_class","other"].includes(level)) {
+      return response({error:"invalid_team_level"},400,origin,env);
+    }
+
+    const teamBaseSql = [
+      "SELECT t.id,t.university_id AS universityId,uni.canonical_name AS university,",
+      "COUNT(u.id) AS memberCount,leader.name AS leaderName,",
+      "COALESCE(NULLIF(uni.province_name_zh,''),NULLIF(profile_catalog.province_name,''),",
+      "NULLIF(uni.country_name_zh,''),NULLIF(uni.region_name,''),'地区未填写') AS region,",
+      "COALESCE(uni.category,'unclassified') AS universityCategory,",
+      "COALESCE(uni.education_level,'') AS educationLevel,",
+      "COALESCE(uni.degree_levels_json,'[]') AS degreeLevelsJson,",
+      "COALESCE(uni.project_tags_json,'[]') AS projectTagsJson",
+      "FROM teams t JOIN universities uni ON uni.id=t.university_id",
+      "LEFT JOIN profile_university_catalog profile_catalog ON profile_catalog.university_id=uni.id",
+      "LEFT JOIN users u ON u.university_id=t.university_id AND u.deleted_at=''",
+      "LEFT JOIN users leader ON leader.id=t.leader_user_id AND leader.deleted_at=''",
+      "GROUP BY t.id,t.university_id,uni.canonical_name,leader.name,uni.province_name_zh,",
+      "profile_catalog.province_name,uni.country_name_zh,uni.region_name,uni.category,",
+      "uni.education_level,uni.degree_levels_json,uni.project_tags_json",
+      "HAVING COUNT(u.id)>0"
+    ].join(" ");
+    const where=[];
+    const bindings=[];
+    if(query){
+      where.push("(instr(lower(coalesce(teams.university,'')),lower(?))>0 OR instr(lower(coalesce(teams.leaderName,'')),lower(?))>0)");
+      bindings.push(query,query);
+    }
+    if(region){where.push("teams.region=?");bindings.push(region);}
+    const projectJson = "CASE WHEN json_valid(teams.projectTagsJson) THEN teams.projectTagsJson ELSE '[]' END";
+    if(level==="985"||level==="211"||level==="double_first_class"){
+      const codes=level==="985"?["project_985_legacy"]:
+        level==="211"?["project_211_legacy"]:
+        ["double_first_class_round1","double_first_class_round2"];
+      const placeholders=codes.map(()=>"?").join(",");
+      where.push(
+        "(EXISTS(SELECT 1 FROM json_each("+projectJson+") project_tag WHERE project_tag.value IN ("+placeholders+")) "+
+        "OR EXISTS(SELECT 1 FROM university_tags catalog_tag WHERE catalog_tag.university_id=teams.universityId "+
+        "AND catalog_tag.tag_group='project' AND catalog_tag.tag_code IN ("+placeholders+")))"
+      );
+      bindings.push(...codes,...codes);
+    } else if(level==="other"){
+      const knownCodes=["project_985_legacy","project_211_legacy","double_first_class_round1","double_first_class_round2"];
+      const placeholders=knownCodes.map(()=>"?").join(",");
+      where.push(
+        "(NOT EXISTS(SELECT 1 FROM json_each("+projectJson+") project_tag WHERE project_tag.value IN ("+placeholders+")) "+
+        "AND NOT EXISTS(SELECT 1 FROM university_tags catalog_tag WHERE catalog_tag.university_id=teams.universityId "+
+        "AND catalog_tag.tag_group='project' AND catalog_tag.tag_code IN ("+placeholders+")))"
+      );
+      bindings.push(...knownCodes,...knownCodes);
+    }
+    if(minMembers!==null){where.push("teams.memberCount>=?");bindings.push(minMembers);}
+    if(maxMembers!==null){where.push("teams.memberCount<=?");bindings.push(maxMembers);}
+    const whereSql=where.length?" WHERE "+where.join(" AND "):"";
+    const count=await env.DB.prepare(
+      "SELECT COUNT(*) AS total FROM ("+teamBaseSql+") teams"+whereSql
+    ).bind(...bindings).first();
+    const total=Number(count?.total||0);
+    const rows=await env.DB.prepare(
+      "SELECT teams.* FROM ("+teamBaseSql+") teams"+whereSql+
+      " ORDER BY teams.memberCount DESC,teams.university COLLATE NOCASE ASC LIMIT ? OFFSET ?"
+    ).bind(...bindings,pageSize,offset).all();
+    const regionRows=await env.DB.prepare(
+      "SELECT DISTINCT active_teams.region FROM ("+teamBaseSql+") active_teams ORDER BY active_teams.region COLLATE NOCASE"
+    ).all();
+    return response({
+      items:rows.results||[],
+      pagination:{page,pageSize,total,totalPages:Math.max(1,Math.ceil(total/pageSize))},
+      filterOptions:{regions:(regionRows.results||[]).map(item=>item.region).filter(Boolean)}
+    },200,origin,env);
+  }
+
   if (path === "/api/admin/overview" && method === "GET") {
     const admin = await currentAdmin(request,env);
     if (!admin) return response({error:"unauthorized"},401,origin,env);
